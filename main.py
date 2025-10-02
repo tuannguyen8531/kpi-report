@@ -40,8 +40,8 @@ def parse_arguments():
             print("Month and year must be integers")
             sys.exit(1)
     else:
-        now = datetime.now()
-        return now.month, now.year
+        print("Usage: python main.py <month> <year>")
+        sys.exit(0)
 
 
 def get_file_paths(month, year):
@@ -121,13 +121,20 @@ def get_gitlab_dates(project, task, task_type):
         return '', '', '', ''
     
     try:
-        work_item_data = graphql_client.get_work_item(URL_MAP[project], str(task))
-        return (
-            work_item_data.get('start_date', ''),
-            work_item_data.get('due_date', ''),
-            work_item_data.get('closed_date', ''),
-            work_item_data.get('estimate', '')
-        )
+        if task_type == 'TASK':
+            work_item_data = graphql_client.get_work_item(URL_MAP[project], str(task))
+            return (
+                work_item_data.get('start_date', ''),
+                work_item_data.get('due_date', ''),
+                work_item_data.get('closed_date', ''),
+                work_item_data.get('estimate', '')
+            )
+        elif task_type == 'MR':
+            mr_data = graphql_client.get_merge_request(URL_MAP[project], str(task))
+            estimate = mr_data.get('estimate', '')
+            return '', '', '', estimate
+        else:
+            return '', '', '', ''
     except Exception as e:
         print(f"Error fetching GitLab data for {project} task {task}: {e}")
         return '', '', '', ''
@@ -147,7 +154,6 @@ def create_project_dataframes(grouped_projects):
         
         group = grouped_projects[grouped_projects['Project'] == project]
         if not group.empty:
-            # Prepare lists for DataFrame columns
             urls = []
             start_dates = []
             due_dates = []
@@ -159,15 +165,22 @@ def create_project_dataframes(grouped_projects):
                 urls.append(row['Url'])
                 spent_times.append(row['Spent'])
                 
-                # Get GitLab dates and estimate
                 gitlab_start, gitlab_due, gitlab_closed, gitlab_estimate = get_gitlab_dates(
                     row['Project'], row['Task'], row['Type']
                 )
                 
-                # Use GitLab start_date if available, otherwise use grouped start_date
-                start_dates.append(gitlab_start if gitlab_start else row['Start_date'])
-                due_dates.append(gitlab_due)
-                closed_dates.append(gitlab_closed)
+                if row['Type'] == 'MR':
+                    final_start = row['Start_date']
+                    final_due = row['Start_date']
+                    final_closed = row['Start_date']
+                else:
+                    final_start = gitlab_start if gitlab_start else row['Start_date']
+                    final_due = gitlab_due
+                    final_closed = gitlab_closed
+                
+                start_dates.append(final_start)
+                due_dates.append(final_due)
+                closed_dates.append(final_closed)
                 estimates.append(gitlab_estimate)
             
             project_df = pd.DataFrame({

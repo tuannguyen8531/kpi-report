@@ -2,7 +2,7 @@ import requests
 from datetime import datetime
 
 class GraphQLClient:
-    query = """
+    query_task = """
     query($fullPath: ID!, $iid: String!) {
         project(fullPath: $fullPath) {
             workItems(iid: $iid) {
@@ -17,6 +17,18 @@ class GraphQLClient:
                             timeEstimate
                         }
                     }
+                }
+            }
+        }
+    }
+    """
+
+    query_mr = """
+    query($fullPath: ID!, $iid: String!) {
+        project(fullPath: $fullPath) {
+            mergeRequests(iids: [$iid]) {
+                nodes {
+                    timeEstimate
                 }
             }
         }
@@ -50,8 +62,8 @@ class GraphQLClient:
             "fullPath": full_path,
             "iid": iid
         }
-        result = self.execute_query(self.query, variables)
-        
+        result = self.execute_query(self.query_task, variables)
+
         work_item_info = {
             "closed_date": "",
             "start_date": "",
@@ -89,3 +101,35 @@ class GraphQLClient:
             print(f"Error processing work item data: {e}")
             
         return work_item_info
+    
+    def get_merge_request(self, full_path: str, iid: str) -> dict:
+        """
+        Get merge request details by project full path and MR IID.
+        Returns dict with estimate in hours.
+        """
+        variables = {
+            "fullPath": full_path,
+            "iid": iid
+        }
+        result = self.execute_query(self.query_mr, variables)
+
+        mr_info = {
+            "estimate": ""
+        }
+        
+        try:
+            mrs = result.get('data', {}).get('project', {}).get('mergeRequests', {}).get('nodes', [])
+            if not mrs:
+                return mr_info
+                
+            mr = mrs[0]
+            
+            if mr.get('timeEstimate'):
+                estimate_seconds = mr['timeEstimate']
+                estimate_hours = estimate_seconds / 3600
+                mr_info["estimate"] = f"{estimate_hours:.2f}"
+                        
+        except Exception as e:
+            print(f"Error processing merge request data: {e}")
+            
+        return mr_info

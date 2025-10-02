@@ -2,41 +2,28 @@ import pandas as pd
 from datetime import datetime
 import os
 import sys
+from dotenv import load_dotenv
+from gitlab import GraphQLClient
+
+load_dotenv()
 
 URL_MAP = {
-    'D-System': {
-        'TASK': 'https://gitlab.widosoft.com/wido-cardgame-group/cardgame-system/-/work_items/',
-        'MR': 'https://gitlab.widosoft.com/wido-cardgame-group/cardgame-system/-/merge_requests/'
-    },
-    'VILD-Gacha': {
-        'TASK': 'https://gitlab.widosoft.com/wido-cardgame-group/vildgacha-system/-/work_items/',
-        'MR': 'https://gitlab.widosoft.com/wido-cardgame-group/vildgacha-system/-/merge_requests/'
-    },
-    'Oripark-App': {
-        'TASK': 'https://gitlab.widosoft.com/wido-cardgame-group/cardgameapp/oripark-app/-/work_items/',
-        'MR': 'https://gitlab.widosoft.com/wido-cardgame-group/cardgameapp/oripark-app/-/merge_requests/'
-    },
-    'AI-Chat Service': {
-        'TASK': 'https://gitlab.widosoft.com/wido-ai-chat/ai-chat-service/-/work_items/',
-        'MR': 'https://gitlab.widosoft.com/wido-ai-chat/ai-chat-service/-/merge_requests/'
-    },
-    'AI-Chat Demo': {
-        'TASK': 'https://gitlab.widosoft.com/wido-ai-chat/ai-chat-demo/-/work_items/',
-        'MR': 'https://gitlab.widosoft.com/wido-ai-chat/ai-chat-demo/-/merge_requests/'
-    },
-    'AI-Embedding': {
-        'TASK': 'https://gitlab.widosoft.com/wido-ai-chat/ai-embedding-service/-/work_items/',
-        'MR': 'https://gitlab.widosoft.com/wido-ai-chat/ai-embedding-service/-/merge_requests/'
-    },
-    'OFF': {
-        'OFF': ''
-    }
+    'D-System': 'wido-cardgame-group/cardgame-system',
+    'VILD-Gacha': 'wido-cardgame-group/vildgacha-system',
+    'Oripark-App': 'wido-cardgame-group/cardgameapp/oripark-app',
+    'AI-Chat Service': 'wido-ai-chat/ai-chat-service',
+    'AI-Chat Demo': 'wido-ai-chat/ai-chat-demo',
+    'AI-Embedding': 'wido-ai-chat/ai-embedding-service',
+    'OFF': ''
 }
 
 OUTPUT_COLUMNS = [
     'Url', 'Start date', 'Due date', 'Closed date', 'Estimate', 
     'Spent', 'Reopen count', 'Task Type', 'Progress'
 ]
+
+
+graphql_client = GraphQLClient(os.getenv('GITLAB_URL'), os.getenv('GITLAB_TOKEN'))
 
 
 def parse_arguments():
@@ -105,8 +92,17 @@ def get_url(row):
     project = row['Project']
     task_type = row['Type']
     task = row['Task']
-    if project in URL_MAP and task_type in URL_MAP[project]:
-        return URL_MAP[project][task_type] + str(task)
+    
+    if project == 'OFF':
+        return 'OFF'
+    
+    if project in URL_MAP and URL_MAP[project]:
+        base_url = f"https://gitlab.widosoft.com/{URL_MAP[project]}/-/"
+        if task_type == 'TASK':
+            return f"{base_url}work_items/{task}"
+        elif task_type == 'MR':
+            return f"{base_url}merge_requests/{task}"
+    
     return ''
 
 
@@ -117,6 +113,24 @@ def sort_projects_by_order(grouped_projects):
         lambda x: project_order.index(x) if x in project_order else len(project_order)
     )
     return grouped_projects.sort_values(['Project_order', 'Start_date'])
+
+
+def get_gitlab_dates(project, task, task_type):
+    """Get start_date, due_date, closed_date, and estimate from GitLab API."""
+    if project == 'OFF' or project not in URL_MAP or not URL_MAP[project]:
+        return '', '', '', ''
+    
+    try:
+        work_item_data = graphql_client.get_work_item(URL_MAP[project], str(task))
+        return (
+            work_item_data.get('start_date', ''),
+            work_item_data.get('due_date', ''),
+            work_item_data.get('closed_date', ''),
+            work_item_data.get('estimate', '')
+        )
+    except Exception as e:
+        print(f"Error fetching GitLab data for {project} task {task}: {e}")
+        return '', '', '', ''
 
 
 def create_project_dataframes(grouped_projects):
@@ -133,13 +147,36 @@ def create_project_dataframes(grouped_projects):
         
         group = grouped_projects[grouped_projects['Project'] == project]
         if not group.empty:
+            # Prepare lists for DataFrame columns
+            urls = []
+            start_dates = []
+            due_dates = []
+            closed_dates = []
+            estimates = []
+            spent_times = []
+            
+            for _, row in group.iterrows():
+                urls.append(row['Url'])
+                spent_times.append(row['Spent'])
+                
+                # Get GitLab dates and estimate
+                gitlab_start, gitlab_due, gitlab_closed, gitlab_estimate = get_gitlab_dates(
+                    row['Project'], row['Task'], row['Type']
+                )
+                
+                # Use GitLab start_date if available, otherwise use grouped start_date
+                start_dates.append(gitlab_start if gitlab_start else row['Start_date'])
+                due_dates.append(gitlab_due)
+                closed_dates.append(gitlab_closed)
+                estimates.append(gitlab_estimate)
+            
             project_df = pd.DataFrame({
-                'Url': group['Url'],
-                'Start date': group['Start_date'],
-                'Due date': '',
-                'Closed date': '',
-                'Estimate': '',
-                'Spent': group['Spent'],
+                'Url': urls,
+                'Start date': start_dates,
+                'Due date': due_dates,
+                'Closed date': closed_dates,
+                'Estimate': estimates,
+                'Spent': spent_times,
                 'Reopen count': 0,
                 'Task Type': 'Kế hoạch',
                 'Progress': 'Đúng hạn'

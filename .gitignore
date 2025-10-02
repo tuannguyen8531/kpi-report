@@ -1,2 +1,6 @@
 input/
 output/
+*.csv
+*.log
+.env
+__pycache__/

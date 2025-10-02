@@ -4,6 +4,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from gitlab import GraphQLClient
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -148,12 +149,18 @@ def create_project_dataframes(grouped_projects):
     output_dfs = []
     project_order = list(URL_MAP.keys())
     
+    # Count total tasks for progress tracking
+    total_tasks = len(grouped_projects)
+    print(f"Processing {total_tasks} tasks from GitLab API...")
+    
     for project in project_order:
         if project == 'OFF':
             continue
         
         group = grouped_projects[grouped_projects['Project'] == project]
         if not group.empty:
+            print(f"Processing project: {project}")
+            
             urls = []
             start_dates = []
             due_dates = []
@@ -161,7 +168,8 @@ def create_project_dataframes(grouped_projects):
             estimates = []
             spent_times = []
             
-            for _, row in group.iterrows():
+            # Use tqdm for progress bar within each project
+            for _, row in tqdm(group.iterrows(), total=len(group), desc=f"{project} tasks", leave=False):
                 urls.append(row['Url'])
                 spent_times.append(row['Spent'])
                 
@@ -222,12 +230,52 @@ def create_off_dataframe(grouped_off):
 
 
 def save_report(output_dfs, off_df, output_file):
-    """Save the final report to CSV file."""
+    """Save the final report to CSV and Excel files."""
     os.makedirs('output', exist_ok=True)
     
+    print("Combining data and creating final report...")
     output_dfs.append(off_df)
     final_df = pd.concat(output_dfs, ignore_index=True)
+    
+    # Save CSV file
+    print(f"Saving CSV file: {output_file}")
     final_df.to_csv(output_file, index=False, encoding='utf-8-sig')
+    
+    # Create Excel file with comma decimal format
+    excel_file = output_file.replace('.csv', '.xlsx')
+    print(f"Creating Excel file: {excel_file}")
+    save_excel_report(final_df, excel_file)
+
+
+def save_excel_report(df, excel_file):
+    """Save DataFrame to Excel with comma decimal format for Estimate and Spent columns."""
+    # Create a copy of the dataframe to avoid modifying the original
+    df_excel = df.copy()
+    
+    # Convert numeric columns from dot to comma format
+    for col in ['Estimate', 'Spent']:
+        df_excel[col] = df_excel[col].astype(str).str.replace('.', ',', regex=False)
+    
+    # Save to Excel
+    with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
+        df_excel.to_excel(writer, sheet_name='Report', index=False)
+        
+        # Get the workbook and worksheet
+        workbook = writer.book
+        worksheet = writer.sheets['Report']
+        
+        # Auto-adjust column widths
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)  # Max width of 50
+            worksheet.column_dimensions[column_letter].width = adjusted_width
 
 
 def main():
@@ -235,6 +283,9 @@ def main():
     month, year = parse_arguments()
     input_file, output_file = get_file_paths(month, year)
     
+    print(f"Input file: {input_file}")
+    
+    print("Loading and processing data...")
     df = load_and_validate_data(input_file)
     
     grouped_projects = process_project_data(df)
@@ -245,7 +296,10 @@ def main():
     
     save_report(output_dfs, off_df, output_file)
     
-    print(f"Processed file {input_file} and exported to {output_file}")
+    excel_file = output_file.replace('.csv', '.xlsx')
+    print(f"Successfully processed and exported:")
+    print(f"CSV: {output_file}")
+    print(f"Excel: {excel_file}")
 
 
 if __name__ == "__main__":

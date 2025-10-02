@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 import sys
 
-url_map = {
+URL_MAP = {
     'D-System': {
         'TASK': 'https://gitlab.widosoft.com/wido-cardgame-group/cardgame-system/-/work_items/',
         'MR': 'https://gitlab.widosoft.com/wido-cardgame-group/cardgame-system/-/merge_requests/'
@@ -33,104 +33,170 @@ url_map = {
     }
 }
 
-if len(sys.argv) == 3:
-    try:
-        month = int(sys.argv[1])
-        year = int(sys.argv[2])
-        if month < 1 or month > 12:
-            print("Month must be between 1 and 12")
-            exit(1)
-    except ValueError:
-        print("Month and year must be integers")
-        exit(1)
-else:
-    month = datetime.now().month
-    year = datetime.now().year
+OUTPUT_COLUMNS = [
+    'Url', 'Start date', 'Due date', 'Closed date', 'Estimate', 
+    'Spent', 'Reopen count', 'Task Type', 'Progress'
+]
 
-month_str = f"{month:02d}"
-input_file = f"input/tasks_{month_str}_{year}.csv"
-output_file = f"output/report_{month_str}_{year}.csv"
 
-if not os.path.exists(input_file):
-    print(f"Input file {input_file} does not exist.")
-    exit(1)
+def parse_arguments():
+    """Parse command line arguments for month and year."""
+    if len(sys.argv) == 3:
+        try:
+            month = int(sys.argv[1])
+            year = int(sys.argv[2])
+            if month < 1 or month > 12:
+                print("Month must be between 1 and 12")
+                sys.exit(1)
+            return month, year
+        except ValueError:
+            print("Month and year must be integers")
+            sys.exit(1)
+    else:
+        now = datetime.now()
+        return now.month, now.year
 
-df = pd.read_csv(input_file)
 
-df['Date'] = pd.to_datetime(df['Date'], format='%B %d, %Y')
+def get_file_paths(month, year):
+    """Generate input and output file paths based on month and year."""
+    month_str = f"{month:02d}"
+    input_file = f"input/tasks_{month_str}_{year}.csv"
+    output_file = f"output/report_{month_str}_{year}.csv"
+    return input_file, output_file
 
-df_projects = df[df['Project'] != 'OFF']
-df_off = df[df['Project'] == 'OFF']
 
-grouped_projects = df_projects.groupby(['Project', 'Task', 'Type']).agg(
-    Start_date=('Date', 'min'),
-    Spent=('Time', 'sum')
-).reset_index()
+def load_and_validate_data(input_file):
+    """Load CSV data and validate file existence."""
+    if not os.path.exists(input_file):
+        print(f"Input file {input_file} does not exist.")
+        sys.exit(1)
+    
+    df = pd.read_csv(input_file)
+    df['Date'] = pd.to_datetime(df['Date'], format='%B %d, %Y')
+    return df
 
-grouped_off = df_off.copy()
-grouped_off['Start_date'] = grouped_off['Date']
-grouped_off['Spent'] = grouped_off['Time']
-grouped_off = grouped_off[['Project', 'Task', 'Type', 'Start_date', 'Spent']]
 
-grouped_projects['Start_date'] = grouped_projects['Start_date'].dt.strftime('%m/%d/%Y')
-grouped_off['Start_date'] = grouped_off['Start_date'].dt.strftime('%m/%d/%Y')
+def process_project_data(df):
+    """Process project data and group by project, task, and type."""
+    df_projects = df[df['Project'] != 'OFF']
+    
+    grouped_projects = df_projects.groupby(['Project', 'Task', 'Type']).agg(
+        Start_date=('Date', 'min'),
+        Spent=('Time', 'sum')
+    ).reset_index()
+    
+    grouped_projects['Start_date'] = grouped_projects['Start_date'].dt.strftime('%m/%d/%Y')
+    return grouped_projects
 
-output_columns = ['Url', 'Start date', 'Due date', 'Closed date', 'Estimate', 'Spent', 'Reopen count', 'Task Type', 'Progress']
+
+def process_off_data(df):
+    """Process OFF (time off) data."""
+    df_off = df[df['Project'] == 'OFF']
+    grouped_off = df_off.copy()
+    grouped_off['Start_date'] = grouped_off['Date']
+    grouped_off['Spent'] = grouped_off['Time']
+    grouped_off = grouped_off[['Project', 'Task', 'Type', 'Start_date', 'Spent']]
+    grouped_off['Start_date'] = grouped_off['Start_date'].dt.strftime('%m/%d/%Y')
+    return grouped_off
+
 
 def get_url(row):
+    """Generate URL for a task based on project and type."""
     project = row['Project']
     task_type = row['Type']
     task = row['Task']
-    if project in url_map and task_type in url_map[project]:
-        return url_map[project][task_type] + str(task)
+    if project in URL_MAP and task_type in URL_MAP[project]:
+        return URL_MAP[project][task_type] + str(task)
     return ''
 
-grouped_projects['Url'] = grouped_projects.apply(get_url, axis=1)
-grouped_off['Url'] = 'OFF'
 
-project_order = list(url_map.keys())
-grouped_projects['Project_order'] = grouped_projects['Project'].apply(lambda x: project_order.index(x) if x in project_order else len(project_order))
-grouped_projects = grouped_projects.sort_values(['Project_order', 'Start_date'])
+def sort_projects_by_order(grouped_projects):
+    """Sort projects according to URL_MAP order."""
+    project_order = list(URL_MAP.keys())
+    grouped_projects['Project_order'] = grouped_projects['Project'].apply(
+        lambda x: project_order.index(x) if x in project_order else len(project_order)
+    )
+    return grouped_projects.sort_values(['Project_order', 'Start_date'])
 
-output_dfs = []
-for project in project_order:
-    if project == 'OFF':
-        continue
-    group = grouped_projects[grouped_projects['Project'] == project]
-    if not group.empty:
-        project_df = pd.DataFrame({
-            'Url': group['Url'],
-            'Start date': group['Start_date'],
-            'Due date': '',
-            'Closed date': '',
-            'Estimate': '',
-            'Spent': group['Spent'],
-            'Reopen count': 0,
-            'Task Type': 'Kế hoạch',
-            'Progress': 'Đúng hạn'
-        })
-        output_dfs.append(project_df)
-        blank_df = pd.DataFrame([[''] * len(output_columns)], columns=output_columns)
-        output_dfs.append(blank_df)
 
-off_df = pd.DataFrame({
-    'Url': grouped_off['Url'],
-    'Start date': grouped_off['Start_date'],
-    'Due date': '',
-    'Closed date': '',
-    'Estimate': '',
-    'Spent': grouped_off['Spent'],
-    'Reopen count': 0,
-    'Task Type': 'Kế hoạch',
-    'Progress': 'Đúng hạn'
-})
+def create_project_dataframes(grouped_projects):
+    """Create output DataFrames for each project."""
+    grouped_projects['Url'] = grouped_projects.apply(get_url, axis=1)
+    grouped_projects = sort_projects_by_order(grouped_projects)
+    
+    output_dfs = []
+    project_order = list(URL_MAP.keys())
+    
+    for project in project_order:
+        if project == 'OFF':
+            continue
+        
+        group = grouped_projects[grouped_projects['Project'] == project]
+        if not group.empty:
+            project_df = pd.DataFrame({
+                'Url': group['Url'],
+                'Start date': group['Start_date'],
+                'Due date': '',
+                'Closed date': '',
+                'Estimate': '',
+                'Spent': group['Spent'],
+                'Reopen count': 0,
+                'Task Type': 'Kế hoạch',
+                'Progress': 'Đúng hạn'
+            })
+            output_dfs.append(project_df)
+            
+            blank_df = pd.DataFrame([[''] * len(OUTPUT_COLUMNS)], columns=OUTPUT_COLUMNS)
+            output_dfs.append(blank_df)
+    
+    return output_dfs
 
-off_df = off_df.sort_values('Start date')
-output_dfs.append(off_df)
 
-os.makedirs('output', exist_ok=True)
+def create_off_dataframe(grouped_off):
+    """Create output DataFrame for OFF entries."""
+    grouped_off['Url'] = 'OFF'
+    
+    off_df = pd.DataFrame({
+        'Url': grouped_off['Url'],
+        'Start date': grouped_off['Start_date'],
+        'Due date': '',
+        'Closed date': '',
+        'Estimate': '',
+        'Spent': grouped_off['Spent'],
+        'Reopen count': 0,
+        'Task Type': 'Kế hoạch',
+        'Progress': 'Đúng hạn'
+    })
+    
+    return off_df.sort_values('Start date')
 
-final_df = pd.concat(output_dfs, ignore_index=True)
-final_df.to_csv(output_file, index=False, encoding='utf-8-sig')
 
-print(f"Processed file {input_file} and exported to {output_file}")
+def save_report(output_dfs, off_df, output_file):
+    """Save the final report to CSV file."""
+    os.makedirs('output', exist_ok=True)
+    
+    output_dfs.append(off_df)
+    final_df = pd.concat(output_dfs, ignore_index=True)
+    final_df.to_csv(output_file, index=False, encoding='utf-8-sig')
+
+
+def main():
+    """Main function to orchestrate the report generation."""
+    month, year = parse_arguments()
+    input_file, output_file = get_file_paths(month, year)
+    
+    df = load_and_validate_data(input_file)
+    
+    grouped_projects = process_project_data(df)
+    grouped_off = process_off_data(df)
+    
+    output_dfs = create_project_dataframes(grouped_projects)
+    off_df = create_off_dataframe(grouped_off)
+    
+    save_report(output_dfs, off_df, output_file)
+    
+    print(f"Processed file {input_file} and exported to {output_file}")
+
+
+if __name__ == "__main__":
+    main()

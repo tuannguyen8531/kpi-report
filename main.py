@@ -88,27 +88,30 @@ def get_url(row):
 grouped_projects['Url'] = grouped_projects.apply(get_url, axis=1)
 grouped_off['Url'] = 'OFF'
 
-project_order = ['D-System', 'Oripark-App', 'VILD-Gacha', 'AI-Chat Service', 'AI-Embedding']
+project_order = list(url_map.keys())
 grouped_projects['Project_order'] = grouped_projects['Project'].apply(lambda x: project_order.index(x) if x in project_order else len(project_order))
 grouped_projects = grouped_projects.sort_values(['Project_order', 'Start_date'])
-project_groups = grouped_projects.groupby('Project')
 
 output_dfs = []
-for project, group in project_groups:
-    project_df = pd.DataFrame({
-        'Url': group['Url'],
-        'Start date': group['Start_date'],
-        'Due date': '',
-        'Closed date': '',
-        'Estimate': '',
-        'Spent': group['Spent'],
-        'Reopen count': 0,
-        'Task Type': 'Kế hoạch',
-        'Progress': 'Đúng hạn'
-    })
-    output_dfs.append(project_df)
-    blank_df = pd.DataFrame([[''] * len(output_columns)], columns=output_columns)
-    output_dfs.append(blank_df)
+for project in project_order:
+    if project == 'OFF':
+        continue
+    group = grouped_projects[grouped_projects['Project'] == project]
+    if not group.empty:
+        project_df = pd.DataFrame({
+            'Url': group['Url'],
+            'Start date': group['Start_date'],
+            'Due date': '',
+            'Closed date': '',
+            'Estimate': '',
+            'Spent': group['Spent'],
+            'Reopen count': 0,
+            'Task Type': 'Kế hoạch',
+            'Progress': 'Đúng hạn'
+        })
+        output_dfs.append(project_df)
+        blank_df = pd.DataFrame([[''] * len(output_columns)], columns=output_columns)
+        output_dfs.append(blank_df)
 
 off_df = pd.DataFrame({
     'Url': grouped_off['Url'],

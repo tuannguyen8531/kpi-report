@@ -200,6 +200,20 @@ def create_project_dataframes(grouped_projects: pd.DataFrame) -> List[pd.DataFra
         if not group.empty:
             print(f"Processing project: {project}")
             
+            # Add project header
+            project_header_df = pd.DataFrame([{
+                'Url': f"{project}",
+                'Start date': '',
+                'Due date': '',
+                'Closed date': '',
+                'Estimate': '',
+                'Spent': '',
+                'Reopen count': '',
+                'Task Type': '',
+                'Progress': ''
+            }])
+            output_dfs.append(project_header_df)
+            
             urls = []
             start_dates = []
             due_dates = []
@@ -273,6 +287,22 @@ def save_report(output_dfs: List[pd.DataFrame], off_df: pd.DataFrame, output_fil
     os.makedirs('output', exist_ok=True)
     
     print("Combining data and creating final report...")
+    
+    # Add OFF header if there's OFF data
+    if not off_df.empty:
+        off_header_df = pd.DataFrame([{
+            'Url': "OFF",
+            'Start date': '',
+            'Due date': '',
+            'Closed date': '',
+            'Estimate': '',
+            'Spent': '',
+            'Reopen count': '',
+            'Task Type': '',
+            'Progress': ''
+        }])
+        output_dfs.append(off_header_df)
+    
     output_dfs.append(off_df)
     final_df = pd.concat(output_dfs, ignore_index=True)
     

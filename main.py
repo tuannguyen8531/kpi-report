@@ -2,21 +2,39 @@ import pandas as pd
 from datetime import datetime
 import os
 import sys
+from typing import Dict, Tuple, List
 from dotenv import load_dotenv
 from gitlab import GraphQLClient
 from tqdm import tqdm
 
 load_dotenv()
 
-URL_MAP = {
-    'D-System': 'wido-cardgame-group/cardgame-system',
-    'VILD-Gacha': 'wido-cardgame-group/vildgacha-system',
-    'Oripark-App': 'wido-cardgame-group/cardgameapp/oripark-app',
-    'AI-Chat Service': 'wido-ai-chat/ai-chat-service',
-    'AI-Chat Demo': 'wido-ai-chat/ai-chat-demo',
-    'AI-Embedding': 'wido-ai-chat/ai-embedding-service',
-    'OFF': ''
-}
+
+def load_url_map() -> Dict[str, str]:
+    """Load URL_MAP from projects.txt file."""
+    url_map = {}
+    projects_file = 'projects.txt'
+    
+    if not os.path.exists(projects_file):
+        print(f"Error: {projects_file} not found. Please create this file with project configurations.")
+        print("Format: ProjectName=gitlab/full/path")
+        sys.exit(1)
+    
+    try:
+        with open(projects_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and '=' in line:
+                    project, path = line.split('=', 1)
+                    url_map[project.strip()] = path.strip()
+        print(f"Loaded {len(url_map)} projects from {projects_file}")
+        return url_map
+    except Exception as e:
+        print(f"Error reading {projects_file}: {e}")
+        sys.exit(1)
+
+
+URL_MAP = load_url_map()
 
 OUTPUT_COLUMNS = [
     'Url', 'Start date', 'Due date', 'Closed date', 'Estimate', 
@@ -27,7 +45,7 @@ OUTPUT_COLUMNS = [
 graphql_client = GraphQLClient(os.getenv('GITLAB_URL'), os.getenv('GITLAB_TOKEN'))
 
 
-def parse_arguments():
+def parse_arguments() -> Tuple[int, int]:
     """Parse command line arguments for month and year."""
     if len(sys.argv) == 3:
         try:
@@ -45,7 +63,7 @@ def parse_arguments():
         sys.exit(0)
 
 
-def get_file_paths(month, year):
+def get_file_paths(month: int, year: int) -> Tuple[str, str]:
     """Generate input and output file paths based on month and year."""
     month_str = f"{month:02d}"
     input_file = f"input/tasks_{month_str}_{year}.csv"
@@ -53,7 +71,7 @@ def get_file_paths(month, year):
     return input_file, output_file
 
 
-def load_and_validate_data(input_file):
+def load_and_validate_data(input_file: str) -> pd.DataFrame:
     """Load CSV data and validate file existence."""
     if not os.path.exists(input_file):
         print(f"Input file {input_file} does not exist.")
@@ -61,10 +79,31 @@ def load_and_validate_data(input_file):
     
     df = pd.read_csv(input_file)
     df['Date'] = pd.to_datetime(df['Date'], format='%B %d, %Y')
+
+    validate_projects_in_csv(df)
+    
     return df
 
 
-def process_project_data(df):
+def validate_projects_in_csv(df: pd.DataFrame) -> None:
+    """Validate that all projects in CSV exist in URL_MAP."""
+    csv_projects = df['Project'].unique()
+    missing_projects = []
+    
+    for project in csv_projects:
+        if project not in URL_MAP:
+            missing_projects.append(project)
+    
+    if missing_projects:
+        print("Error: The following projects in CSV are not configured in projects.txt:")
+        for project in missing_projects:
+            print(f"  - {project}")
+        print(f"\nPlease add these projects to projects.txt with format:")
+        print("ProjectName=gitlab/full/path")
+        sys.exit(1)
+
+
+def process_project_data(df: pd.DataFrame) -> pd.DataFrame:
     """Process project data and group by project, task, and type."""
     df_projects = df[df['Project'] != 'OFF']
     
@@ -77,7 +116,7 @@ def process_project_data(df):
     return grouped_projects
 
 
-def process_off_data(df):
+def process_off_data(df: pd.DataFrame) -> pd.DataFrame:
     """Process OFF (time off) data."""
     df_off = df[df['Project'] == 'OFF']
     grouped_off = df_off.copy()
@@ -88,7 +127,7 @@ def process_off_data(df):
     return grouped_off
 
 
-def get_url(row):
+def get_url(row: pd.Series) -> str:
     """Generate URL for a task based on project and type."""
     project = row['Project']
     task_type = row['Type']
@@ -107,7 +146,7 @@ def get_url(row):
     return ''
 
 
-def sort_projects_by_order(grouped_projects):
+def sort_projects_by_order(grouped_projects: pd.DataFrame) -> pd.DataFrame:
     """Sort projects according to URL_MAP order."""
     project_order = list(URL_MAP.keys())
     grouped_projects['Project_order'] = grouped_projects['Project'].apply(
@@ -116,7 +155,7 @@ def sort_projects_by_order(grouped_projects):
     return grouped_projects.sort_values(['Project_order', 'Start_date'])
 
 
-def get_gitlab_dates(project, task, task_type):
+def get_gitlab_dates(project: str, task: int, task_type: str) -> Tuple[str, str, str, str]:
     """Get start_date, due_date, closed_date, and estimate from GitLab API."""
     if project == 'OFF' or project not in URL_MAP or not URL_MAP[project]:
         return '', '', '', ''
@@ -141,7 +180,7 @@ def get_gitlab_dates(project, task, task_type):
         return '', '', '', ''
 
 
-def create_project_dataframes(grouped_projects):
+def create_project_dataframes(grouped_projects: pd.DataFrame) -> List[pd.DataFrame]:
     """Create output DataFrames for each project."""
     grouped_projects['Url'] = grouped_projects.apply(get_url, axis=1)
     grouped_projects = sort_projects_by_order(grouped_projects)
@@ -210,7 +249,7 @@ def create_project_dataframes(grouped_projects):
     return output_dfs
 
 
-def create_off_dataframe(grouped_off):
+def create_off_dataframe(grouped_off: pd.DataFrame) -> pd.DataFrame:
     """Create output DataFrame for OFF entries."""
     grouped_off['Url'] = 'OFF'
     
@@ -229,7 +268,7 @@ def create_off_dataframe(grouped_off):
     return off_df.sort_values('Start date')
 
 
-def save_report(output_dfs, off_df, output_file):
+def save_report(output_dfs: List[pd.DataFrame], off_df: pd.DataFrame, output_file: str) -> None:
     """Save the final report to CSV and Excel files."""
     os.makedirs('output', exist_ok=True)
     
@@ -247,7 +286,7 @@ def save_report(output_dfs, off_df, output_file):
     save_excel_report(final_df, excel_file)
 
 
-def save_excel_report(df, excel_file):
+def save_excel_report(df: pd.DataFrame, excel_file: str) -> None:
     """Save DataFrame to Excel with comma decimal format for Estimate and Spent columns."""
     # Create a copy of the dataframe to avoid modifying the original
     df_excel = df.copy()
@@ -278,7 +317,7 @@ def save_excel_report(df, excel_file):
             worksheet.column_dimensions[column_letter].width = adjusted_width
 
 
-def main():
+def main() -> None:
     """Main function to orchestrate the report generation."""
     month, year = parse_arguments()
     input_file, output_file = get_file_paths(month, year)

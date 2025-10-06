@@ -2,11 +2,13 @@ import pandas as pd
 from datetime import datetime
 import os
 import sys
+import argparse
 from typing import Dict, Tuple, List
 from dotenv import load_dotenv
-from gitlab import GraphQLClient
+from .gitlab import GraphQLClient
 from tqdm import tqdm
 
+# Load environment variables
 load_dotenv()
 
 
@@ -47,20 +49,19 @@ graphql_client = GraphQLClient(os.getenv('GITLAB_URL'), os.getenv('GITLAB_TOKEN'
 
 def parse_arguments() -> Tuple[int, int]:
     """Parse command line arguments for month and year."""
-    if len(sys.argv) == 3:
-        try:
-            month = int(sys.argv[1])
-            year = int(sys.argv[2])
-            if month < 1 or month > 12:
-                print("Month must be between 1 and 12")
-                sys.exit(1)
-            return month, year
-        except ValueError:
-            print("Month and year must be integers")
-            sys.exit(1)
-    else:
-        print("Usage: python main.py <month> <year>")
-        sys.exit(0)
+    parser = argparse.ArgumentParser(description='Generate KPI report from GitLab data')
+    parser.add_argument('-m', '--month', type=int, required=True,
+                       help='Month (1-12)')
+    parser.add_argument('-y', '--year', type=int, required=True,
+                       help='Year (e.g., 2025)')
+    
+    args = parser.parse_args()
+    
+    if args.month < 1 or args.month > 12:
+        print("Month must be between 1 and 12")
+        sys.exit(1)
+    
+    return args.month, args.year
 
 
 def get_file_paths(month: int, year: int) -> Tuple[str, str]:
@@ -202,7 +203,7 @@ def create_project_dataframes(grouped_projects: pd.DataFrame) -> List[pd.DataFra
             
             # Add project header
             project_header_df = pd.DataFrame([{
-                'Url': f"{project}",
+                'Url': f"=== {project} ===",
                 'Start date': '',
                 'Due date': '',
                 'Closed date': '',
@@ -291,7 +292,7 @@ def save_report(output_dfs: List[pd.DataFrame], off_df: pd.DataFrame, output_fil
     # Add OFF header if there's OFF data
     if not off_df.empty:
         off_header_df = pd.DataFrame([{
-            'Url': "OFF",
+            'Url': "=== OFF ===",
             'Start date': '',
             'Due date': '',
             'Closed date': '',

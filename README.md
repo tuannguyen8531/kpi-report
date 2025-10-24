@@ -46,7 +46,13 @@ GITLAB_TOKEN=your_gitlab_token_here
 
 ### 2. Project Configuration
 
-Create a `projects.json` file:
+Create a `projects.json` file from the example:
+
+```bash
+cp projects.json.example projects.json
+```
+
+Then edit `projects.json` with your GitLab project paths:
 
 ```json
 [

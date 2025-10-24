@@ -1,0 +1,14 @@
+[
+    {
+        "project": "ProjectName1",
+        "url": "gitlab/full/path/to/project1"
+    },
+    {
+        "project": "ProjectName2",
+        "url": "gitlab/full/path/to/project2"
+    },
+    {
+        "project": "OFF",
+        "url": ""
+    }
+]

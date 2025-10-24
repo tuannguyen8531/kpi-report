@@ -3,4 +3,5 @@ output/
 *.csv
 *.log
 .env
+projects.json
 __pycache__/

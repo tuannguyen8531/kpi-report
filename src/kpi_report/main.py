@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import sys
+import json
 import argparse
 from typing import Dict, Tuple, List
 from dotenv import load_dotenv
@@ -12,22 +13,23 @@ load_dotenv()
 
 
 def load_url_map() -> Dict[str, str]:
-    """Load URL_MAP from projects.txt file."""
+    """Load URL_MAP from projects.json file."""
     url_map = {}
-    projects_file = 'projects.txt'
+    projects_file = 'projects.json'
     
     if not os.path.exists(projects_file):
         print(f"Error: {projects_file} not found. Please create this file with project configurations.")
-        print("Format: ProjectName=gitlab/full/path")
+        print('Format: [{"project": "ProjectName", "url": "gitlab/full/path"}]')
         sys.exit(1)
     
     try:
         with open(projects_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line and '=' in line:
-                    project, path = line.split('=', 1)
-                    url_map[project.strip()] = path.strip()
+            projects = json.load(f)
+            for item in projects:
+                project = item.get('project', '').strip()
+                url = item.get('url', '').strip()
+                if project:
+                    url_map[project] = url
         print(f"Loaded {len(url_map)} projects from {projects_file}")
         return url_map
     except Exception as e:
@@ -95,11 +97,11 @@ def validate_projects_in_csv(df: pd.DataFrame) -> None:
             missing_projects.append(project)
     
     if missing_projects:
-        print("Error: The following projects in CSV are not configured in projects.txt:")
+        print("Error: The following projects in CSV are not configured in projects.json:")
         for project in missing_projects:
             print(f"  - {project}")
-        print(f"\nPlease add these projects to projects.txt with format:")
-        print("ProjectName=gitlab/full/path")
+        print(f"\nPlease add these projects to projects.json with format:")
+        print('{"project": "ProjectName", "url": "gitlab/full/path"}')
         sys.exit(1)
 
 

@@ -46,12 +46,23 @@ GITLAB_TOKEN=your_gitlab_token_here
 
 ### 2. Project Configuration
 
-Create a `projects.txt` file:
+Create a `projects.json` file:
 
-```
-ProjectName1=gitlab/full/path/to/project1
-ProjectName2=gitlab/full/path/to/project2
-OFF=
+```json
+[
+    {
+        "project": "ProjectName1",
+        "url": "gitlab/full/path/to/project1"
+    },
+    {
+        "project": "ProjectName2",
+        "url": "gitlab/full/path/to/project2"
+    },
+    {
+        "project": "OFF",
+        "url": ""
+    }
+]
 ```
 
 ### 3. Input Data
@@ -93,7 +104,7 @@ kpi-report/
 ├── input/               # Input CSV files
 ├── output/              # Generated reports
 ├── .env                 # Environment variables
-├── projects.txt         # Project configuration
+├── projects.json        # Project configuration
 ├── pyproject.toml       # Project configuration
 └── README.md
 ```

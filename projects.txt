@@ -2,6 +2,7 @@ D-System=wido-cardgame-group/cardgame-system
 VILD-Gacha=wido-cardgame-group/vildgacha-system
 Oripark-App=wido-cardgame-group/cardgameapp/oripark-app
 Jinsuta-App=wido-cardgame-group/cardgameapp/jinsuta-app
+Hiroba-App=wido-cardgame-group/cardgameapp/raregachahiroba-app
 AI-Chat Service=wido-ai-chat/ai-chat-service
 AI-Chat Demo=wido-ai-chat/ai-chat-demo
 AI-Embedding=wido-ai-chat/ai-embedding-service

@@ -138,8 +138,9 @@ def get_url(row: pd.Series) -> str:
     if project == 'OFF':
         return 'OFF'
     
+    gitlab_url = os.getenv('GITLAB_URL')
     if project in URL_MAP and URL_MAP[project]:
-        base_url = f"https://gitlab.widosoft.com/{URL_MAP[project]}/-/"
+        base_url = f"{gitlab_url}/{URL_MAP[project]}/-/"
         if task_type == 'TASK':
             return f"{base_url}work_items/{task}"
         elif task_type == 'MR':

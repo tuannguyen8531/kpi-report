@@ -268,7 +268,8 @@ def create_project_dataframes(grouped_projects: pd.DataFrame) -> List[pd.DataFra
 
 def create_off_dataframe(grouped_off: pd.DataFrame) -> pd.DataFrame:
     """Create output DataFrame for OFF entries."""
-    grouped_off['Url'] = 'OFF'
+    # Use the Task column content as the URL for OFF entries
+    grouped_off['Url'] = grouped_off['Task']
     
     off_df = pd.DataFrame({
         'Url': grouped_off['Url'],

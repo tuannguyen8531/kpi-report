@@ -205,7 +205,7 @@ def create_project_dataframes(grouped_projects: pd.DataFrame) -> List[pd.DataFra
             
             # Add project header
             project_header_df = pd.DataFrame([{
-                'Url': f"=== {project} ===",
+                'Url': f"{project}",
                 'Start date': '',
                 'Due date': '',
                 'Closed date': '',
@@ -291,11 +291,24 @@ def save_report(output_dfs: List[pd.DataFrame], off_df: pd.DataFrame, output_fil
     os.makedirs('output', exist_ok=True)
     
     print("Combining data and creating final report...")
+
+    total_tasks_count = 0
+    total_spent = 0.0
+    total_estimate = 0.0
+
+    for df in output_dfs:
+        spent_numeric = pd.to_numeric(df['Spent'], errors='coerce')
+        estimate_numeric = pd.to_numeric(df['Estimate'], errors='coerce')
+        
+        total_spent += spent_numeric.sum()
+        total_estimate += estimate_numeric.sum()
+        
+        total_tasks_count += spent_numeric.notna().sum()
     
     # Add OFF header if there's OFF data
     if not off_df.empty:
         off_header_df = pd.DataFrame([{
-            'Url': "=== OFF ===",
+            'Url': "OFF",
             'Start date': '',
             'Due date': '',
             'Closed date': '',
@@ -308,6 +321,30 @@ def save_report(output_dfs: List[pd.DataFrame], off_df: pd.DataFrame, output_fil
         output_dfs.append(off_header_df)
     
     output_dfs.append(off_df)
+
+    blank_df = pd.DataFrame([[''] * len(OUTPUT_COLUMNS)], columns=OUTPUT_COLUMNS)
+    output_dfs.append(blank_df)
+
+    summary_rows = [
+        {
+            'Url': f"Number of tasks: ",
+            'Start date': f"{int(total_tasks_count)}", 'Due date': '', 'Closed date': '', 'Estimate': '', 
+            'Spent': '', 'Reopen count': '', 'Task Type': '', 'Progress': ''
+        },
+        {
+            'Url': "Total spent time:",
+            'Start date': f"{total_spent}", 'Due date': '', 'Closed date': '', 'Estimate': '', 
+            'Spent': '', 'Reopen count': '', 'Task Type': '', 'Progress': ''
+        },
+        {
+            'Url': "Total estimate time:",
+            'Start date': f"{total_estimate}", 'Due date': '', 'Closed date': '', 'Estimate': '',
+            'Spent': '', 'Reopen count': '', 'Task Type': '', 'Progress': ''
+        }
+    ]
+    summary_df = pd.DataFrame(summary_rows)
+    output_dfs.append(summary_df)
+
     final_df = pd.concat(output_dfs, ignore_index=True)
     
     # Save CSV file

@@ -1,6 +1,5 @@
-input/
+input/tasks_*.csv
 output/
-*.csv
 *.log
 .env
 projects.json

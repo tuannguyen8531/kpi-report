@@ -69,7 +69,7 @@ def get_file_paths(month: int, year: int) -> Tuple[str, str]:
     """Generate input and output file paths based on month and year."""
     month_str = f"{month:02d}"
     input_file = f"input/tasks_{month_str}_{year}.csv"
-    output_file = f"output/report_{month_str}_{year}.csv"
+    output_file = f"output/{year}/{month_str}/report_{month_str}_{year}.csv"
     return input_file, output_file
 
 
@@ -288,7 +288,7 @@ def create_off_dataframe(grouped_off: pd.DataFrame) -> pd.DataFrame:
 
 def save_report(output_dfs: List[pd.DataFrame], off_df: pd.DataFrame, output_file: str) -> None:
     """Save the final report to CSV and Excel files."""
-    os.makedirs('output', exist_ok=True)
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     
     print("Combining data and creating final report...")
 

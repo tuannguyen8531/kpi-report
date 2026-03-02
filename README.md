@@ -139,13 +139,18 @@ The tool generates two files in the `output/` directory:
 kpi-report/
 ├── src/
 │   └── kpi_report/
-│       ├── __init__.py
-│       ├── main.py       # Main CLI logic
-│       └── gitlab.py     # GitLab API client
-├── input/               # Input CSV files
-├── output/              # Generated reports
-├── .env                 # Environment variables
-├── projects.json        # Project configuration
-├── pyproject.toml       # Project configuration
+│       ├── __init__.py       # Package entry point
+│       ├── main.py           # Orchestrator (entry point)
+│       ├── cli.py            # Argument parsing
+│       ├── config.py         # Environment & project config
+│       ├── constants.py      # Shared constants
+│       ├── gitlab.py         # GitLab GraphQL API client
+│       ├── processor.py      # Data transformation logic
+│       └── report.py         # CSV/Excel output generation
+├── input/                    # Input CSV files
+├── output/                   # Generated reports
+├── .env                      # Environment variables
+├── projects.json             # Project configuration
+├── pyproject.toml            # Project & build config
 └── README.md
 ```

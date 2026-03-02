@@ -3,4 +3,4 @@ output/
 *.log
 .env
 projects.json
-__pycache__/
+**/__pycache__/

@@ -1,7 +1,6 @@
 """Command-line argument parsing."""
 
 import argparse
-import sys
 from typing import Tuple
 
 

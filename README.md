@@ -112,6 +112,12 @@ D-System,102,MR,2.5,"November 18, 2025"
 
 ## Usage
 
+For live day/week/month tracking and easy leave entry, install the standalone
+[Chrome/Edge extension](extension/README.md). It stores data locally, syncs
+GitLab every five minutes, supports manual sync, and exports the monthly CSV
+used by the command below. Its source lives in `extension/src/`, separately
+from the Python application.
+
 ```bash
 # Generate report for September 2025
 uv run report -m 9 -y 2025

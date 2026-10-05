@@ -128,6 +128,9 @@ def create_project_dataframes(
     Returns:
         Tuple of (list of DataFrames, accumulated ReportStats).
     """
+    if grouped_projects.empty:
+        return [], ReportStats(total_tasks=0, total_spent=0.0, total_estimate=0.0)
+
     grouped_projects = grouped_projects.copy()
     grouped_projects['Url'] = grouped_projects.apply(
         lambda row: get_url(row, url_map, gitlab_url), axis=1

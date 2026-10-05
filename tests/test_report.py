@@ -12,9 +12,11 @@ from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from kpi_report.constants import OUTPUT_COLUMNS
+from kpi_report.gitlab import GraphQLClient
 from kpi_report.processor import (
     ReportStats,
     create_off_dataframe,
+    create_project_dataframes,
     process_off_data,
     process_project_data,
 )
@@ -22,6 +24,18 @@ from kpi_report.report import save_report
 
 
 class ReportTest(unittest.TestCase):
+    def test_no_project_tasks(self):
+        empty = pd.DataFrame(columns=["Project", "Task", "Type", "Time", "Date"])
+        empty["Date"] = pd.to_datetime(empty["Date"])
+        frames, stats = create_project_dataframes(
+            process_project_data(empty),
+            {"Project A": "group/project-a"},
+            GraphQLClient("https://gitlab.example.com", "unused"),
+            "https://gitlab.example.com",
+        )
+        self.assertEqual(frames, [])
+        self.assertEqual(stats, ReportStats(0, 0.0, 0.0))
+
     def test_template_export(self):
         blank = pd.DataFrame([[""] * 9], columns=OUTPUT_COLUMNS)
         header = blank.copy()

@@ -1,4 +1,5 @@
 import {SYNC_MINUTES, TIMELOG_QUERY, today, periods, validateConfig, normalizeLogs, validateLeave, makeSnapshot, exportCsv} from './core.js';
+import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel_generator.js';
 
 const ALARM = 'gitlab-sync';
 let pending = Promise.resolve();
@@ -87,7 +88,7 @@ export async function handleMessage(message) {
   switch (message.type) {
     case 'settings': {
       const {config} = await chrome.storage.local.get('config');
-      return {config: config ? {url: config.url, projects: config.projects, username: config.username, rememberToken: config.rememberToken} : null, hasToken: Boolean(await getToken())};
+      return {config: config ? {url: config.url, projects: config.projects, username: config.username, rememberToken: config.rememberToken, excelPattern: config.excelPattern || 'report_MM_YYYY.xlsx'} : null, hasToken: Boolean(await getToken())};
     }
     case 'connect': {
       const config = validateConfig(message.config);
@@ -156,6 +157,33 @@ export async function handleMessage(message) {
       const snapshot = await synchronize(message.day || today(), true);
       if (!snapshot.configured) throw new Error('Kết nối GitLab trước khi xuất dữ liệu.');
       return {csv: exportCsv(snapshot), filename: `tasks_${snapshot.date.slice(5, 7)}_${snapshot.date.slice(0, 4)}.csv`};
+    }
+    case 'export_excel_data': {
+      const snapshot = await synchronize(message.day || today(), true);
+      if (!snapshot.configured) throw new Error('Kết nối GitLab trước khi xuất dữ liệu.');
+      const {config} = await chrome.storage.local.get('config');
+      const token = await getToken();
+      if (!token) throw new Error('Cần token GitLab để truy vấn thông tin công việc.');
+
+      const groupedTasks = processProjectData(snapshot.logs);
+      const offEntries = processOffData(snapshot.leaves);
+
+      const enrichmentMap = await enrichTasks(request, config, token, groupedTasks);
+      const { projectBlocks, stats } = buildProjectData(groupedTasks, enrichmentMap, config);
+
+      const day = message.day || today();
+      const year = Number(day.slice(0, 4));
+      const month = Number(day.slice(5, 7));
+      const filename = formatExcelFilename(config?.excelPattern, month, year);
+
+      return {
+        month,
+        year,
+        projectBlocks,
+        offEntries,
+        stats,
+        filename,
+      };
     }
     case 'disconnect': {
       await chrome.storage.local.remove(['config', 'token']);

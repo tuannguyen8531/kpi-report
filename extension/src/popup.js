@@ -1,4 +1,5 @@
 import {today, parseDay, addDays, validateConfig} from './core.js';
+import {generateExcelWorkbook} from './excel_generator.js';
 
 // DOM selector helper
 const $ = (id) => document.getElementById(id);
@@ -82,7 +83,7 @@ async function act(action) {
 
   const interactiveElements = [
     'anchor', 'btn-today', 'btn-prev-day', 'btn-next-day',
-    'btn-sync', 'export', 'btn-quick-export', 'connect',
+    'btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'connect',
     'leave-save', 'btn-onboarding-submit'
   ];
   for (const id of interactiveElements) {
@@ -105,7 +106,7 @@ async function act(action) {
     }
 
     const isConfigured = Boolean(snapshot?.configured);
-    for (const id of ['btn-sync', 'export', 'btn-quick-export', 'leave-save']) {
+    for (const id of ['btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'leave-save']) {
       const el = $(id);
       if (el) el.disabled = !isConfigured;
     }
@@ -264,11 +265,11 @@ function render(data) {
   $('month-leave').textContent = monthStats.leave > 0 ? `Tổng nghỉ ${formatHours(monthStats.leave)}` : 'Không có lịch nghỉ';
 
   // Report Overview Card in Report Panel
-  $('report-month-title').textContent = `Tháng ${data.date.slice(5, 7)}/${data.date.slice(0, 4)}`;
-  $('report-work-hours').textContent = formatHours(data.month.hours);
-  $('report-leave-hours').textContent = formatHours(data.month.leaveHours);
-  $('report-log-count').textContent = `${(data.logs || []).length} mục`;
-  $('report-command-example').textContent = `uv run report -m ${parseInt(data.date.slice(5, 7), 10)} -y ${data.date.slice(0, 4)}`;
+  if ($('report-month-title')) $('report-month-title').textContent = `Tháng ${data.date.slice(5, 7)}/${data.date.slice(0, 4)}`;
+  if ($('report-work-hours')) $('report-work-hours').textContent = formatHours(data.month.hours);
+  if ($('report-leave-hours')) $('report-leave-hours').textContent = formatHours(data.month.leaveHours);
+  if ($('report-log-count')) $('report-log-count').textContent = `${(data.logs || []).length} mục`;
+  if ($('report-command-example')) $('report-command-example').textContent = `uv run report -m ${parseInt(data.date.slice(5, 7), 10)} -y ${data.date.slice(0, 4)}`;
 
   // Render Calendar Grid
   renderCalendar(data);
@@ -762,15 +763,61 @@ $('restore').addEventListener('change', (e) => act(async () => {
   }
 }));
 
-// 9. Export CSV
+// 9. Export Excel (.xlsx) & CSV Backup
+const handleExportExcel = () => act(async () => {
+  const btnExcel = $('btn-export-excel');
+  const btnQuickExcel = $('btn-quick-export-excel');
+  const btnText = $('btn-export-excel-text');
+  const oldText = btnText ? btnText.textContent : 'Xuất Excel ngay (.xlsx)';
+
+  try {
+    if (btnExcel) btnExcel.disabled = true;
+    if (btnQuickExcel) btnQuickExcel.disabled = true;
+    if (btnText) btnText.textContent = 'Đang truy vấn GitLab...';
+    showToast('Đang tổng hợp dữ liệu & truy vấn GitLab API...', 'info', 3000);
+
+    const anchorDay = $('anchor').value || today();
+    const excelData = await send({type: 'export_excel_data', day: anchorDay});
+
+    if (btnText) btnText.textContent = 'Đang tạo bảng tính Excel...';
+
+    // Fetch the template work_report.xlsx
+    const templateUrl = chrome.runtime.getURL('assets/templates/work_report.xlsx');
+    const resp = await fetch(templateUrl);
+    if (!resp.ok) throw new Error('Không thể tải file mẫu Excel từ tiện ích.');
+    const templateBuffer = await resp.arrayBuffer();
+
+    const ExcelJSClass = window.ExcelJS;
+    if (!ExcelJSClass) {
+      throw new Error('Thư viện ExcelJS chưa sẵn sàng trong tiện ích.');
+    }
+
+    const buffer = await generateExcelWorkbook(templateBuffer, excelData, ExcelJSClass);
+    downloadFile(
+      excelData.filename,
+      buffer,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+
+    await reload();
+    showToast(`Đã xuất báo cáo Excel thành công: ${excelData.filename}`, 'success', 4000);
+  } finally {
+    if (btnExcel) btnExcel.disabled = false;
+    if (btnQuickExcel) btnQuickExcel.disabled = false;
+    if (btnText) btnText.textContent = oldText;
+  }
+});
+
+if ($('btn-export-excel')) $('btn-export-excel').addEventListener('click', handleExportExcel);
+if ($('btn-quick-export-excel')) $('btn-quick-export-excel').addEventListener('click', handleExportExcel);
+
 const handleExport = () => act(async () => {
   const result = await send({type: 'export', day: $('anchor').value});
   downloadFile(result.filename, result.csv, 'text/csv;charset=utf-8');
   await reload();
   showToast('Đã xuất file CSV thành công!', 'success');
 });
-$('export').addEventListener('click', handleExport);
-$('btn-quick-export').addEventListener('click', handleExport);
+if ($('export')) $('export').addEventListener('click', handleExport);
 
 /* ============================================================
    ONBOARDING / FIRST RUN SETUP
@@ -874,6 +921,7 @@ function openSettingsModal() {
     $('gitlab-url').value = currentConfig.url || '';
     $('remember-token').checked = Boolean(currentConfig.rememberToken);
     $('projects').value = currentConfig.projects ? JSON.stringify(currentConfig.projects, null, 2) : '';
+    if ($('excel-pattern')) $('excel-pattern').value = currentConfig.excelPattern || 'report_MM_YYYY.xlsx';
   }
   $('gitlab-token').value = '';
   $('modal-settings').hidden = false;
@@ -916,7 +964,8 @@ $('settings-form').addEventListener('submit', (e) => {
     const config = validateConfig({
       url: $('gitlab-url').value,
       projects: $('projects').value,
-      rememberToken: $('remember-token').checked
+      rememberToken: $('remember-token').checked,
+      excelPattern: $('excel-pattern')?.value?.trim() || 'report_MM_YYYY.xlsx',
     });
 
     const parsedUrl = new URL(config.url);

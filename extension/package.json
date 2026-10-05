@@ -2,5 +2,10 @@
   "name": "kpi-tracker-extension",
   "private": true,
   "type": "module",
-  "scripts": {"test": "node tests/tracker.test.mjs"}
+  "scripts": {
+    "test": "node tests/tracker.test.mjs"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  }
 }

@@ -1439,69 +1439,27 @@ input:focus, textarea:focus, select:focus {
 .color-blue { color: var(--primary); }
 .color-amber { color: var(--amber); }
 
-.export-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: var(--radius-md);
-  padding: 12px;
-  margin-bottom: 14px;
-}
-.export-icon-box {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  background: #22c55e;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.export-icon-box svg {
-  width: 20px;
-  height: 20px;
-}
-.export-details {
-  flex: 1;
-}
-.export-details strong {
-  display: block;
-  font-size: 13px;
-  color: #15803d;
-}
-.export-details p {
-  font-size: 11px;
-  color: #166534;
-  margin-top: 2px;
-}
-.instruction-box {
-  background: #f8fafc;
+/* Report Export Actions */
+.export-actions-card {
+  background: #ffffff;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.instruction-title {
+.export-buttons-group {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-.instruction-icon {
-  width: 14px;
-  height: 14px;
-  color: var(--primary);
-}
-.instruction-steps {
-  padding-left: 18px;
+.export-note {
   font-size: 11.5px;
-  color: var(--ink-secondary);
-  line-height: 1.6;
+  color: var(--muted);
+  line-height: 1.4;
+  margin: 0;
 }
 .code-snippet {
   font-family: var(--font-mono);
@@ -2316,7 +2274,13 @@ a.breakdown-item-link:hover strong {
   gap: 4px;
 }
 
-/* Small Screens (e.g. extension popup window < 700px) */
+/* Small Screens (e.g. extension popup window < 820px) */
+@media (max-width: 819px) {
+  .toolbar-quick-actions {
+    display: none !important;
+  }
+}
+
 @media (max-width: 699px) {
   .leave-modal-view-toggle {
     display: flex;
@@ -2437,12 +2401,19 @@ a.breakdown-item-link:hover strong {
     gap: 14px;
     margin-bottom: 14px;
   }
-  #panel-report .export-banner {
+  #panel-report .export-actions-card {
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    margin-bottom: 14px;
+    padding: 16px 20px;
+    margin-bottom: 0;
+  }
+  #panel-report .export-actions-card .export-note {
+    max-width: 520px;
+    text-align: right;
+    margin: 0;
   }
 
   .calendar-grid {

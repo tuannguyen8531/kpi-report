@@ -50,6 +50,17 @@ export function periods(value) {
   };
 }
 
+export function formatExcelFilename(pattern, month, year) {
+  const p = String(pattern || '').trim() || 'report_MM_YYYY.xlsx';
+  const mm = String(month).padStart(2, '0');
+  const yyyy = String(year);
+  let filename = p.replaceAll('YYYY', yyyy).replaceAll('MM', mm);
+  if (!filename.toLowerCase().endsWith('.xlsx')) {
+    filename += '.xlsx';
+  }
+  return filename;
+}
+
 export function validateConfig(input) {
   const parsed = new URL(String(input.url).trim());
   if (parsed.username || parsed.password || parsed.search || parsed.hash ||
@@ -69,7 +80,8 @@ export function validateConfig(input) {
     return {project, url};
   });
   if (!clean.length) throw new Error('Cần ít nhất một dự án để theo dõi.');
-  return {url: parsed.href.replace(/\/$/, ''), projects: clean, rememberToken: Boolean(input.rememberToken)};
+  const excelPattern = String(input.excelPattern || '').trim() || 'report_MM_YYYY.xlsx';
+  return {url: parsed.href.replace(/\/$/, ''), projects: clean, rememberToken: Boolean(input.rememberToken), excelPattern};
 }
 
 export function normalizeLogs(logs, config, username, start, end) {

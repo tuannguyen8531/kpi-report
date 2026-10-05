@@ -6,6 +6,7 @@
   <title>KPI Tracker · Giờ làm việc Realtime</title>
   <link rel="icon" href="../assets/icon.png">
   <link rel="stylesheet" href="popup.css">
+  <script src="vendor/exceljs.min.js"></script>
   <script type="module" src="popup.js"></script>
 </head>
 <body>
@@ -195,13 +196,14 @@
       </div>
 
       <div class="toolbar-quick-actions">
-        <button id="btn-quick-export" class="btn btn-outline btn-sm" type="button" title="Tải file CSV cho báo cáo Python">
+        <button id="btn-quick-export-excel" class="btn btn-primary btn-sm" type="button" title="Xuất báo cáo Excel (.xlsx)">
           <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
           </svg>
-          <span>Xuất CSV</span>
+          <span>Xuất Excel</span>
         </button>
       </div>
     </section>
@@ -452,45 +454,31 @@
             </div>
           </div>
 
-          <div class="export-banner">
-            <div class="export-icon-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="12" y1="18" x2="12" y2="12"></line>
-                <line x1="9" y1="15" x2="15" y2="15"></line>
-              </svg>
+          <div class="export-actions-card">
+            <div class="export-buttons-group">
+              <button id="btn-export-excel" class="btn btn-primary btn-large" type="button" title="Xuất báo cáo Excel (.xlsx) đầy đủ công thức KPI">
+                <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <line x1="10" y1="9" x2="8" y2="9"></line>
+                </svg>
+                <span id="btn-export-excel-text">Xuất báo cáo Excel (.xlsx)</span>
+              </button>
+              <button id="export" class="btn btn-outline" type="button" title="Xuất file CSV dữ liệu thô">
+                <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Xuất CSV</span>
+              </button>
             </div>
-            <div class="export-details">
-              <strong>Xuất file CSV cho chương trình Python</strong>
-              <p>File kết xuất bao gồm toàn bộ timelog dự án và các dòng OFF nghỉ phép theo định dạng chuẩn <code>tasks_MM_YYYY.csv</code>.</p>
-            </div>
-            <button id="export" class="btn btn-primary btn-large" type="button">
-              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-              <span>Xuất CSV ngay</span>
-            </button>
-          </div>
-
-          <div class="instruction-box">
-            <div class="instruction-title">
-              <svg class="instruction-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-              <span>Hướng dẫn tạo báo cáo Excel</span>
-            </div>
-            <ol class="instruction-steps">
-              <li>Lưu file CSV vừa tải về vào thư mục <code>input/</code> của dự án.</li>
-              <li>Mở terminal tại thư mục gốc và chạy lệnh Python:
-                <pre class="code-snippet" id="report-command-example">uv run report -m 10 -y 2026</pre>
-              </li>
-              <li>Chương trình sẽ tự động tính toán tiến độ, tạo báo cáo Excel đầy đủ tại thư mục <code>output/</code>.</li>
-            </ol>
+            <p class="export-note">
+              Báo cáo Excel bao gồm đầy đủ công thức KPI, liên kết Issue/MR và phần nghỉ phép theo mẫu chuẩn <code>work_report.xlsx</code>.
+            </p>
+            <pre class="code-snippet sr-only" id="report-command-example" hidden></pre>
           </div>
         </div>
       </section>
@@ -554,6 +542,15 @@
               </label>
             </div>
             <textarea id="projects" rows="6" spellcheck="false" required class="json-editor" placeholder='[{"project":"Dự án A","url":"group/project-a"}]'></textarea>
+          </div>
+
+          <div class="form-group mt-3">
+            <div class="label-row">
+              <label for="excel-pattern">Định dạng tên file Excel</label>
+              <span class="field-badge">MM, YYYY</span>
+            </div>
+            <input id="excel-pattern" type="text" spellcheck="false" placeholder="report_MM_YYYY.xlsx">
+            <span class="field-hint">Quy ước: <code>MM</code> là tháng (01–12), <code>YYYY</code> là năm (ví dụ 2026). Mặc định: <code>report_MM_YYYY.xlsx</code></span>
           </div>
 
           <div class="modal-footer">

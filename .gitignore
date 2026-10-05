@@ -4,3 +4,4 @@ output/
 .env
 projects.json
 **/__pycache__/
+node_modules/

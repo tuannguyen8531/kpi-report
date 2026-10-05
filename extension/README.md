@@ -61,24 +61,25 @@ Mã extension nằm trong `extension/src/`, tách khỏi `src/kpi_report/`.
 - Gỡ extension hoặc xóa hồ sơ trình duyệt sẽ mất lịch nghỉ lưu cục bộ;
   sao lưu trước khi chuyển máy hoặc cài lại. Timelog gốc vẫn trên GitLab.
 
-## Tạo Excel
+- **Tạo & Xuất báo cáo Excel (.xlsx) trực tiếp bằng Pure JS**:
+  - Không cần cài đặt môi trường Python hay chạy dòng lệnh terminal: Tiện ích tích hợp sẵn công cụ tạo file Excel thuần JavaScript (`excel_generator.js` & `exceljs`).
+  - Khi bấm **Xuất Excel ngay (.xlsx)**: Tiện ích tự động tổng hợp timelog trong tháng, truy vấn GraphQL GitLab để lấy ngày bắt đầu, hạn chót, ngày đóng, thời gian ước tính (estimate) cho từng task/MR, gắn hyperlink trực tiếp đến GitLab, tính toán toàn bộ công thức KPI (`COUNTIF`, `COUNTIFS`, `SUMIF`, `IFERROR`), điền vào biểu mẫu chuẩn `work_report.xlsx` và tự động kích hoạt tải file về máy.
+  - Vẫn giữ tùy chọn **Xuất CSV** để lưu trữ hoặc chạy quy trình Python cũ nếu có nhu cầu.
 
-1. Chọn ngày bất kỳ thuộc tháng cần báo cáo, rồi **Xuất CSV**. Extension
-   đồng bộ lại trước khi xuất; nếu không lấy được dữ liệu mới thì báo lỗi.
+## Tạo Báo cáo Excel
+
+### Cách 1: Xuất Excel trực tiếp 1-Click (Khuyên dùng)
+1. Chọn ngày bất kỳ thuộc tháng cần làm báo cáo.
+2. Bấm nút **Xuất Excel** trên thanh công cụ hoặc vào mục **Báo cáo & Xuất file** bấm **Xuất Excel ngay (.xlsx)**.
+3. Trình duyệt sẽ tự động truy vấn dữ liệu từ GitLab, tính toán công thức KPI và tải file `report_MM_YYYY.xlsx` về máy ngay tức thì.
+
+### Cách 2: Xuất file CSV cho quy trình Python CLI (Dự phòng)
+1. Bấm **Xuất CSV** để tải file `tasks_MM_YYYY.csv`.
 2. Đặt file `tasks_MM_YYYY.csv` tải về vào thư mục `input/` của dự án Python.
-   Tên dự án phải khớp `projects.json` của chương trình Python. Nếu có OFF,
-   giữ mục `{"project":"OFF","url":""}` trong file cấu hình Python.
-   Địa chỉ GitLab trong extension cần khớp `GITLAB_URL` trong `.env`.
-3. Chạy lệnh cũ, ví dụ:
-
+3. Chạy lệnh:
    ```bash
    uv run report -m 10 -y 2026
    ```
-
-CSV đầu vào gồm timelog trong tháng và các dòng OFF. Python tiếp tục lấy
-estimate/start/due/closed date rồi tạo `Báo cáo công việc`; OFF hiển thị riêng
-ở Excel và nằm ngoài tất cả thống kê, tỷ lệ. Chạy bước Python vẫn cần `.env`
-như trước. Không cần log trùng thời gian trong Notion.
 
 ## Kiểm tra mã
 

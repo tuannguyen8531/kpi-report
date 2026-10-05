@@ -9,10 +9,10 @@ from .cli import parse_arguments
 from .config import get_project_root, load_env, load_url_map, validate_projects_in_csv
 from .gitlab import GraphQLClient
 from .processor import (
-    process_project_data,
-    process_off_data,
-    create_project_dataframes,
     create_off_dataframe,
+    create_project_dataframes,
+    process_off_data,
+    process_project_data,
 )
 from .report import save_report
 
@@ -37,7 +37,7 @@ def load_and_validate_data(input_file: str, url_map: dict) -> pd.DataFrame:
         sys.exit(1)
 
     df = pd.read_csv(input_file)
-    df['Date'] = pd.to_datetime(df['Date'], format='%B %d, %Y')
+    df["Date"] = pd.to_datetime(df["Date"], format="%B %d, %Y")
     validate_projects_in_csv(df, url_map)
     return df
 
@@ -51,8 +51,8 @@ def main() -> None:
     load_env()
     url_map = load_url_map()
 
-    gitlab_url = os.getenv('GITLAB_URL', '')
-    gitlab_token = os.getenv('GITLAB_TOKEN', '')
+    gitlab_url = os.getenv("GITLAB_URL", "")
+    gitlab_token = os.getenv("GITLAB_TOKEN", "")
 
     if not gitlab_url or not gitlab_token:
         print("Error: GITLAB_URL and GITLAB_TOKEN must be set in .env file.")
@@ -68,17 +68,16 @@ def main() -> None:
     df = load_and_validate_data(input_file, url_map)
 
     grouped_projects = process_project_data(df)
-    grouped_off = process_off_data(df)
 
     output_dfs, stats = create_project_dataframes(
         grouped_projects, url_map, client, gitlab_url
     )
-    off_df = create_off_dataframe(grouped_off)
+    off_df = create_off_dataframe(process_off_data(df))
 
     # --- Generate report ---
-    save_report(output_dfs, off_df, output_file, stats)
+    save_report(output_dfs, output_file, stats, month=month, year=year, off_df=off_df)
 
-    excel_file = output_file.replace('.csv', '.xlsx')
+    excel_file = output_file.replace(".csv", ".xlsx")
     print("Successfully processed and exported:")
     print(f"  CSV:   {output_file}")
     print(f"  Excel: {excel_file}")

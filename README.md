@@ -5,7 +5,7 @@ A CLI tool for generating KPI reports from GitLab data.
 ## Features
 
 - Fetch work item and merge request data from GitLab API
-- Generate CSV and Excel reports with formatted numbers
+- Generate CSV reports and Excel work reports with KPI formulas
 - Progress tracking during data processing  
 - Support for multiple projects configuration
 - Automatic project headers in output files
@@ -104,11 +104,8 @@ D-System,102,MR,2.5,"November 18, 2025"
 **Important Notes:**
 - Date format must be: `Month Day, Year` (e.g., `November 3, 2025`)
 - Project names must match entries in `projects.json`
-- For OFF entries:
-  - Set `Project` to `OFF`
-  - Set `Type` to `OFF`
-  - Use `Task` column to describe the reason (e.g., "Annual Leave", "Sick Leave")
-  - The task description will appear in the URL column of the output
+- OFF entries appear in a separate section in Excel, outside the task statistics.
+  They are excluded from the CSV export.
 - For TASK type: The tool will fetch additional data from GitLab (start date, due date, closed date, estimate)
 - For MR type: The tool will fetch estimate from GitLab merge request
 - Time can be decimal values (e.g., `4.5` for 4.5 hours)
@@ -131,7 +128,18 @@ uv run report --help
 The tool generates two files in the `output/` directory:
 
 - `report_MM_YYYY.csv` - CSV format with decimal points
-- `report_MM_YYYY.xlsx` - Excel format with comma decimal separators
+- `report_MM_YYYY.xlsx` - Sheet `Báo cáo công việc`, matching the layout and
+  styling of `example.xlsx`: project tables on the left, task statistics and
+  percentage formulas on the right. Dates and hours are native Excel values.
+  OFF entries appear below the project tables and are excluded from task
+  statistics. Company working time stays at 192 hours
+  as specified by the example. Excel recalculates formulas when opened.
+
+The clean template is bundled at `src/kpi_report/templates/work_report.xlsx`;
+the original `example.xlsx` is not required to run the tool. Task type and
+progress still default to `Kế hoạch` and `Đúng hạn`; editing them or the reopen
+count in Excel updates the statistics. Empty denominators produce 0 instead
+of a division error. Only the requested work-report sheet is exported.
 
 ## Project Structure
 

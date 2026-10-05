@@ -46,7 +46,7 @@ def process_off_data(df: pd.DataFrame) -> pd.DataFrame:
         Start_date=df_off['Date'].dt.strftime('%m/%d/%Y'),
         Spent=df_off['Time'],
     )
-    return df_off[['Project', 'Task', 'Type', 'Start_date', 'Spent']]
+    return df_off.loc[:, ['Project', 'Task', 'Type', 'Start_date', 'Spent']]
 
 
 def get_url(row: pd.Series, url_map: Dict[str, str], gitlab_url: str) -> str:

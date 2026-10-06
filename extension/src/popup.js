@@ -941,7 +941,7 @@ function handleProjectJsonText(text) {
     $('onboarding-projects').value = JSON.stringify(parsed, null, 2);
     const statusBadge = $('onboarding-projects-status');
     statusBadge.hidden = false;
-    statusBadge.textContent = `✓ Loaded ${validCount} projects from file`;
+    statusBadge.textContent = validCount ? `✓ Loaded ${validCount} projects from file` : 'All projects will be detected automatically';
   } catch (err) {
     showToast(`Invalid JSON file: ${err.message}`, 'error');
   }
@@ -999,6 +999,7 @@ $('onboarding-form').addEventListener('submit', (e) => {
         day: $('anchor').value
       });
 
+      currentConfig = config;
       render(data);
       showToast(`Connected as @${data.username}.`, 'success');
     } catch (err) {
@@ -1368,7 +1369,7 @@ void act(async () => {
     currentConfig = settings.config;
     $('onboarding-url').value = settings.config.url || '';
     $('onboarding-remember').checked = Boolean(settings.config.rememberToken);
-    if (settings.config.projects) {
+    if (settings.config.projects?.length) {
       $('onboarding-projects').value = JSON.stringify(settings.config.projects, null, 2);
       const validCount = settings.config.projects.length;
       const statusBadge = $('onboarding-projects-status');

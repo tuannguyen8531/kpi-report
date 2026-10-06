@@ -82,13 +82,16 @@
           </label>
         </div>
 
-        <!-- Field 3: Projects List -->
+        <!-- Optional project filter -->
         <div class="form-group">
           <div class="label-row">
-            <label for="onboarding-projects">Projects (projects.json)</label>
-            <span class="required-badge">Required</span>
+            <label for="onboarding-projects">Project filter</label>
+            <span class="field-badge">Optional</span>
           </div>
 
+          <p class="field-hint">Projects are detected automatically from your GitLab timelogs. Leave the filter empty to track all projects.</p>
+          <details>
+            <summary>Limit projects or use custom names</summary>
           <div id="onboarding-dropzone" class="dropzone">
             <input id="onboarding-file" type="file" accept="application/json,.json" class="sr-only">
             <div class="dropzone-content">
@@ -110,6 +113,7 @@
             </button>
           </div>
           <textarea id="onboarding-projects" rows="4" spellcheck="false" class="json-editor" hidden placeholder='[&#10;  {"project": "Project A", "url": "group/project-a"}&#10;]'></textarea>
+          </details>
         </div>
 
         <!-- Submit Button -->
@@ -718,13 +722,14 @@
 
           <div class="form-group mt-3">
             <div class="label-row">
-              <label for="projects">Projects (JSON)</label>
+              <label for="projects">Project filter (optional JSON)</label>
               <label class="btn-link-action">
                 <span>Choose projects.json</span>
                 <input id="projects-file" type="file" accept="application/json,.json" class="sr-only">
               </label>
             </div>
-            <textarea id="projects" rows="6" spellcheck="false" required class="json-editor" placeholder='[{"project":"Project A","url":"group/project-a"}]'></textarea>
+            <textarea id="projects" rows="6" spellcheck="false" class="json-editor" placeholder='[{"project":"Project A","url":"group/project-a"}]'></textarea>
+            <span class="field-hint">Leave empty or enter [] to detect all projects from GitLab timelogs. A project list limits tracking and sets custom report names.</span>
           </div>
 
           <div class="form-group mt-3">

@@ -211,8 +211,12 @@ export async function handleMessage(message) {
       const groupedTasks = processProjectData(snapshot.logs);
       const offEntries = processOffData(snapshot.leaves);
 
-      const enrichmentMap = await enrichTasks(request, config, token, groupedTasks);
-      const { projectBlocks, stats } = buildProjectData(groupedTasks, enrichmentMap, config);
+      // Reuse the report generator's project mapping, discovered from this month's logs.
+      const reportConfig = {...config, projects: config.projects?.length ? config.projects :
+        [...new Map(snapshot.logs.map((log) => [log.projectPath, {project: log.project, url: log.projectPath}])).values()]
+          .sort((a, b) => a.url.localeCompare(b.url))};
+      const enrichmentMap = await enrichTasks(request, reportConfig, token, groupedTasks);
+      const { projectBlocks, stats } = buildProjectData(groupedTasks, enrichmentMap, reportConfig);
 
       const day = message.day || today();
       const year = Number(day.slice(0, 4));

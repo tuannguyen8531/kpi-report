@@ -4,7 +4,7 @@ export const TIMELOG_QUERY = `query($username: String!, $start: Time!, $end: Tim
   timelogs(username: $username, startTime: $start, endTime: $end, first: 100, after: $after) {
     nodes {
       id spentAt timeSpent summary user { username }
-      project { fullPath }
+      project { name fullPath }
       issue { iid title webUrl }
       mergeRequest { iid title webUrl }
     }
@@ -67,7 +67,7 @@ export function validateConfig(input) {
       (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(parsed.hostname)))) {
     throw new Error('Use an HTTPS GitLab URL, or HTTP on localhost.');
   }
-  const projects = typeof input.projects === 'string' ? JSON.parse(input.projects) : input.projects;
+  const projects = typeof input.projects === 'string' ? JSON.parse(input.projects.trim() || '[]') : input.projects ?? [];
   if (!Array.isArray(projects)) throw new Error('Projects must be a JSON array, as in projects.json.');
   const names = new Set(), paths = new Set();
   if (projects.some((row) => !row || typeof row !== 'object')) throw new Error('Each project must include project and url fields.');
@@ -79,7 +79,6 @@ export function validateConfig(input) {
     names.add(project); paths.add(url);
     return {project, url};
   });
-  if (!clean.length) throw new Error('Add at least one project to track.');
   const excelPattern = String(input.excelPattern || '').trim() || 'report_MM_YYYY.xlsx';
   const reminderTime = input.reminderTime ?? '10:00';
   if (typeof reminderTime !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)) {
@@ -90,11 +89,16 @@ export function validateConfig(input) {
 }
 
 export function normalizeLogs(logs, config, username, start, end) {
-  const projects = new Map(config.projects.map((row) => [row.url, row.project]));
+  const projects = new Map((config.projects || []).map((row) => [row.url, row.project]));
   const result = new Map();
   for (const log of logs) {
-    const project = projects.get(log.project?.fullPath);
-    if (!project || log.user?.username !== username) continue;
+    if (log.user?.username !== username) continue;
+    const projectPath = log.project?.fullPath;
+    if (projects.size && !projects.has(projectPath)) continue;
+    if (typeof projectPath !== 'string' || !projectPath.trim()) {
+      throw new Error('GitLab returned a timelog without a project path.');
+    }
+    const project = projects.get(projectPath) || (log.project.name ? `${log.project.name} (${projectPath})` : projectPath);
     if (typeof log.spentAt !== 'string') throw new Error('GitLab returned a timelog without a work date.');
     const date = today(new Date(log.spentAt));
     if (date < start || date >= end) continue;
@@ -105,7 +109,7 @@ export function normalizeLogs(logs, config, username, start, end) {
     const link = new URL(item.webUrl, config.url);
     const safeUrl = link.origin === new URL(config.url).origin && ['http:', 'https:'].includes(link.protocol) ? link.href : null;
     result.set(log.id, {
-      id: log.id, date, project, task: String(item.iid), type: log.issue ? 'TASK' : 'MR',
+      id: log.id, date, project, projectPath, task: String(item.iid), type: log.issue ? 'TASK' : 'MR',
       hours: log.timeSpent / 3600, title: String(item.title), url: safeUrl, summary: String(log.summary || ''),
     });
   }

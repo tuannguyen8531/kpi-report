@@ -521,3 +521,53 @@ test('startup restores missing reminder alarms and alarm events deliver only onc
   assert.equal(settings.config.reminderTime, '08:45');
   assert.equal(settings.config.reminderEnabled, true);
 });
+
+test('automatic project discovery accepts empty filters and keeps same-name projects distinct', () => {
+  for (const projects of [undefined, '', '  ', '[]', []]) {
+    assert.deepEqual(validateConfig({...config, projects}).projects, []);
+  }
+  assert.throws(() => validateConfig({...config, projects: '{}'}));
+  const inputs = [
+    log('a', '2026-10-01T01:00:00Z', 3600, {project: {name: 'Shared', fullPath: 'team-a/app'}}),
+    log('b', '2026-10-01T01:00:00Z', 7200, {project: {name: 'Shared', fullPath: 'team-b/app'}}),
+    log('fallback', '2026-10-01T01:00:00Z', -1800, {project: {fullPath: 'team-c/app'}}),
+    log('other-user', '2026-10-01T01:00:00Z', 3600, {user: {username: 'someone-else'}}),
+    log('outside-month', '2026-09-01T01:00:00Z'),
+  ];
+  const rows = normalizeLogs(inputs, {...config, projects: []}, 'me', day, '2026-11-01');
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows.map((row) => row.project), ['Shared (team-a/app)', 'Shared (team-b/app)', 'team-c/app']);
+  assert.deepEqual(rows.map((row) => row.projectPath), ['team-a/app', 'team-b/app', 'team-c/app']);
+  assert.equal(rows[2].hours, -0.5);
+  const filtered = normalizeLogs(inputs, {...config, projects: [{project: 'Custom', url: 'team-b/app'}]}, 'me', day, '2026-11-01');
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].project, 'Custom');
+  assert.throws(() => normalizeLogs([log('missing', '2026-10-01T01:00:00Z', 3600, {project: null})], {...config, projects: []}, 'me', day, '2026-11-01'));
+});
+
+test('connecting without a project file exports discovered projects with correct enrichment and links', async () => {
+  const logs = [
+    log('a', '2026-10-01T01:00:00Z', 3600, {project: {name: 'App', fullPath: 'team-a/app'}}),
+    log('b', '2026-10-01T01:00:00Z', 7200, {project: {name: 'App', fullPath: 'team-b/app'}, issue: null,
+      mergeRequest: {iid: 12, title: 'Merge request', webUrl: 'https://gitlab.example.com/team-b/app/-/merge_requests/12'}}),
+  ];
+  replyPages.push(page(logs));
+  const snapshot = await handleMessage({type: 'connect', config: {url: config.url}, token: 'test-token', day});
+  assert.equal(snapshot.month.hours, 3);
+  assert.equal(snapshot.logs.length, 2);
+  assert.deepEqual(local.config.projects, []);
+  assert.ok(exportCsv(snapshot).includes('App (team-a/app)'));
+  replyPages.push(page(logs));
+  const report = await handleMessage({type: 'export_excel_data', day});
+  assert.deepEqual(report.projectBlocks.map((block) => block.project), ['App (team-a/app)', 'App (team-b/app)']);
+  assert.equal(report.projectBlocks[0].tasks[0].Url, 'https://gitlab.example.com/team-a/app/-/work_items/12');
+  assert.equal(report.projectBlocks[1].tasks[0].Url, 'https://gitlab.example.com/team-b/app/-/merge_requests/12');
+  assert.equal(report.projectBlocks[0].tasks[0].Estimate, '4.50');
+  assert.equal(report.projectBlocks[1].tasks[0].Estimate, '2.00');
+  assert.equal(report.projectBlocks[0].tasks[0]['Task Type'], 'Kế hoạch');
+  assert.equal(report.projectBlocks[0].tasks[0].Progress, 'Đúng hạn');
+  assert.deepEqual(fetches.filter((request) => request.variables.fullPath).map((request) => request.variables.fullPath).sort(), ['team-a/app', 'team-b/app']);
+  replyPages.push(page([]));
+  const empty = await handleMessage({type: 'export_excel_data', day});
+  assert.deepEqual(empty.projectBlocks, []);
+});

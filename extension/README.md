@@ -22,7 +22,9 @@ No build step, npm installation, or Python server is required to use the extensi
 
 ## Setup
 
-Enter your GitLab server URL and a personal access token with the `read_api` scope. Import a `projects.json` file, or enter the project list directly:
+Enter your GitLab server URL and a personal access token with the `read_api` scope. Projects are detected automatically from your timelogs; no project file is required. Names include the full GitLab path to distinguish projects with identical names.
+
+Optionally, use **Project filter** to import a `projects.json` file or enter a list to limit tracking and assign custom report names:
 
 ```json
 [
@@ -38,10 +40,10 @@ Click **Save & Connect** and allow access to your GitLab server when prompted. H
 - Select a date to view its month. Click a total or double-click a calendar day for details; save daily notes from the day dialog.
 - Open **Leave** to add, edit, or delete time off. Each date supports one entry with up to 24 hours.
 - Click **Export Excel** to download the selected month's report. The original Excel template, Vietnamese report labels, and KPI formulas are preserved.
-- Use **Export CSV** to download `tasks_MM_YYYY.csv`. For the CLI workflow, place it in the repository's `input/` directory and run `uv run report -m 10 -y 2026` with the appropriate month and year.
+- Use **Export CSV** to download `tasks_MM_YYYY.csv`. For the CLI workflow, place it in the repository's `input/` directory and run `uv run report -m 10 -y 2026` with the appropriate month and year. The Python CLI still requires `projects.json`; its project names must match the CSV `Project` values. Direct Excel export needs no project file.
 - Open settings to update the connection, projects, or Excel filename pattern (`MM` and `YYYY` placeholders).
 
-Only the token owner's timelogs in configured projects are counted. Dates use `Asia/Ho_Chi_Minh` (UTC+7); weeks start on Monday and include only days within the selected month. Dashboard targets are 8 hours per day, 40 per week, and 192 per month, including leave. Excel lists leave separately and excludes it from task statistics.
+Only the token owner's timelogs are counted, across all detected projects unless an optional project filter is set. Existing project lists remain active; clear the filter in Settings and save to switch to automatic detection. Dates use `Asia/Ho_Chi_Minh` (UTC+7); weeks start on Monday and include only days within the selected month. Dashboard targets are 8 hours per day, 40 per week, and 192 per month, including leave. Excel lists leave separately and excludes it from task statistics.
 
 Sync may be delayed while the browser is closed or the device is asleep. A failed sync preserves cached data and displays an error; exports require a successful sync.
 

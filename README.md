@@ -1,170 +1,77 @@
 # KPI Report Generator
 
-A CLI tool for generating KPI reports from GitLab data.
+Generate monthly KPI reports from GitLab work items and merge requests. Use the [Chrome / Edge extension](extension/README.md) to track hours and export reports directly, or use the Python CLI with a monthly task CSV.
 
 ## Features
 
-- Fetch work item and merge request data from GitLab API
-- Generate CSV reports and Excel work reports with KPI formulas
-- Progress tracking during data processing  
-- Support for multiple projects configuration
-- Automatic project headers in output files
+- Fetch task dates and estimates from GitLab.
+- Generate CSV and Excel reports with project sections, task links, and KPI formulas.
+- Record leave separately from task statistics.
+- Track daily, weekly, and monthly hours through the standalone browser extension.
 
-## Installation
+## CLI setup
 
-### Using uv (recommended)
+Requires Python 3.12+ and a GitLab personal access token with the `read_api` scope.
+
+Install dependencies from the repository root:
 
 ```bash
-# Clone repository
-git clone <repository-url>
-cd kpi-report
-
-# Install with uv
 uv sync
-
-# Run the tool
-uv run report -m 9 -y 2025
 ```
 
-### Manual installation
-
-```bash
-pip install -e .
-report -m 9 -y 2025
-```
-
-## Configuration
-
-### 1. Environment Variables
+Alternatively, install with `pip install -e .` and use `report` instead of `uv run report`.
 
 Create a `.env` file:
 
-```
+```dotenv
 GITLAB_URL=https://gitlab.example.com
-GITLAB_TOKEN=your_gitlab_token_here
+GITLAB_TOKEN=your_gitlab_token
 ```
 
-### 2. Project Configuration
-
-Create a `projects.json` file from the example:
+Copy the project configuration and update its names and GitLab paths:
 
 ```bash
 cp projects.json.example projects.json
 ```
 
-Then edit `projects.json` with your GitLab project paths:
-
 ```json
 [
-    {
-        "project": "ProjectName1",
-        "url": "gitlab/full/path/to/project1"
-    },
-    {
-        "project": "ProjectName2",
-        "url": "gitlab/full/path/to/project2"
-    },
-    {
-        "project": "OFF",
-        "url": ""
-    }
+  {"project": "Project A", "url": "group/project-a"},
+  {"project": "OFF", "url": ""}
 ]
 ```
 
-### 3. Input Data
+## Input
 
-Place your CSV files in the `input/` directory with the naming pattern:
-`tasks_MM_YYYY.csv`
-
-Example: `input/tasks_09_2025.csv`
-
-#### Input File Structure
-
-The input CSV file must contain the following columns:
-
-| Column | Description | Example |
-|--------|-------------|---------|
-| `Project` | Project name (must match `projects.json`) or "OFF" for time off | `D-System`, `VILD-Gacha`, `OFF` |
-| `Task` | Task/MR ID number, or description for OFF entries | `1573`, `401`, `Annual Leave` |
-| `Type` | Type of task | `TASK`, `MR`, `OFF` |
-| `Time` | Hours spent on the task | `8`, `4.5`, `3` |
-| `Date` | Date of work | `November 3, 2025` |
-
-**Example CSV content:**
+Place a CSV named `tasks_MM_YYYY.csv` in `input/`, either exported from the extension or created manually:
 
 ```csv
 Project,Task,Type,Time,Date
-OFF,Annual Leave,OFF,8,"November 7, 2025"
-D-System,1573,TASK,5,"November 3, 2025"
-D-System,1615,TASK,8,"November 4, 2025"
-VILD-Gacha,393,TASK,1,"November 12, 2025"
-D-System,102,MR,2.5,"November 18, 2025"
+Project A,1573,TASK,5,"October 1, 2026"
+Project A,102,MR,2.5,"October 2, 2026"
+OFF,Annual Leave,OFF,8,"October 5, 2026"
 ```
 
-**Important Notes:**
-- Date format must be: `Month Day, Year` (e.g., `November 3, 2025`)
-- Project names must match entries in `projects.json`
-- OFF entries appear in a separate section in Excel, outside the task statistics.
-  They are excluded from the CSV export.
-- For TASK type: The tool will fetch additional data from GitLab (start date, due date, closed date, estimate)
-- For MR type: The tool will fetch estimate from GitLab merge request
-- Time can be decimal values (e.g., `4.5` for 4.5 hours)
+| Column | Value |
+| --- | --- |
+| `Project` | Name from `projects.json`, or `OFF` for leave |
+| `Task` | Work item / merge request ID, or a leave description |
+| `Type` | `TASK`, `MR`, or `OFF` |
+| `Time` | Hours worked or taken as leave; decimals are supported |
+| `Date` | English date in `Month Day, Year` format |
 
 ## Usage
 
-For live day/week/month tracking and easy leave entry, install the standalone
-[Chrome/Edge extension](extension/README.md). It stores data locally, syncs
-GitLab every five minutes, supports manual sync, and exports the monthly CSV
-used by the command below. Its source lives in `extension/src/`, separately
-from the Python application.
-
 ```bash
-# Generate report for September 2025
-uv run report -m 9 -y 2025
-
-# Or using short options
-uv run report --month 9 --year 2025
-
-# Show help
+uv run report -m 10 -y 2026
 uv run report --help
 ```
 
-## Output
+Reports are written to `output/`:
 
-The tool generates two files in the `output/` directory:
+- `report_MM_YYYY.csv`: enriched task data, excluding leave.
+- `report_MM_YYYY.xlsx`: formatted work report with project tables, task statistics, and KPI formulas. Leave appears in a separate section outside task statistics.
 
-- `report_MM_YYYY.csv` - CSV format with decimal points
-- `report_MM_YYYY.xlsx` - Sheet `Báo cáo công việc`, matching the layout and
-  styling of `example.xlsx`: project tables on the left, task statistics and
-  percentage formulas on the right. Dates and hours are native Excel values.
-  OFF entries appear below the project tables and are excluded from task
-  statistics. Company working time stays at 192 hours
-  as specified by the example. Excel recalculates formulas when opened.
+The CLI uses the bundled template at `src/kpi_report/templates/work_report.xlsx`; `example.xlsx` is not required. Excel report labels and default task values retain the original Vietnamese template. The company working-time target remains 192 hours, and formulas recalculate when the workbook is opened.
 
-The clean template is bundled at `src/kpi_report/templates/work_report.xlsx`;
-the original `example.xlsx` is not required to run the tool. Task type and
-progress still default to `Kế hoạch` and `Đúng hạn`; editing them or the reopen
-count in Excel updates the statistics. Empty denominators produce 0 instead
-of a division error. Only the requested work-report sheet is exported.
-
-## Project Structure
-
-```
-kpi-report/
-├── src/
-│   └── kpi_report/
-│       ├── __init__.py       # Package entry point
-│       ├── main.py           # Orchestrator (entry point)
-│       ├── cli.py            # Argument parsing
-│       ├── config.py         # Environment & project config
-│       ├── constants.py      # Shared constants
-│       ├── gitlab.py         # GitLab GraphQL API client
-│       ├── processor.py      # Data transformation logic
-│       └── report.py         # CSV/Excel output generation
-├── input/                    # Input CSV files
-├── output/                   # Generated reports
-├── .env                      # Environment variables
-├── projects.json             # Project configuration
-├── pyproject.toml            # Project & build config
-└── README.md
-```
+For browser installation, direct Excel export, local storage, and extension tests, see the [extension README](extension/README.md).

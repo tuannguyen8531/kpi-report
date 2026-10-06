@@ -22,11 +22,11 @@ export function today(now = new Date()) {
 
 export function parseDay(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new Error('Ngày không hợp lệ.');
+    throw new Error('Invalid date.');
   }
   const parsed = new Date(`${value}T00:00:00Z`);
   if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
-    throw new Error('Ngày không hợp lệ.');
+    throw new Error('Invalid date.');
   }
   return parsed;
 }
@@ -65,23 +65,28 @@ export function validateConfig(input) {
   const parsed = new URL(String(input.url).trim());
   if (parsed.username || parsed.password || parsed.search || parsed.hash ||
       (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(parsed.hostname)))) {
-    throw new Error('Dùng địa chỉ GitLab HTTPS, hoặc HTTP trên localhost.');
+    throw new Error('Use an HTTPS GitLab URL, or HTTP on localhost.');
   }
   const projects = typeof input.projects === 'string' ? JSON.parse(input.projects) : input.projects;
-  if (!Array.isArray(projects)) throw new Error('Danh sách dự án phải là mảng JSON như projects.json.');
+  if (!Array.isArray(projects)) throw new Error('Projects must be a JSON array, as in projects.json.');
   const names = new Set(), paths = new Set();
-  if (projects.some((row) => !row || typeof row !== 'object')) throw new Error('Mỗi dự án cần có project và url.');
+  if (projects.some((row) => !row || typeof row !== 'object')) throw new Error('Each project must include project and url fields.');
   const clean = projects.filter((row) => row.project !== 'OFF').map((row) => {
     const project = String(row.project || '').trim(), url = String(row.url || '').trim();
     if (!project || !url || url.startsWith('/') || url.includes('://') || names.has(project) || paths.has(url)) {
-      throw new Error('Tên và đường dẫn dự án cần đầy đủ, không trùng nhau.');
+      throw new Error('Project names and paths must be nonempty and unique.');
     }
     names.add(project); paths.add(url);
     return {project, url};
   });
-  if (!clean.length) throw new Error('Cần ít nhất một dự án để theo dõi.');
+  if (!clean.length) throw new Error('Add at least one project to track.');
   const excelPattern = String(input.excelPattern || '').trim() || 'report_MM_YYYY.xlsx';
-  return {url: parsed.href.replace(/\/$/, ''), projects: clean, rememberToken: Boolean(input.rememberToken), excelPattern};
+  const reminderTime = input.reminderTime ?? '10:00';
+  if (typeof reminderTime !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)) {
+    throw new Error('Choose a valid reminder time.');
+  }
+  return {url: parsed.href.replace(/\/$/, ''), projects: clean, rememberToken: Boolean(input.rememberToken), excelPattern,
+    reminderEnabled: input.reminderEnabled !== false, reminderTime};
 }
 
 export function normalizeLogs(logs, config, username, start, end) {
@@ -90,12 +95,12 @@ export function normalizeLogs(logs, config, username, start, end) {
   for (const log of logs) {
     const project = projects.get(log.project?.fullPath);
     if (!project || log.user?.username !== username) continue;
-    if (typeof log.spentAt !== 'string') throw new Error('GitLab trả về timelog thiếu ngày làm việc.');
+    if (typeof log.spentAt !== 'string') throw new Error('GitLab returned a timelog without a work date.');
     const date = today(new Date(log.spentAt));
     if (date < start || date >= end) continue;
     const item = log.issue || log.mergeRequest;
     if (!item || !log.id || typeof log.timeSpent !== 'number' || !Number.isFinite(log.timeSpent)) {
-      throw new Error('GitLab trả về timelog thiếu thông tin.');
+      throw new Error('GitLab returned an incomplete timelog.');
     }
     const link = new URL(item.webUrl, config.url);
     const safeUrl = link.origin === new URL(config.url).origin && ['http:', 'https:'].includes(link.protocol) ? link.href : null;
@@ -110,8 +115,8 @@ export function normalizeLogs(logs, config, username, start, end) {
 export function validateLeave(input) {
   parseDay(input.day);
   const hours = Number(input.hours), reason = String(input.reason || '').trim();
-  if (!Number.isFinite(hours) || hours <= 0 || hours > 24) throw new Error('Số giờ nghỉ phải lớn hơn 0 và không quá 24.');
-  if (!reason || reason.length > 500) throw new Error('Lý do nghỉ cần từ 1 đến 500 ký tự.');
+  if (!Number.isFinite(hours) || hours <= 0 || hours > 24) throw new Error('Leave hours must be greater than 0 and no more than 24.');
+  if (!reason || reason.length > 500) throw new Error('The leave reason must be between 1 and 500 characters.');
   return {day: input.day, hours, reason};
 }
 
@@ -140,7 +145,7 @@ export function makeSnapshot(day, cache, leaves) {
 }
 
 export function exportCsv(snapshot) {
-  if (!snapshot.syncedAt || snapshot.error) throw new Error('Hãy đồng bộ thành công trước khi xuất dữ liệu tháng.');
+  if (!snapshot.syncedAt || snapshot.error) throw new Error('Sync successfully before exporting monthly data.');
   const english = (day) => parseDay(day).toLocaleDateString('en-US', {timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric'});
   const rows = [
     ['Project', 'Task', 'Type', 'Time', 'Date'],

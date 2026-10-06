@@ -1,95 +1,76 @@
-# KPI Tracker · Extension Chrome / Edge
+# KPI Tracker
 
-Theo dõi giờ **đã log trên GitLab** theo ngày, tuần và tháng; ghi lịch nghỉ
-trên máy; xuất CSV để chương trình Python tạo Excel theo mẫu hiện tại.
+A Chrome and Edge extension for tracking GitLab work hours, managing leave, and exporting monthly KPI reports.
 
-## Cài đặt và Khởi tạo lần đầu
+## Features
 
-1. Mở `chrome://extensions` (Chrome) hoặc `edge://extensions` (Edge).
-2. Bật **Developer mode / Chế độ dành cho nhà phát triển**.
-3. Chọn **Load unpacked / Tải tiện ích đã giải nén** và chọn thư mục `extension/`
-   chứa `manifest.json`, không chọn `extension/src/`.
-4. Ghim tiện ích lên thanh công cụ trình duyệt.
-5. **Màn hình thiết lập kết nối (Onboarding)** sẽ tự động xuất hiện ở lần mở đầu tiên:
-   - Nhập **Địa chỉ GitLab** (ví dụ `https://gitlab.com` hoặc máy chủ nội bộ công ty).
-   - Nhập **Personal Access Token** có quyền (scope) `read_api`. Bấm vào biểu tượng con mắt để xem/ẩn token.
-   - Chọn tùy chọn **Ghi nhớ token trên máy** nếu không muốn phải nhập lại token sau khi khởi động lại trình duyệt.
-   - Kéo thả hoặc bấm chọn file `projects.json` của dự án để nạp danh sách dự án cần theo dõi.
-   - Bấm **Lưu & Kết nối GitLab** và chấp thuận quyền kết nối tên miền GitLab tương ứng khi trình duyệt hỏi. Tiện ích chỉ đọc timelog, tuyệt đối không chỉnh sửa dữ liệu trên GitLab.
+- Daily, weekly, and monthly totals with separate work and leave hours.
+- Monthly calendar, searchable timelogs, task links, and daily notes.
+- Daily note notifications at a configurable time (10:00 Vietnam time by default).
+- Local leave tracking with JSON backup and restore.
+- Direct Excel export with KPI formulas, plus CSV export for the [Python CLI](../README.md).
+- Compact popup and full-tab dashboard, with automatic sync every 30 minutes and manual refresh.
 
-Không cần npm install, build hoặc chạy máy chủ Python để dùng extension.
-Mã extension nằm trong `extension/src/`, tách khỏi `src/kpi_report/`.
+## Installation
 
-## Giao diện & Tính năng
+1. Download or clone this repository.
+2. Open `chrome://extensions` or `edge://extensions` and enable **Developer mode**.
+3. Click **Load unpacked** and select the `extension/` directory containing `manifest.json`.
+4. Pin the extension and open it to complete setup.
 
-- **Màn hình Popup thu nhỏ**: Thiết kế gọn gàng, hiển thị 3 thẻ KPI trực quan (**Hôm nay**, **Tuần**, **Tháng**) kèm thanh tiến độ công việc kép (Làm / Nghỉ) và hệ thống điều hướng tiện lợi:
-  - 📅 **Lịch tháng**: Lưới lịch trực quan, bấm vào từng ngày để xem và cập nhật dữ liệu; phân biệt rõ ngày làm việc và ngày nghỉ phép.
-  - 📝 **Ghi chú từng ngày**: Nhấp đúp vào ngày trên lịch (hoặc bấm thẻ thời gian Ngày) để mở popup chi tiết ngày, nhập công việc hoặc điều cần nhớ rồi bấm **Lưu ghi chú**. Ngày có ghi chú hiện badge **Note** màu xanh lá; xóa hết nội dung rồi lưu để bỏ ghi chú. Bản nháp được giữ khi mở chi tiết ngày khác trong cửa sổ đang mở; cần bấm Lưu trước khi đóng cửa sổ tiện ích.
-  - ⏱️ **Timelog**: Danh sách chi tiết các công việc đã log và ngày nghỉ OFF, hỗ trợ tìm kiếm nhanh, lọc theo dự án/OFF và xem "Chỉ ngày chọn" hoặc "Cả tháng".
-  - 🌴 **Lịch nghỉ**: Mở cửa sổ popup chuyên biệt (spacious modal dialog) để ghi nhận ngày nghỉ với các nút chọn nhanh (8h, 4h, 2h), danh sách nghỉ trong tháng kèm chức năng Sửa/Xóa, Sao lưu & Khôi phục file JSON.
-  - 📊 **Báo cáo**: Tóm tắt giờ làm việc và nút **Xuất CSV** nhanh chóng.
-- **Bản Mở rộng toàn diện (Full Tab Dashboard)**:
-  - Bấm nút **Mở rộng** để trải nghiệm giao diện Dashboard tối ưu: Khung **Lịch làm việc trong tháng** được mở rộng toàn bộ bề ngang (full-width), các ô lịch rộng rãi hiển thị rõ ràng giờ làm và giờ nghỉ. Bên dưới là danh sách **Chi tiết Timelog** và banner **Báo cáo & Xuất file**.
-  - **Quản lý lịch nghỉ** được tách thành một cửa sổ popup riêng biệt, rộng rãi và tiện lợi (bố cục 2 cột trên máy tính: form bên trái, danh sách nghỉ & sao lưu bên phải).
-- **Cài đặt & Tài khoản**:
-  - Bấm vào biểu tượng ⚙️ (Cài đặt) ở góc phải thanh tiêu đề để cập nhật máy chủ, token, danh sách dự án hoặc thực hiện **Ngắt kết nối / Đăng xuất tài khoản**.
-- **Thời gian tracking tổng hợp**: Tổng giờ ghi nhận ở các thẻ (Ngày, Tuần, Tháng) và trên lịch tính gộp cả **Giờ làm việc (GitLab)** và **Giờ nghỉ phép (OFF)**, giúp theo dõi chính xác tiến độ hoàn thành định mức giờ làm (8h/ngày, 40h/tuần, 192h/tháng).
-- **Phân biệt Làm / Nghỉ & Liên kết đến GitLab**: Bấm trực tiếp vào bất kỳ thẻ thời gian nào (Hôm nay, Tuần, Tháng) hoặc **nhấp đúp chuột vào bất kỳ ô ngày nào trên lịch** để mở cửa sổ đối soát chi tiết:
-  - Cửa sổ popup chi tiết được thiết kế rộng rãi, thoáng đãng.
-  - Hiển thị biểu đồ thanh tỷ lệ ngang giữa Giờ làm việc (xanh) và Giờ nghỉ (cam).
-  - Thống kê chi tiết từng hạng mục công việc: **các task/MR đều có thể bấm vào để mở trực tiếp đường dẫn trên GitLab**.
-- **Tính toán tuần gói gọn trong tháng**: Thời gian tuần (và các giờ tracking) **chỉ tính các ngày thuộc tháng hiện tại**, kể cả khi thứ Hai của tuần bắt đầu từ những ngày cuối của tháng trước (ví dụ: tuần 28/09 - 04/10 khi xem tháng 10 sẽ chỉ tính từ 01/10 đến 04/10).
-- Tự động đồng bộ **mỗi 30 phút** khi trình duyệt đang chạy. Bấm biểu tượng xoay để **Đồng bộ ngay** lập tức. Mở tiện ích cũng tự động lấy dữ liệu nếu lần cập nhật trước đã quá 30 phút.
-- Múi giờ chuẩn hóa: Tất cả dùng múi giờ `Asia/Ho_Chi_Minh` (UTC+7).
-- Chỉ cộng timelog của chủ token, thuộc các dự án đã cấu hình, dựa trên `spentAt`. Đọc đủ phân trang; giữ cả các log âm điều chỉnh thời gian.
-- Khi GitLab lỗi, giữ dữ liệu cũ và hiển thị lỗi cùng thời điểm cập nhật cũ. Nếu chưa đồng bộ thành công lần nào, hiển thị `—`, không hiển thị 0 giả.
-- **Lịch nghỉ** hỗ trợ cả ngày (8h), nửa ngày (4h), hoặc số giờ tùy chỉnh. Một mục cho mỗi ngày, có thể sửa/xóa; có thể ghi ngày nghỉ tương lai.
-- **Tạo Excel**: Giờ nghỉ xuất riêng thành các dòng `OFF` trong file CSV; khi chạy qua script Python, các dòng OFF hiển thị riêng ở Excel và nằm ngoài tất cả thống kê, tỷ lệ. Mức 192h trong mẫu Excel giữ như hiện tại.
-- Khi máy ngủ hoặc trình duyệt đóng, lịch đồng bộ có thể trễ; có thể dùng
-  nút đồng bộ thủ công sau khi mở lại.
+No build step, npm installation, or Python server is required to use the extension. Chrome 120+ or a compatible Chromium-based Edge version is required.
 
-## Lưu trữ và sao lưu
+## Setup
 
-- Cấu hình, các bản timelog gần đây và lịch nghỉ dùng `chrome.storage.local`,
-  không dùng `window.localStorage`. Bộ nhớ này giới hạn truy cập ở extension.
-- Mặc định token dùng `chrome.storage.session`: nhập lại sau khi khởi động lại
-  trình duyệt. Có thể chọn **Ghi nhớ token trên máy** để lưu cục bộ qua các phiên;
-  lựa chọn này không mã hóa token và không đồng bộ token lên tài khoản Chrome.
-- Đổi tài khoản GitLab sẽ dùng lịch nghỉ riêng cho tài khoản đó.
-- Ghi chú lưu trên máy theo từng ngày và tài khoản GitLab, có thể sửa khi mất mạng hoặc chưa nhập lại token. Ghi chú không cộng vào giờ làm, không xuất vào CSV/Excel và không nằm trong bản sao lưu lịch nghỉ.
-- **Sao lưu lịch nghỉ** xuất JSON không chứa token. **Khôi phục** chỉ chấp nhận
-  đúng tài khoản/máy chủ, bổ sung ngày chưa có và bỏ qua bản ghi giống nhau.
-  Nếu ngày đã có dữ liệu khác, báo lỗi và giữ nguyên toàn bộ dữ liệu.
-- Gỡ extension hoặc xóa hồ sơ trình duyệt sẽ mất lịch nghỉ lưu cục bộ;
-  sao lưu trước khi chuyển máy hoặc cài lại. Timelog gốc vẫn trên GitLab.
+Enter your GitLab server URL and a personal access token with the `read_api` scope. Import a `projects.json` file, or enter the project list directly:
 
-- **Tạo & Xuất báo cáo Excel (.xlsx) trực tiếp bằng Pure JS**:
-  - Không cần cài đặt môi trường Python hay chạy dòng lệnh terminal: Tiện ích tích hợp sẵn công cụ tạo file Excel thuần JavaScript (`excel_generator.js` & `exceljs`).
-  - Khi bấm **Xuất Excel ngay (.xlsx)**: Tiện ích tự động tổng hợp timelog trong tháng, truy vấn GraphQL GitLab để lấy ngày bắt đầu, hạn chót, ngày đóng, thời gian ước tính (estimate) cho từng task/MR, gắn hyperlink trực tiếp đến GitLab, tính toán toàn bộ công thức KPI (`COUNTIF`, `COUNTIFS`, `SUMIF`, `IFERROR`), điền vào biểu mẫu chuẩn `work_report.xlsx` và tự động kích hoạt tải file về máy.
-  - Vẫn giữ tùy chọn **Xuất CSV** để lưu trữ hoặc chạy quy trình Python cũ nếu có nhu cầu.
+```json
+[
+  {"project": "Project A", "url": "group/project-a"},
+  {"project": "Project B", "url": "group/project-b"}
+]
+```
 
-## Tạo Báo cáo Excel
+Click **Save & Connect** and allow access to your GitLab server when prompted. HTTPS is required except on localhost. The extension reads GitLab data without modifying it.
 
-### Cách 1: Xuất Excel trực tiếp 1-Click (Khuyên dùng)
-1. Chọn ngày bất kỳ thuộc tháng cần làm báo cáo.
-2. Bấm nút **Xuất Excel** trên thanh công cụ hoặc vào mục **Báo cáo & Xuất file** bấm **Xuất Excel ngay (.xlsx)**.
-3. Trình duyệt sẽ tự động truy vấn dữ liệu từ GitLab, tính toán công thức KPI và tải file `report_MM_YYYY.xlsx` về máy ngay tức thì.
+## Usage
 
-### Cách 2: Xuất file CSV cho quy trình Python CLI (Dự phòng)
-1. Bấm **Xuất CSV** để tải file `tasks_MM_YYYY.csv`.
-2. Đặt file `tasks_MM_YYYY.csv` tải về vào thư mục `input/` của dự án Python.
-3. Chạy lệnh:
-   ```bash
-   uv run report -m 10 -y 2026
-   ```
+- Select a date to view its month. Click a total or double-click a calendar day for details; save daily notes from the day dialog.
+- Open **Leave** to add, edit, or delete time off. Each date supports one entry with up to 24 hours.
+- Click **Export Excel** to download the selected month's report. The original Excel template, Vietnamese report labels, and KPI formulas are preserved.
+- Use **Export CSV** to download `tasks_MM_YYYY.csv`. For the CLI workflow, place it in the repository's `input/` directory and run `uv run report -m 10 -y 2026` with the appropriate month and year.
+- Open settings to update the connection, projects, or Excel filename pattern (`MM` and `YYYY` placeholders).
 
-## Kiểm tra mã
+Only the token owner's timelogs in configured projects are counted. Dates use `Asia/Ho_Chi_Minh` (UTC+7); weeks start on Monday and include only days within the selected month. Dashboard targets are 8 hours per day, 40 per week, and 192 per month, including leave. Excel lists leave separately and excludes it from task statistics.
+
+Sync may be delayed while the browser is closed or the device is asleep. A failed sync preserves cached data and displays an error; exports require a successful sync.
+
+## Note reminders
+
+In **Settings**, enable **Daily note reminders** and choose a **Reminder time** (Vietnam, UTC+7). Reminders are enabled by default at 10:00. Only saved, nonempty notes for today and the connected account trigger a notification, once per day per account. Click the notification to open that day's note.
+
+The browser must be running and notifications must be allowed in your operating system. Delivery can be delayed while the device sleeps; the extension catches up for the current day when it resumes. Saving a note after the scheduled time also triggers a reminder if none has been sent that day. Changing the time or editing a note does not send a second reminder that day.
+
+Notes are local, so reminders work offline and after a session token expires. Disconnecting the account or disabling reminders stops future reminders. Long notes may be truncated by the notification display; open the note to read it in full.
+
+After updating an unpacked installation, reload the extension at `chrome://extensions` or `edge://extensions` to apply the new `notifications` permission.
+
+## Data and privacy
+
+Settings, cached timelogs, leave, and notes stay in local extension storage. Tokens are session-only by default; **Remember token** stores the token locally across browser sessions, without encryption or Chrome account sync.
+
+Leave and notes are separated by GitLab account and server. Leave backups contain no token and can only be restored to the matching account and server; conflicting entries reject the restore. Notes are excluded from backups and reports.
+
+Back up leave before removing the extension or changing browser profiles. Uninstalling removes local data; original timelogs remain on GitLab.
+
+## Development
+
+Source files are in `src/`; the Excel template and bundled ExcelJS library are included in the extension.
+
+Run the tests with Node.js 20+:
 
 ```bash
 cd extension
+npm ci
 npm test
 ```
-
-Dùng Node.js 20 trở lên, không có dependency ngoài. Kiểm tra ngày/tuần/tháng,
-biên múi giờ, phân trang, đồng bộ 30 phút/thủ công, lỗi mạng, sửa/xóa timelog,
-ghi/sửa/xóa nghỉ, sao lưu/khôi phục và CSV cho chương trình Python.

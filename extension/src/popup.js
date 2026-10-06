@@ -5,12 +5,12 @@ import {generateExcelWorkbook} from './excel_generator.js';
 const $ = (id) => document.getElementById(id);
 
 // Number and date formatters
-const formatHours = (value) => value === null ? '—' : `${new Intl.NumberFormat('vi-VN', {maximumFractionDigits: 2}).format(value)}h`;
+const formatHours = (value) => value === null ? '—' : `${new Intl.NumberFormat('en-GB', {maximumFractionDigits: 2}).format(value)}h`;
 const shortDay = (value) => `${value.slice(8, 10)}/${value.slice(5, 7)}`;
 const fullDayLabel = (dateStr) => {
   try {
     const d = parseDay(dateStr);
-    const dayNames = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return `${dayNames[d.getUTCDay()]}, ${shortDay(dateStr)}/${dateStr.slice(0, 4)}`;
   } catch {
     return dateStr;
@@ -38,7 +38,8 @@ const noteDrafts = new Map();
 let noteDay = null;
 
 // Initialize default date
-const initialToday = today();
+const requestedNote = new URLSearchParams(location.search).get('note');
+const initialToday = requestedNote && /^\d{4}-\d{2}-\d{2}$/.test(requestedNote) ? requestedNote : today();
 $('anchor').value = initialToday;
 $('leave-day').value = initialToday;
 
@@ -68,7 +69,7 @@ function showToast(message, type = 'info', duration = 3500) {
 async function send(message) {
   const response = await chrome.runtime.sendMessage(message);
   if (!response?.ok) {
-    throw new Error(response?.error || 'Extension chưa phản hồi. Vui lòng thử lại.');
+    throw new Error(response?.error || 'The extension did not respond. Please try again.');
   }
   return response.data;
 }
@@ -86,7 +87,7 @@ async function act(action) {
   const interactiveElements = [
     'anchor', 'btn-today', 'btn-prev-day', 'btn-next-day',
     'btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'connect',
-    'leave-save', 'btn-onboarding-submit', 'day-note-save', 'day-note'
+    'leave-save', 'btn-onboarding-submit', 'day-note-save', 'day-note', 'day-note-clear'
   ];
   for (const id of interactiveElements) {
     const el = $(id);
@@ -108,7 +109,7 @@ async function act(action) {
     }
 
     const isConfigured = Boolean(snapshot?.configured);
-    for (const id of ['btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'leave-save', 'day-note-save', 'day-note']) {
+    for (const id of ['btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'leave-save', 'day-note-save', 'day-note', 'day-note-clear']) {
       const el = $(id);
       if (el) el.disabled = !isConfigured;
     }
@@ -148,8 +149,8 @@ function resetLeaveForm() {
   $('leave-day').value = $('anchor').value;
   $('leave-hours').value = 8;
   $('leave-reason').value = '';
-  $('leave-form-title').textContent = 'Thêm ngày nghỉ mới';
-  $('leave-save').querySelector('.btn-text').textContent = 'Lưu ngày nghỉ';
+  $('leave-form-title').textContent = 'Add leave';
+  $('leave-save').querySelector('.btn-text').textContent = 'Save leave';
   $('leave-cancel').hidden = true;
   updatePresetChipsActive();
   if (snapshot) renderLeaves(snapshot);
@@ -197,25 +198,32 @@ function render(data) {
     statusText.title = data.error;
   } else {
     statusDot.className = 'status-dot live';
-    const updatedTime = data.syncedAt ? new Date(data.syncedAt).toLocaleTimeString('vi-VN', {
+    const updatedTime = data.syncedAt ? new Date(data.syncedAt).toLocaleTimeString('en-GB', {
       timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit'
-    }) : 'Đã kết nối';
-    statusText.textContent = `Đồng bộ lúc ${updatedTime}`;
-    statusText.title = `Đồng bộ gần nhất: ${updatedTime}`;
+    }) : 'Connected';
+    statusText.textContent = `Synced at ${updatedTime}`;
+    statusText.title = `Last synced: ${updatedTime}`;
   }
 
   // Selected Day info
   $('selected-day-text').textContent = fullDayLabel(data.date);
+  if ($('selected-day-note-badge')) {
+    const hasNote = Boolean(data.notes?.[data.date]);
+    $('selected-day-note-badge').hidden = !hasNote;
+    if (hasNote) {
+      $('selected-day-note-badge').title = `Note: ${data.notes[data.date]}`;
+    }
+  }
   if (noteDay && !$('modal-breakdown').hidden) renderDayNote(data, noteDay);
 
   // Top KPI Metrics (Combined Tracking Time: Work + Leave)
   // 1. Day Card
   const isToday = data.date === data.today;
-  $('day-label').textContent = isToday ? 'Hôm nay' : `Ngày ${shortDay(data.date)}`;
+  $('day-label').textContent = isToday ? 'Today' : `Day ${shortDay(data.date)}`;
   const dayStats = getTracked(data.day);
   $('day-hours').textContent = formatHours(dayStats.total);
-  $('day-split-work').textContent = `Làm: ${formatHours(dayStats.work)}`;
-  $('day-split-leave').textContent = `Nghỉ: ${formatHours(dayStats.leave)}`;
+  $('day-split-work').textContent = `Work: ${formatHours(dayStats.work)}`;
+  $('day-split-leave').textContent = `Leave: ${formatHours(dayStats.leave)}`;
   const dayTotal = dayStats.total || 0;
   const dayWork = dayStats.work || 0;
   const dayLeave = dayStats.leave || 0;
@@ -224,21 +232,21 @@ function render(data) {
   $('day-progress-work').style.width = `${dayWorkPct}%`;
   $('day-progress-leave').style.width = `${dayLeavePct}%`;
   const dayPercent = Math.min(100, Math.round((dayTotal / 8) * 100));
-  $('day-progress-text').textContent = `Mục tiêu 8h · ${dayPercent}% (Làm ${formatHours(dayStats.work)} + Nghỉ ${formatHours(dayStats.leave)})`;
-  $('day-leave').textContent = dayStats.leave > 0 ? `Bao gồm Nghỉ ${formatHours(dayStats.leave)}` : '100% Giờ làm việc';
+  $('day-progress-text').textContent = `8h target · ${dayPercent}% (Work ${formatHours(dayStats.work)} + Leave ${formatHours(dayStats.leave)})`;
+  $('day-leave').textContent = dayStats.leave > 0 ? `Includes leave: ${formatHours(dayStats.leave)}` : '100% work hours';
 
   // Selected Day info in calendar bar
-  $('selected-day-text').textContent = `${fullDayLabel(data.date)} · ${formatHours(dayStats.total)} (Làm: ${formatHours(dayStats.work)} · Nghỉ: ${formatHours(dayStats.leave)})`;
+  $('selected-day-text').textContent = `${fullDayLabel(data.date)} · ${formatHours(dayStats.total)} (Work: ${formatHours(dayStats.work)} · Leave: ${formatHours(dayStats.leave)})`;
 
   // 2. Week Card (Calculated strictly within current month)
   const weekStartStr = data.week?.start || data.range.weekStart;
   const weekEndStr = data.week?.end || data.range.weekEnd;
   const isClamped = weekStartStr !== data.range.weekStart || weekEndStr !== data.range.weekEnd;
-  $('week-range').textContent = `${shortDay(weekStartStr)} – ${shortDay(addDays(weekEndStr, -1))}${isClamped ? ' (trong tháng)' : ''}`;
+  $('week-range').textContent = `${shortDay(weekStartStr)} – ${shortDay(addDays(weekEndStr, -1))}${isClamped ? ' (within month)' : ''}`;
   const weekStats = getTracked(data.week);
   $('week-hours').textContent = formatHours(weekStats.total);
-  $('week-split-work').textContent = `Làm: ${formatHours(weekStats.work)}`;
-  $('week-split-leave').textContent = `Nghỉ: ${formatHours(weekStats.leave)}`;
+  $('week-split-work').textContent = `Work: ${formatHours(weekStats.work)}`;
+  $('week-split-leave').textContent = `Leave: ${formatHours(weekStats.leave)}`;
   const weekTotal = weekStats.total || 0;
   const weekWork = weekStats.work || 0;
   const weekLeave = weekStats.leave || 0;
@@ -247,15 +255,15 @@ function render(data) {
   $('week-progress-work').style.width = `${weekWorkPct}%`;
   $('week-progress-leave').style.width = `${weekLeavePct}%`;
   const weekPercent = Math.min(100, Math.round((weekTotal / 40) * 100));
-  $('week-progress-text').textContent = `Mục tiêu 40h · ${weekPercent}% (Làm ${formatHours(weekStats.work)} + Nghỉ ${formatHours(weekStats.leave)})`;
-  $('week-leave').textContent = weekStats.leave > 0 ? `Bao gồm Nghỉ ${formatHours(weekStats.leave)}` : '100% Giờ làm việc';
+  $('week-progress-text').textContent = `40h target · ${weekPercent}% (Work ${formatHours(weekStats.work)} + Leave ${formatHours(weekStats.leave)})`;
+  $('week-leave').textContent = weekStats.leave > 0 ? `Includes leave: ${formatHours(weekStats.leave)}` : '100% work hours';
 
   // 3. Month Card (Target: 192h standard)
-  $('month-label').textContent = `Tháng ${data.date.slice(5, 7)}/${data.date.slice(0, 4)}`;
+  $('month-label').textContent = `Month ${data.date.slice(5, 7)}/${data.date.slice(0, 4)}`;
   const monthStats = getTracked(data.month);
   $('month-hours').textContent = formatHours(monthStats.total);
-  $('month-split-work').textContent = `Làm: ${formatHours(monthStats.work)}`;
-  $('month-split-leave').textContent = `Nghỉ: ${formatHours(monthStats.leave)}`;
+  $('month-split-work').textContent = `Work: ${formatHours(monthStats.work)}`;
+  $('month-split-leave').textContent = `Leave: ${formatHours(monthStats.leave)}`;
   const monthTotal = monthStats.total || 0;
   const monthWork = monthStats.work || 0;
   const monthLeave = monthStats.leave || 0;
@@ -264,14 +272,14 @@ function render(data) {
   $('month-progress-work').style.width = `${monthWorkPct}%`;
   $('month-progress-leave').style.width = `${monthLeavePct}%`;
   const monthPercent = Math.min(100, Math.round((monthTotal / 192) * 100));
-  $('month-progress-text').textContent = `${monthPercent}% chỉ tiêu 192h (Làm ${formatHours(monthStats.work)} + Nghỉ ${formatHours(monthStats.leave)})`;
-  $('month-leave').textContent = monthStats.leave > 0 ? `Tổng nghỉ ${formatHours(monthStats.leave)}` : 'Không có lịch nghỉ';
+  $('month-progress-text').textContent = `${monthPercent}% of 192h target (Work ${formatHours(monthStats.work)} + Leave ${formatHours(monthStats.leave)})`;
+  $('month-leave').textContent = monthStats.leave > 0 ? `Total leave: ${formatHours(monthStats.leave)}` : 'No leave recorded';
 
   // Report Overview Card in Report Panel
-  if ($('report-month-title')) $('report-month-title').textContent = `Tháng ${data.date.slice(5, 7)}/${data.date.slice(0, 4)}`;
+  if ($('report-month-title')) $('report-month-title').textContent = `Month ${data.date.slice(5, 7)}/${data.date.slice(0, 4)}`;
   if ($('report-work-hours')) $('report-work-hours').textContent = formatHours(data.month.hours);
   if ($('report-leave-hours')) $('report-leave-hours').textContent = formatHours(data.month.leaveHours);
-  if ($('report-log-count')) $('report-log-count').textContent = `${(data.logs || []).length} mục`;
+  if ($('report-log-count')) $('report-log-count').textContent = `${(data.logs || []).length} entries`;
   if ($('report-command-example')) $('report-command-example').textContent = `uv run report -m ${parseInt(data.date.slice(5, 7), 10)} -y ${data.date.slice(0, 4)}`;
 
   // Render Calendar Grid
@@ -292,7 +300,32 @@ function renderDayNote(data, day) {
   const saved = data.notes?.[day] || '';
   $('day-note-date').textContent = `${shortDay(day)}/${day.slice(0, 4)}`;
   $('day-note').value = noteDrafts.has(key) ? noteDrafts.get(key) : saved;
-  $('day-note-status').textContent = $('day-note').value !== saved ? 'Chưa lưu' : saved ? 'Đã lưu' : 'Chưa có ghi chú';
+  updateNoteStatus(saved);
+}
+
+function updateNoteStatus(saved = null) {
+  if (saved === null && snapshot && noteDay) {
+    saved = snapshot.notes?.[noteDay] || '';
+  }
+  const current = $('day-note')?.value ?? '';
+  const statusEl = $('day-note-status');
+  if ($('day-note-clear')) {
+    $('day-note-clear').hidden = !current.trim();
+  }
+  if (!statusEl) return;
+  if (current !== saved) {
+    statusEl.className = 'note-status-badge status-unsaved';
+    statusEl.innerHTML = '<span class="status-dot"></span> Unsaved';
+    statusEl.title = 'You have unsaved changes in this note';
+  } else if (saved) {
+    statusEl.className = 'note-status-badge status-saved';
+    statusEl.innerHTML = '<span class="status-dot"></span> Saved';
+    statusEl.title = 'This note is saved locally';
+  } else {
+    statusEl.className = 'note-status-badge status-empty';
+    statusEl.innerHTML = '<span class="status-dot"></span> No note';
+    statusEl.title = 'No note for this day';
+  }
 }
 
 /**
@@ -358,14 +391,22 @@ function renderCalendar(data) {
 
     if (data.notes?.[day.date]) {
       const marker = document.createElement('span');
-      marker.className = 'cal-leave-chip cal-note-chip';
-      marker.textContent = 'Note';
-      marker.setAttribute('aria-label', 'Có ghi chú');
+      marker.className = 'cal-note-indicator cal-note-chip';
+      marker.setAttribute('aria-label', 'Has a note');
+      marker.title = `Note: ${data.notes[day.date]}`;
+      marker.innerHTML = `
+        <svg class="cal-note-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+        </svg>
+      `;
       cell.appendChild(marker);
     }
 
-    cell.title = `${day.date}: Tổng ${formatHours(dayTracked.total)} (Làm: ${formatHours(day.hours)}, Nghỉ: ${formatHours(day.leaveHours)}) · Nhấp đúp để xem chi tiết`;
-    if (data.notes?.[day.date]) cell.title += ` · Ghi chú: ${data.notes[day.date]}`;
+    cell.title = `${day.date}: Total ${formatHours(dayTracked.total)} (Work: ${formatHours(day.hours)}, Leave: ${formatHours(day.leaveHours)}) · Double-click for details`;
+    if (data.notes?.[day.date]) cell.title += ` · Note: ${data.notes[day.date]}`;
     cell.addEventListener('click', () => selectDay(day.date));
     cell.addEventListener('dblclick', (e) => {
       e.preventDefault();
@@ -474,7 +515,7 @@ function renderLogs() {
 
     const titleEl = document.createElement(log.url ? 'a' : 'div');
     titleEl.className = `log-title-link ${log.isLeave ? 'log-title-leave' : ''}`;
-    titleEl.textContent = log.title || 'Không có tiêu đề';
+    titleEl.textContent = log.title || 'Untitled';
     if (log.url) {
       titleEl.href = log.url;
       titleEl.target = '_blank';
@@ -523,7 +564,7 @@ function renderLeaves(data) {
     $('calendar-leave-badge').textContent = leaves.length;
     $('calendar-leave-badge').hidden = leaves.length === 0;
   }
-  $('leave-summary-badge').textContent = `${leaves.length} ngày`;
+  $('leave-summary-badge').textContent = `${leaves.length} days`;
   if ($('leave-toggle-badge')) {
     $('leave-toggle-badge').textContent = leaves.length;
   }
@@ -554,7 +595,7 @@ function renderLeaves(data) {
 
     const hoursBadge = document.createElement('span');
     hoursBadge.className = 'leave-hours-badge';
-    hoursBadge.textContent = `${entry.hours}h nghỉ`;
+    hoursBadge.textContent = `${entry.hours}h leave`;
 
     header.append(dateBadge, hoursBadge);
 
@@ -567,7 +608,7 @@ function renderLeaves(data) {
     if (isEditingThis) {
       const editTag = document.createElement('span');
       editTag.className = 'leave-editing-tag';
-      editTag.textContent = '✏️ Đang chỉnh sửa tại form';
+      editTag.textContent = '✏️ Editing in form';
       main.appendChild(editTag);
     }
 
@@ -577,15 +618,15 @@ function renderLeaves(data) {
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
     editBtn.className = 'btn btn-secondary btn-sm btn-icon-text';
-    editBtn.title = 'Chỉnh sửa ngày nghỉ';
-    editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><span>Sửa</span>';
+    editBtn.title = 'Edit leave';
+    editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><span>Edit</span>';
     editBtn.addEventListener('click', () => {
       editingLeaveId = entry.id;
       $('leave-day').value = entry.day;
       $('leave-hours').value = entry.hours;
       $('leave-reason').value = entry.reason;
-      $('leave-form-title').textContent = `Sửa ngày nghỉ ${shortDay(entry.day)}`;
-      $('leave-save').querySelector('.btn-text').textContent = 'Lưu thay đổi';
+      $('leave-form-title').textContent = `Edit leave for ${shortDay(entry.day)}`;
+      $('leave-save').querySelector('.btn-text').textContent = 'Save changes';
       $('leave-cancel').hidden = false;
       updatePresetChipsActive();
       setLeaveModalView('form');
@@ -596,14 +637,14 @@ function renderLeaves(data) {
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'btn btn-danger-outline btn-sm btn-icon-text';
-    removeBtn.title = 'Xóa ngày nghỉ';
-    removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>Xóa</span>';
+    removeBtn.title = 'Delete leave';
+    removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>Delete</span>';
     removeBtn.addEventListener('click', () => act(async () => {
-      if (!confirm(`Bạn có chắc chắn muốn xóa lịch nghỉ ngày ${shortDay(entry.day)}?`)) return;
+      if (!confirm(`Delete the leave entry for ${shortDay(entry.day)}?`)) return;
       await send({type: 'leave.delete', id: entry.id});
       if (editingLeaveId === entry.id) resetLeaveForm();
       await reload();
-      showToast('Đã xóa lịch nghỉ thành công.', 'success');
+      showToast('Leave entry deleted.', 'success');
     }));
 
     actions.append(editBtn, removeBtn);
@@ -623,7 +664,7 @@ function updateProjectFilterOptions() {
   select.replaceChildren();
   const defaultOpt = document.createElement('option');
   defaultOpt.value = '';
-  defaultOpt.textContent = 'Tất cả dự án';
+  defaultOpt.textContent = 'All projects';
   select.appendChild(defaultOpt);
 
   for (const p of [...projects].sort()) {
@@ -636,7 +677,7 @@ function updateProjectFilterOptions() {
   if ((snapshot?.leaves || []).length > 0) {
     const offOpt = document.createElement('option');
     offOpt.value = 'OFF';
-    offOpt.textContent = '🏖️ OFF (Nghỉ phép)';
+    offOpt.textContent = '🏖️ OFF (Leave)';
     select.appendChild(offOpt);
   }
 
@@ -660,9 +701,15 @@ $('day-note').addEventListener('input', () => {
   if (!snapshot?.configured || !noteDay) return;
   const text = $('day-note').value;
   noteDrafts.set(`${snapshot.profile}|${noteDay}`, text);
-  const saved = snapshot.notes?.[noteDay] || '';
-  $('day-note-status').textContent = text !== saved ? 'Chưa lưu' : saved ? 'Đã lưu' : 'Chưa có ghi chú';
+  updateNoteStatus();
 });
+
+$('day-note-clear')?.addEventListener('click', () => {
+  $('day-note').value = '';
+  $('day-note').dispatchEvent(new Event('input'));
+  $('day-note').focus();
+});
+
 $('day-note-form').addEventListener('submit', (event) => {
   event.preventDefault();
   void act(async () => {
@@ -676,7 +723,12 @@ $('day-note-form').addEventListener('submit', (event) => {
     noteDrafts.delete(`${profile}|${day}`);
     if (noteDay) renderDayNote(snapshot, noteDay);
     renderCalendar(snapshot);
-    showToast(text.trim() ? 'Đã lưu ghi chú.' : 'Đã xóa ghi chú.', 'success');
+    if ($('selected-day-note-badge')) {
+      const hasNote = Boolean(snapshot.notes?.[snapshot.date]);
+      $('selected-day-note-badge').hidden = !hasNote;
+      if (hasNote) $('selected-day-note-badge').title = `Note: ${snapshot.notes[snapshot.date]}`;
+    }
+    showToast(text.trim() ? 'Note saved.' : 'Note deleted.', 'success');
   });
 });
 
@@ -700,7 +752,7 @@ $('btn-next-day').addEventListener('click', () => {
 $('btn-sync').addEventListener('click', () => act(async () => {
   await reload(true);
   if (!snapshot.error) {
-    showToast('Đã đồng bộ dữ liệu mới nhất từ GitLab!', 'success');
+    showToast('Synced the latest data from GitLab.', 'success');
   }
 }));
 
@@ -782,7 +834,7 @@ $('leave-form').addEventListener('submit', (e) => {
     $('anchor').value = entry.day;
     resetLeaveForm();
     await reload();
-    showToast('Đã lưu thông tin ngày nghỉ!', 'success');
+    showToast('Leave entry saved.', 'success');
     setLeaveModalView('list');
   });
 });
@@ -791,7 +843,7 @@ $('leave-form').addEventListener('submit', (e) => {
 $('backup').addEventListener('click', () => act(async () => {
   const backupData = await send({type: 'backup'});
   downloadFile(`kpi-ngay-nghi-${today()}.json`, JSON.stringify(backupData, null, 2), 'application/json');
-  showToast('Đã xuất file sao lưu lịch nghỉ.', 'success');
+  showToast('Leave backup exported.', 'success');
 }));
 $('restore').addEventListener('change', (e) => act(async () => {
   const file = e.target.files[0];
@@ -801,9 +853,9 @@ $('restore').addEventListener('change', (e) => act(async () => {
     const result = await send({type: 'restore', backup: json});
     e.target.value = '';
     await reload();
-    showToast(`Đã khôi phục thành công ${result.added} ngày nghỉ.`, 'success');
+    showToast(`Restored ${result.added} leave entries.`, 'success');
   } catch (err) {
-    showToast(`Khôi phục thất bại: ${err.message}`, 'error', 4500);
+    showToast(`Restore failed: ${err.message}`, 'error', 4500);
   }
 }));
 
@@ -812,28 +864,28 @@ const handleExportExcel = () => act(async () => {
   const btnExcel = $('btn-export-excel');
   const btnQuickExcel = $('btn-quick-export-excel');
   const btnText = $('btn-export-excel-text');
-  const oldText = btnText ? btnText.textContent : 'Xuất Excel ngay (.xlsx)';
+  const oldText = btnText ? btnText.textContent : 'Export Excel (.xlsx)';
 
   try {
     if (btnExcel) btnExcel.disabled = true;
     if (btnQuickExcel) btnQuickExcel.disabled = true;
-    if (btnText) btnText.textContent = 'Đang truy vấn GitLab...';
-    showToast('Đang tổng hợp dữ liệu & truy vấn GitLab API...', 'info', 3000);
+    if (btnText) btnText.textContent = 'Fetching GitLab data...';
+    showToast('Preparing data and fetching GitLab task details...', 'info', 3000);
 
     const anchorDay = $('anchor').value || today();
     const excelData = await send({type: 'export_excel_data', day: anchorDay});
 
-    if (btnText) btnText.textContent = 'Đang tạo bảng tính Excel...';
+    if (btnText) btnText.textContent = 'Generating Excel report...';
 
     // Fetch the template work_report.xlsx
     const templateUrl = chrome.runtime.getURL('assets/templates/work_report.xlsx');
     const resp = await fetch(templateUrl);
-    if (!resp.ok) throw new Error('Không thể tải file mẫu Excel từ tiện ích.');
+    if (!resp.ok) throw new Error('Unable to load the bundled Excel template.');
     const templateBuffer = await resp.arrayBuffer();
 
     const ExcelJSClass = window.ExcelJS;
     if (!ExcelJSClass) {
-      throw new Error('Thư viện ExcelJS chưa sẵn sàng trong tiện ích.');
+      throw new Error('ExcelJS is not available in the extension.');
     }
 
     const buffer = await generateExcelWorkbook(templateBuffer, excelData, ExcelJSClass);
@@ -844,7 +896,7 @@ const handleExportExcel = () => act(async () => {
     );
 
     await reload();
-    showToast(`Đã xuất báo cáo Excel thành công: ${excelData.filename}`, 'success', 4000);
+    showToast(`Excel report exported: ${excelData.filename}`, 'success', 4000);
   } finally {
     if (btnExcel) btnExcel.disabled = false;
     if (btnQuickExcel) btnQuickExcel.disabled = false;
@@ -859,7 +911,7 @@ const handleExport = () => act(async () => {
   const result = await send({type: 'export', day: $('anchor').value});
   downloadFile(result.filename, result.csv, 'text/csv;charset=utf-8');
   await reload();
-  showToast('Đã xuất file CSV thành công!', 'success');
+  showToast('CSV exported.', 'success');
 });
 if ($('export')) $('export').addEventListener('click', handleExport);
 
@@ -877,21 +929,21 @@ $('btn-toggle-onboarding-json').addEventListener('click', () => {
   const editor = $('onboarding-projects');
   const isHidden = editor.hidden;
   editor.hidden = !isHidden;
-  $('btn-toggle-onboarding-json').querySelector('span').textContent = isHidden ? 'Thu gọn JSON' : 'Xem / sửa JSON thủ công';
+  $('btn-toggle-onboarding-json').querySelector('span').textContent = isHidden ? 'Collapse JSON' : 'View / edit JSON';
 });
 
 // Dropzone file handling for onboarding
 function handleProjectJsonText(text) {
   try {
     const parsed = JSON.parse(text);
-    if (!Array.isArray(parsed)) throw new Error('File JSON phải chứa một mảng danh sách dự án.');
+    if (!Array.isArray(parsed)) throw new Error('The JSON file must contain an array of projects.');
     const validCount = parsed.filter((p) => p && p.project && p.project !== 'OFF').length;
     $('onboarding-projects').value = JSON.stringify(parsed, null, 2);
     const statusBadge = $('onboarding-projects-status');
     statusBadge.hidden = false;
-    statusBadge.textContent = `✓ Đã nạp thành công ${validCount} dự án từ file`;
+    statusBadge.textContent = `✓ Loaded ${validCount} projects from file`;
   } catch (err) {
-    showToast(`File JSON không hợp lệ: ${err.message}`, 'error');
+    showToast(`Invalid JSON file: ${err.message}`, 'error');
   }
 }
 
@@ -937,7 +989,7 @@ $('onboarding-form').addEventListener('submit', (e) => {
       const parsedUrl = new URL(config.url);
       const pattern = `${parsedUrl.protocol}//${parsedUrl.hostname}/*`;
       const granted = await chrome.permissions.request({origins: [pattern]});
-      if (!granted) throw new Error('Bạn cần cấp quyền truy cập máy chủ GitLab để tiếp tục.');
+      if (!granted) throw new Error('Allow access to your GitLab server to continue.');
 
       const tokenVal = $('onboarding-token').value;
       const data = await send({
@@ -948,7 +1000,7 @@ $('onboarding-form').addEventListener('submit', (e) => {
       });
 
       render(data);
-      showToast(`Kết nối thành công tài khoản @${data.username}!`, 'success');
+      showToast(`Connected as @${data.username}.`, 'success');
     } catch (err) {
       errorNotice.textContent = err.message;
       errorNotice.hidden = false;
@@ -973,6 +1025,9 @@ function openSettingsModal() {
   if (currentConfig) {
     $('gitlab-url').value = currentConfig.url || '';
     $('remember-token').checked = Boolean(currentConfig.rememberToken);
+    $('reminder-enabled').checked = currentConfig.reminderEnabled !== false;
+    $('reminder-time').value = currentConfig.reminderTime || '10:00';
+    $('reminder-time').disabled = !$('reminder-enabled').checked;
     $('projects').value = currentConfig.projects ? JSON.stringify(currentConfig.projects, null, 2) : '';
     if ($('excel-pattern')) $('excel-pattern').value = currentConfig.excelPattern || 'report_MM_YYYY.xlsx';
   }
@@ -985,6 +1040,10 @@ function closeSettingsModal() {
   $('modal-settings').hidden = true;
   updateModalState();
 }
+
+$('reminder-enabled')?.addEventListener('change', () => {
+  $('reminder-time').disabled = !$('reminder-enabled').checked;
+});
 
 $('btn-settings').addEventListener('click', openSettingsModal);
 $('btn-close-settings').addEventListener('click', closeSettingsModal);
@@ -1006,9 +1065,9 @@ $('projects-file').addEventListener('change', async (e) => {
   try {
     const text = await file.text();
     $('projects').value = JSON.stringify(JSON.parse(text), null, 2);
-    showToast('Đã đọc danh sách dự án. Bấm Lưu thay đổi để áp dụng.', 'info');
+    showToast('Projects loaded. Click Save changes to apply.', 'info');
   } catch (err) {
-    showToast('File JSON không hợp lệ.', 'error');
+    showToast('Invalid JSON file.', 'error');
   }
 });
 
@@ -1021,12 +1080,14 @@ $('settings-form').addEventListener('submit', (e) => {
       projects: $('projects').value,
       rememberToken: $('remember-token').checked,
       excelPattern: $('excel-pattern')?.value?.trim() || 'report_MM_YYYY.xlsx',
+      reminderEnabled: $('reminder-enabled').checked,
+      reminderTime: $('reminder-time').value,
     });
 
     const parsedUrl = new URL(config.url);
     const pattern = `${parsedUrl.protocol}//${parsedUrl.hostname}/*`;
     const granted = await chrome.permissions.request({origins: [pattern]});
-    if (!granted) throw new Error('Cần quyền kết nối máy chủ GitLab đã chọn.');
+    if (!granted) throw new Error('Allow access to the selected GitLab server.');
 
     const tokenVal = $('gitlab-token').value;
     const data = await send({
@@ -1039,13 +1100,13 @@ $('settings-form').addEventListener('submit', (e) => {
     currentConfig = config;
     closeSettingsModal();
     render(data);
-    showToast(data.error || `Đã cập nhật kết nối tài khoản @${data.username}!`, data.error ? 'error' : 'success');
+    showToast(data.error || `Connection updated for @${data.username}.`, data.error ? 'error' : 'success');
   });
 });
 
 // Disconnect account
 $('btn-disconnect').addEventListener('click', () => act(async () => {
-  if (!confirm('Bạn có chắc muốn ngắt kết nối tài khoản GitLab này khỏi tiện ích?')) return;
+  if (!confirm('Disconnect this GitLab account from the extension?')) return;
   await send({type: 'disconnect'});
   currentConfig = null;
   snapshot = null;
@@ -1053,11 +1114,11 @@ $('btn-disconnect').addEventListener('click', () => act(async () => {
   $('onboarding-token').value = '';
   $('view-dashboard').hidden = true;
   $('view-onboarding').hidden = false;
-  showToast('Đã ngắt kết nối thành công.', 'info');
+  showToast('Disconnected.', 'info');
 }));
 
 /* ============================================================
-   TIME BREAKDOWN MODAL (Chi tiết thời gian tracking Làm / Nghỉ)
+   TIME BREAKDOWN MODAL (Work / leave breakdown)
    ============================================================ */
 function openBreakdownModal(scope = 'day', targetDate = null) {
   if (!snapshot) return;
@@ -1076,11 +1137,11 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
   if (scope === 'day') {
     const activeDate = targetDate || snapshot.date;
     const isToday = activeDate === snapshot.today;
-    periodBadge = isToday ? 'Hôm nay' : `Ngày ${shortDay(activeDate)}`;
-    periodTitle = `Chi tiết thời gian: ${fullDayLabel(activeDate)}`;
+    periodBadge = isToday ? 'Today' : `Day ${shortDay(activeDate)}`;
+    periodTitle = `Time details: ${fullDayLabel(activeDate)}`;
     const dayItem = snapshot.days?.find((d) => d.date === activeDate);
     stats = dayItem ? getTracked(dayItem) : getTracked(snapshot.day);
-    noteText = `Chi tiết ngày ${shortDay(activeDate)}: Gồm giờ làm trên GitLab và giờ nghỉ phép đã lưu trên máy.`;
+    noteText = `Details for ${shortDay(activeDate)}: GitLab work hours and leave stored on this device.`;
 
     workItems = (snapshot.logs || []).filter((log) => log.date === activeDate).map((log) => ({
       title: `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
@@ -1098,10 +1159,10 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
     const startStr = snapshot.week?.start || snapshot.range.weekStart;
     const endStr = snapshot.week?.end || snapshot.range.weekEnd;
     const endMinus1 = addDays(endStr, -1);
-    periodBadge = 'Tuần';
-    periodTitle = `Chi tiết tuần: ${shortDay(startStr)} – ${shortDay(endMinus1)}`;
+    periodBadge = 'Week';
+    periodTitle = `Week details: ${shortDay(startStr)} – ${shortDay(endMinus1)}`;
     stats = getTracked(snapshot.week);
-    noteText = `Thời gian tuần chỉ tính các ngày trong tháng ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)}, kể cả khi tuần bắt đầu từ tháng trước.`;
+    noteText = `Weekly totals include only days in ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)}, even if the week starts in the previous month.`;
 
     workItems = (snapshot.logs || []).filter((log) => log.date >= startStr && log.date < endStr).map((log) => ({
       title: `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
@@ -1116,11 +1177,11 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
       hours: l.hours,
     }));
   } else if (scope === 'month') {
-    const monthBadgeStr = `Tháng ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)}`;
+    const monthBadgeStr = `Month ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)}`;
     periodBadge = monthBadgeStr;
-    periodTitle = `Chi tiết cả tháng: ${monthBadgeStr}`;
+    periodTitle = `Month details: ${monthBadgeStr}`;
     stats = getTracked(snapshot.month);
-    noteText = `Tổng thời gian tracking trong tháng ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)} so với chỉ tiêu 192 giờ.`;
+    noteText = `Total tracked time for ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)} against the 192-hour target.`;
 
     workItems = (snapshot.logs || []).map((log) => ({
       title: `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
@@ -1162,7 +1223,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
   if (workItems.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'breakdown-item-entry';
-    empty.textContent = 'Chưa có giờ làm việc nào.';
+    empty.textContent = 'No work hours recorded.';
     workListEl.appendChild(empty);
   } else {
     for (const item of workItems) {
@@ -1173,7 +1234,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
         row.href = item.url;
         row.target = '_blank';
         row.rel = 'noopener noreferrer';
-        row.title = `Mở trên GitLab: ${item.title}`;
+        row.title = `Open in GitLab: ${item.title}`;
       }
       const label = document.createElement('div');
       label.className = 'breakdown-item-text';
@@ -1202,7 +1263,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
   if (leaveItems.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'breakdown-item-entry';
-    empty.textContent = 'Không có lịch nghỉ phép.';
+    empty.textContent = 'No leave recorded.';
     leaveListEl.appendChild(empty);
   } else {
     for (const item of leaveItems) {
@@ -1312,9 +1373,10 @@ void act(async () => {
       const validCount = settings.config.projects.length;
       const statusBadge = $('onboarding-projects-status');
       statusBadge.hidden = false;
-      statusBadge.textContent = `✓ Đã có sẵn ${validCount} dự án đã lưu`;
+      statusBadge.textContent = `✓ ${validCount} saved projects loaded`;
     }
   }
 
   await reload();
+  if (requestedNote && snapshot?.configured) openBreakdownModal('day', initialToday);
 });

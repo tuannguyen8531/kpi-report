@@ -387,7 +387,7 @@ export async function generateExcelWorkbook(templateBuffer, reportData, ExcelJS)
 
   const sheet = workbook.getWorksheet('Báo cáo công việc');
   if (!sheet) {
-    throw new Error('Không tìm thấy sheet "Báo cáo công việc" trong file mẫu.');
+    throw new Error('The required work report worksheet is missing from the template.');
   }
 
   // Calculate last day of month

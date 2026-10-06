@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>KPI Tracker · Giờ làm việc Realtime</title>
+  <title>KPI Tracker · Work Hours</title>
   <link rel="icon" href="../assets/icon.png">
   <link rel="stylesheet" href="popup.css">
   <script src="vendor/exceljs.min.js"></script>
@@ -14,7 +14,7 @@
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
   <!-- ========================================== -->
-  <!-- 1. ONBOARDING / SETUP VIEW (Màn hình lần đầu) -->
+  <!-- 1. ONBOARDING / SETUP VIEW (First-time setup) -->
   <!-- ========================================== -->
   <main id="view-onboarding" class="onboarding-container" hidden>
     <div class="onboarding-card">
@@ -26,8 +26,8 @@
           </svg>
           <span class="pulse-indicator"></span>
         </div>
-        <h1 class="onboarding-title">Thiết lập kết nối GitLab</h1>
-        <p class="onboarding-subtitle">Chào mừng bạn đến với KPI Tracker. Vui lòng cung cấp thông tin kết nối GitLab để bắt đầu theo dõi giờ làm việc thời gian thực.</p>
+        <h1 class="onboarding-title">Connect to GitLab</h1>
+        <p class="onboarding-subtitle">Welcome to KPI Tracker. Connect your GitLab account to start tracking logged work hours.</p>
       </div>
 
       <div id="onboarding-notice" class="notice notice-error" hidden></div>
@@ -36,8 +36,8 @@
         <!-- Field 1: GitLab URL -->
         <div class="form-group">
           <div class="label-row">
-            <label for="onboarding-url">Địa chỉ máy chủ GitLab</label>
-            <span class="required-badge">Bắt buộc</span>
+            <label for="onboarding-url">GitLab server URL</label>
+            <span class="required-badge">Required</span>
           </div>
           <div class="input-with-icon">
             <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -45,16 +45,16 @@
               <line x1="2" y1="12" x2="22" y2="12"></line>
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
             </svg>
-            <input id="onboarding-url" type="url" placeholder="https://gitlab.com hoặc https://gitlab.congty.vn" required>
+            <input id="onboarding-url" type="url" placeholder="https://gitlab.com or https://gitlab.example.com" required>
           </div>
-          <span class="field-hint">Hỗ trợ HTTPS hoặc HTTP trên localhost. Không kèm dấu gạch chéo cuối.</span>
+          <span class="field-hint">Use HTTPS, or HTTP on localhost. Omit the trailing slash.</span>
         </div>
 
         <!-- Field 2: Personal Access Token -->
         <div class="form-group">
           <div class="label-row">
             <label for="onboarding-token">Personal Access Token</label>
-            <span class="required-badge">Bắt buộc</span>
+            <span class="required-badge">Required</span>
           </div>
           <div class="input-with-icon input-password-wrapper">
             <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -62,7 +62,7 @@
               <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>
             <input id="onboarding-token" type="password" autocomplete="off" spellcheck="false" placeholder="glpat-xxxxxxxxxxxxxxxxxxxx" required>
-            <button id="btn-toggle-onboarding-token" type="button" class="btn-icon-inside" title="Hiện / Ẩn token">
+            <button id="btn-toggle-onboarding-token" type="button" class="btn-icon-inside" title="Show / hide token">
               <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                 <circle cx="12" cy="12" r="3"></circle>
@@ -72,21 +72,21 @@
           <div class="token-helper-card">
             <div class="helper-icon">ℹ️</div>
             <div class="helper-text">
-              Token cần có quyền <strong><code>read_api</code></strong>. Tiện ích chỉ đọc timelog của tài khoản bạn, tuyệt đối không chỉnh sửa dữ liệu trên GitLab.
+              Your token needs the <strong><code>read_api</code></strong> scope. The extension reads your timelogs and never modifies GitLab data.
             </div>
           </div>
           <label class="custom-checkbox mt-2">
             <input id="onboarding-remember" type="checkbox">
             <span class="checkmark"></span>
-            <span class="checkbox-text">Ghi nhớ token trên máy này (Lưu vào extension storage)</span>
+            <span class="checkbox-text">Remember token on this device</span>
           </label>
         </div>
 
         <!-- Field 3: Projects List -->
         <div class="form-group">
           <div class="label-row">
-            <label for="onboarding-projects">Danh sách dự án (projects.json)</label>
-            <span class="required-badge">Bắt buộc</span>
+            <label for="onboarding-projects">Projects (projects.json)</label>
+            <span class="required-badge">Required</span>
           </div>
 
           <div id="onboarding-dropzone" class="dropzone">
@@ -97,25 +97,25 @@
                 <polyline points="17 8 12 3 7 8"></polyline>
                 <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
-              <div class="dropzone-title">Kéo thả file <strong>projects.json</strong> vào đây</div>
-              <div class="dropzone-sub">hoặc <button type="button" id="btn-browse-onboarding" class="btn-link">bấm để chọn file từ máy</button></div>
+              <div class="dropzone-title">Drop <strong>projects.json</strong> here</div>
+              <div class="dropzone-sub">or <button type="button" id="btn-browse-onboarding" class="btn-link">browse files</button></div>
             </div>
           </div>
           <div id="onboarding-projects-status" class="file-status-badge" hidden></div>
 
           <div class="editor-toggle-row">
             <button id="btn-toggle-onboarding-json" type="button" class="btn-text-action">
-              <span>Xem / sửa JSON thủ công</span>
+              <span>View / edit JSON</span>
               <svg class="icon-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
           </div>
-          <textarea id="onboarding-projects" rows="4" spellcheck="false" class="json-editor" hidden placeholder='[&#10;  {"project": "Dự án A", "url": "nhom/du-an-a"}&#10;]'></textarea>
+          <textarea id="onboarding-projects" rows="4" spellcheck="false" class="json-editor" hidden placeholder='[&#10;  {"project": "Project A", "url": "group/project-a"}&#10;]'></textarea>
         </div>
 
         <!-- Submit Button -->
         <div class="onboarding-actions">
           <button id="btn-onboarding-submit" type="submit" class="btn btn-primary btn-large btn-block">
-            <span class="btn-text">Lưu & Kết nối GitLab</span>
+            <span class="btn-text">Save & Connect</span>
             <span class="spinner" hidden></span>
           </button>
         </div>
@@ -124,7 +124,7 @@
   </main>
 
   <!-- ========================================== -->
-  <!-- 2. MAIN DASHBOARD VIEW (Giao diện chính)   -->
+  <!-- 2. MAIN DASHBOARD VIEW (Main dashboard)   -->
   <!-- ========================================== -->
   <div id="view-dashboard" class="dashboard-container" hidden>
     <!-- App Header -->
@@ -139,14 +139,14 @@
         <div class="brand-text">
           <h1 class="brand-title">KPI Tracker</h1>
           <div class="brand-meta">
-            <span id="status-dot" class="status-dot live" title="Trạng thái kết nối"></span>
-            <span id="status-text" class="status-label">Đang kết nối…</span>
+            <span id="status-dot" class="status-dot live" title="Connection status"></span>
+            <span id="status-text" class="status-label">Connecting…</span>
           </div>
         </div>
       </div>
 
       <div class="header-actions">
-        <div id="user-chip" class="user-chip" title="Tài khoản GitLab">
+        <div id="user-chip" class="user-chip" title="GitLab account">
           <svg class="user-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
@@ -154,7 +154,7 @@
           <span id="user-name" class="user-name">—</span>
         </div>
 
-        <button id="btn-sync" class="btn-icon" type="button" title="Đồng bộ ngay từ GitLab (30 phút tự động)">
+        <button id="btn-sync" class="btn-icon" type="button" title="Sync GitLab now (auto-sync every 30 minutes)">
           <svg class="icon-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10"></polyline>
             <polyline points="1 20 1 14 7 14"></polyline>
@@ -162,7 +162,7 @@
           </svg>
         </button>
 
-        <button id="btn-expand" class="btn-icon" type="button" title="Mở rộng giao diện ra một tab đầy đủ">
+        <button id="btn-expand" class="btn-icon" type="button" title="Open dashboard in a new tab">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 3 21 3 21 9"></polyline>
             <polyline points="9 21 3 21 3 15"></polyline>
@@ -171,7 +171,7 @@
           </svg>
         </button>
 
-        <button id="btn-settings" class="btn-icon" type="button" title="Cài đặt kết nối & Dự án">
+        <button id="btn-settings" class="btn-icon" type="button" title="Connection & project settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -183,109 +183,109 @@
     <!-- Toolbar: Date navigator & Quick actions -->
     <section class="toolbar-section">
       <div class="date-navigator">
-        <button id="btn-prev-day" class="nav-arrow" type="button" title="Ngày trước">
+        <button id="btn-prev-day" class="nav-arrow" type="button" title="Previous day">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </button>
         <div class="date-picker-wrap">
-          <input id="anchor" type="date" required title="Chọn ngày theo dõi">
+          <input id="anchor" type="date" required title="Select a date">
         </div>
-        <button id="btn-next-day" class="nav-arrow" type="button" title="Ngày sau">
+        <button id="btn-next-day" class="nav-arrow" type="button" title="Next day">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <button id="btn-today" class="btn btn-secondary btn-sm" type="button">Hôm nay</button>
+        <button id="btn-today" class="btn btn-secondary btn-sm" type="button">Today</button>
       </div>
 
       <div class="toolbar-quick-actions">
-        <button id="btn-quick-export-excel" class="btn btn-primary btn-sm" type="button" title="Xuất báo cáo Excel (.xlsx)">
+        <button id="btn-quick-export-excel" class="btn btn-primary btn-sm" type="button" title="Export Excel report (.xlsx)">
           <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
             <line x1="12" y1="18" x2="12" y2="12"></line>
             <line x1="9" y1="15" x2="15" y2="15"></line>
           </svg>
-          <span>Xuất Excel</span>
+          <span>Export Excel</span>
         </button>
       </div>
     </section>
 
     <!-- KPI Metric Cards (3 cards) -->
-    <section class="metrics-grid" aria-label="Tổng giờ làm việc">
-      <!-- Card 1: Ngày -->
-      <article class="metric-card metric-card-interactive" id="card-day" role="button" tabindex="0" title="Bấm để xem chi tiết Làm / Nghỉ">
+    <section class="metrics-grid" aria-label="Total work hours">
+      <!-- Card 1: Day -->
+      <article class="metric-card metric-card-interactive" id="card-day" role="button" tabindex="0" title="View work and leave details">
         <div class="metric-header">
-          <span class="metric-label" id="day-label">Hôm nay</span>
+          <span class="metric-label" id="day-label">Today</span>
         </div>
         <div class="metric-body">
           <strong id="day-hours" class="metric-value">—</strong>
           <div class="metric-split-row">
-            <span id="day-split-work" class="split-pill split-work">Làm: —</span>
-            <span id="day-split-leave" class="split-pill split-leave">Nghỉ: —</span>
+            <span id="day-split-work" class="split-pill split-work">Work: —</span>
+            <span id="day-split-leave" class="split-pill split-leave">Leave: —</span>
           </div>
           <div class="progress-container">
             <div class="progress-bar-bg">
               <div id="day-progress-work" class="progress-bar-fill progress-fill-work" style="width: 0%"></div>
               <div id="day-progress-leave" class="progress-bar-fill progress-fill-leave" style="width: 0%"></div>
             </div>
-            <span id="day-progress-text" class="progress-label">Mục tiêu 8h</span>
+            <span id="day-progress-text" class="progress-label">8h target</span>
           </div>
         </div>
         <div class="metric-footer">
-          <span id="day-leave" class="leave-tag">Bấm xem chi tiết</span>
+          <span id="day-leave" class="leave-tag">View details</span>
         </div>
       </article>
 
-      <!-- Card 2: Tuần -->
-      <article class="metric-card metric-card-interactive" id="card-week" role="button" tabindex="0" title="Bấm để xem chi tiết Làm / Nghỉ">
+      <!-- Card 2: Week -->
+      <article class="metric-card metric-card-interactive" id="card-week" role="button" tabindex="0" title="View work and leave details">
         <div class="metric-header">
-          <span class="metric-label">Tuần</span>
+          <span class="metric-label">Week</span>
           <span id="week-range" class="badge badge-subtle">—</span>
         </div>
         <div class="metric-body">
           <strong id="week-hours" class="metric-value">—</strong>
           <div class="metric-split-row">
-            <span id="week-split-work" class="split-pill split-work">Làm: —</span>
-            <span id="week-split-leave" class="split-pill split-leave">Nghỉ: —</span>
+            <span id="week-split-work" class="split-pill split-work">Work: —</span>
+            <span id="week-split-leave" class="split-pill split-leave">Leave: —</span>
           </div>
           <div class="progress-container">
             <div class="progress-bar-bg">
               <div id="week-progress-work" class="progress-bar-fill progress-fill-work" style="width: 0%"></div>
               <div id="week-progress-leave" class="progress-bar-fill progress-fill-leave" style="width: 0%"></div>
             </div>
-            <span id="week-progress-text" class="progress-label">Chỉ tính trong tháng</span>
+            <span id="week-progress-text" class="progress-label">Within selected month</span>
           </div>
         </div>
         <div class="metric-footer">
-          <span id="week-leave" class="leave-tag">Bấm xem chi tiết</span>
+          <span id="week-leave" class="leave-tag">View details</span>
         </div>
       </article>
 
-      <!-- Card 3: Tháng -->
-      <article class="metric-card metric-card-primary metric-card-interactive" id="card-month" role="button" tabindex="0" title="Bấm để xem chi tiết Làm / Nghỉ">
+      <!-- Card 3: Month -->
+      <article class="metric-card metric-card-primary metric-card-interactive" id="card-month" role="button" tabindex="0" title="View work and leave details">
         <div class="metric-header">
-          <span class="metric-label" id="month-label">Tháng này</span>
+          <span class="metric-label" id="month-label">This month</span>
         </div>
         <div class="metric-body">
           <strong id="month-hours" class="metric-value">—</strong>
           <div class="metric-split-row">
-            <span id="month-split-work" class="split-pill split-work-light">Làm: —</span>
-            <span id="month-split-leave" class="split-pill split-leave-light">Nghỉ: —</span>
+            <span id="month-split-work" class="split-pill split-work-light">Work: —</span>
+            <span id="month-split-leave" class="split-pill split-leave-light">Leave: —</span>
           </div>
           <div class="progress-container">
             <div class="progress-bar-bg progress-bar-bg-light">
               <div id="month-progress-work" class="progress-bar-fill progress-fill-primary" style="width: 0%"></div>
               <div id="month-progress-leave" class="progress-bar-fill progress-fill-leave" style="width: 0%"></div>
             </div>
-            <span id="month-progress-text" class="progress-label">0% hoàn thành</span>
+            <span id="month-progress-text" class="progress-label">0% complete</span>
           </div>
         </div>
         <div class="metric-footer">
-          <span id="month-leave" class="leave-tag leave-tag-light">Bấm xem chi tiết</span>
+          <span id="month-leave" class="leave-tag leave-tag-light">View details</span>
         </div>
       </article>
     </section>
 
     <!-- Navigation Tabs (Active in popup view; organized in desktop view) -->
-    <nav class="tabs-nav" aria-label="Điều hướng các mục">
+    <nav class="tabs-nav" aria-label="Section navigation">
       <button id="tab-nav-calendar" class="tab-button active" type="button" data-tab="calendar">
         <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -293,7 +293,7 @@
           <line x1="8" y1="2" x2="8" y2="6"></line>
           <line x1="3" y1="10" x2="21" y2="10"></line>
         </svg>
-        <span>Lịch tháng</span>
+        <span>Calendar</span>
       </button>
 
       <button id="tab-nav-leave" class="tab-button" type="button" data-tab="leave">
@@ -304,7 +304,7 @@
           <line x1="10" y1="1" x2="10" y2="4"></line>
           <line x1="14" y1="1" x2="14" y2="4"></line>
         </svg>
-        <span>Lịch nghỉ</span>
+        <span>Leave</span>
         <span id="badge-leave-count" class="tab-count" hidden>0</span>
       </button>
 
@@ -329,7 +329,7 @@
           <line x1="16" y1="17" x2="8" y2="17"></line>
           <polyline points="10 9 9 9 8 9"></polyline>
         </svg>
-        <span>Báo cáo</span>
+        <span>Reports</span>
       </button>
     </nav>
 
@@ -341,58 +341,74 @@
       <section id="panel-calendar" class="dashboard-panel panel-tab-content active" aria-labelledby="heading-calendar">
         <div class="panel-header">
           <div>
-            <h2 id="heading-calendar" class="panel-title">Lịch làm việc trong tháng</h2>
-            <span class="panel-subtitle">Nhấp đúp vào ngày để xem chi tiết và ghi chú</span>
+            <h2 id="heading-calendar" class="panel-title">Monthly calendar</h2>
+            <span class="panel-subtitle">Double-click a day to view details and notes</span>
           </div>
           <div class="calendar-header-actions">
             <div class="calendar-legend">
-              <span class="legend-item"><span class="legend-dot dot-work"></span> Giờ làm</span>
-              <span class="legend-item"><span class="legend-dot dot-leave"></span> Nghỉ phép</span>
+              <span class="legend-item"><span class="legend-dot dot-work"></span> Work hours</span>
+              <span class="legend-item"><span class="legend-dot dot-leave"></span> Leave</span>
+              <span class="legend-item"><span class="legend-dot dot-note"></span> Note</span>
             </div>
           </div>
         </div>
 
         <div class="calendar-wrapper">
           <div class="weekdays-row" aria-hidden="true">
-            <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
+            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
           </div>
           <div id="calendar" class="calendar-grid"></div>
         </div>
 
         <div class="calendar-quick-bar">
           <div class="selected-day-info">
-            <span class="info-label">Ngày đang chọn:</span>
+            <span class="info-label">Selected day:</span>
             <strong id="selected-day-text">—</strong>
+            <span id="selected-day-note-badge" class="selected-note-tag" hidden title="This day has a saved note">
+              <svg class="tag-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              <span>Note</span>
+            </span>
           </div>
-          <button id="btn-day-details" type="button" class="btn btn-secondary btn-sm">Chi tiết &amp; Ghi chú</button>
+          <button id="btn-day-details" type="button" class="btn btn-secondary btn-sm" title="View details and notes">
+            <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Details &amp; Notes</span>
+          </button>
         </div>
       </section>
 
       <!-- ===================================== -->
-      <!-- Panel 2: Leave Management (Quản lý ngày nghỉ) -->
+      <!-- Panel 2: Leave Management (Manage leave) -->
       <!-- ===================================== -->
       <section id="panel-leave" class="dashboard-panel panel-tab-content" aria-labelledby="heading-leave">
         <div class="panel-header">
           <div>
-            <h2 id="heading-leave" class="panel-title">Quản lý ngày nghỉ</h2>
-            <span class="panel-subtitle">Ghi nhận ngày nghỉ lưu trên máy</span>
+            <h2 id="heading-leave" class="panel-title">Manage leave</h2>
+            <span class="panel-subtitle">Store leave on this device</span>
           </div>
           <div class="backup-tools-bar">
-            <button id="backup" class="btn btn-outline btn-xs" type="button" title="Xuất file JSON sao lưu lịch nghỉ (an toàn, không chứa token)">
+            <button id="backup" class="btn btn-outline btn-xs" type="button" title="Back up leave as JSON (no token included)">
               <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
-              <span>Sao lưu JSON</span>
+              <span>Back up JSON</span>
             </button>
-            <label class="btn btn-outline btn-xs file-trigger-label" title="Khôi phục lịch nghỉ từ file JSON đã sao lưu">
+            <label class="btn btn-outline btn-xs file-trigger-label" title="Restore leave from a JSON backup">
               <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="17 8 12 3 7 8"></polyline>
                 <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
-              <span>Khôi phục</span>
+              <span>Restore</span>
               <input id="restore" type="file" accept="application/json,.json" class="sr-only">
             </label>
           </div>
@@ -405,7 +421,7 @@
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
-            <span>Ghi ngày nghỉ</span>
+            <span>Add leave</span>
           </button>
           <button type="button" id="toggle-leave-list" class="view-toggle-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-icon">
@@ -414,20 +430,20 @@
               <line x1="8" y1="2" x2="8" y2="6"></line>
               <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
-            <span>Lịch nghỉ trong tháng</span>
+            <span>Monthly leave</span>
             <span id="leave-toggle-badge" class="badge badge-accent">0</span>
           </button>
         </div>
 
         <div class="leave-panel-body">
           <div class="leave-modal-grid">
-            <!-- Col 1: Form Thêm / Sửa ngày nghỉ -->
+            <!-- Col 1: Add / edit leave form -->
             <div class="leave-modal-col leave-modal-form-col">
               <form id="leave-form" class="leave-form-card">
                 <div class="form-title-row">
                   <div class="form-title-main">
                     <span class="form-title-icon">☕</span>
-                    <strong id="leave-form-title">Thêm ngày nghỉ mới</strong>
+                    <strong id="leave-form-title">Add leave</strong>
                   </div>
                   <span class="badge badge-accent">OFF</span>
                 </div>
@@ -441,7 +457,7 @@
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                       </svg>
-                      <span>Ngày nghỉ</span>
+                      <span>Leave date</span>
                     </label>
                     <input id="leave-day" type="date" required class="input-field">
                   </div>
@@ -451,7 +467,7 @@
                         <circle cx="12" cy="12" r="10"></circle>
                         <polyline points="12 6 12 12 16 14"></polyline>
                       </svg>
-                      <span>Số giờ</span>
+                      <span>Hours</span>
                     </label>
                     <input id="leave-hours" type="number" min="0.25" max="24" step="0.25" value="8" required class="input-field">
                   </div>
@@ -460,19 +476,19 @@
                 <!-- Interactive Preset Buttons -->
                 <div class="preset-group">
                   <div class="preset-label-row">
-                    <span class="preset-label">Chọn mức giờ nhanh:</span>
+                    <span class="preset-label">Quick duration:</span>
                   </div>
                   <div class="preset-btn-group">
                     <button type="button" class="preset-chip active" data-hours="8">
-                      <span class="preset-chip-title">Cả ngày</span>
+                      <span class="preset-chip-title">Full day</span>
                       <span class="preset-chip-sub">8h</span>
                     </button>
                     <button type="button" class="preset-chip" data-hours="4">
-                      <span class="preset-chip-title">Nửa ngày</span>
+                      <span class="preset-chip-title">Half day</span>
                       <span class="preset-chip-sub">4h</span>
                     </button>
                     <button type="button" class="preset-chip" data-hours="2">
-                      <span class="preset-chip-title">Theo giờ</span>
+                      <span class="preset-chip-title">Hourly</span>
                       <span class="preset-chip-sub">2h</span>
                     </button>
                   </div>
@@ -483,18 +499,18 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    <span>Lý do nghỉ phép</span>
+                    <span>Reason for leave</span>
                   </label>
-                  <input id="leave-reason" type="text" maxlength="500" placeholder="Nghỉ phép năm, việc gia đình, ốm, khám bệnh…" required class="input-field">
+                  <input id="leave-reason" type="text" maxlength="500" placeholder="Annual leave, family matters, illness, medical appointment…" required class="input-field">
                   <!-- Quick Reason Chips -->
                   <div class="quick-reason-row">
-                    <span class="quick-reason-label">Gợi ý:</span>
+                    <span class="quick-reason-label">Suggestions:</span>
                     <div class="quick-reason-chips">
-                      <button type="button" class="reason-chip" data-reason="Nghỉ phép năm">Phép năm</button>
-                      <button type="button" class="reason-chip" data-reason="Việc gia đình">Việc riêng</button>
-                      <button type="button" class="reason-chip" data-reason="Nghỉ ốm">Nghỉ ốm</button>
-                      <button type="button" class="reason-chip" data-reason="Khám sức khỏe">Khám bệnh</button>
-                      <button type="button" class="reason-chip" data-reason="Nghỉ bù">Nghỉ bù</button>
+                      <button type="button" class="reason-chip" data-reason="Nghỉ phép năm">Annual leave</button>
+                      <button type="button" class="reason-chip" data-reason="Việc gia đình">Personal leave</button>
+                      <button type="button" class="reason-chip" data-reason="Nghỉ ốm">Sick leave</button>
+                      <button type="button" class="reason-chip" data-reason="Khám sức khỏe">Medical visit</button>
+                      <button type="button" class="reason-chip" data-reason="Nghỉ bù">Compensatory leave</button>
                     </div>
                   </div>
                 </div>
@@ -504,37 +520,37 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon-svg">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    <span class="btn-text">Lưu ngày nghỉ</span>
+                    <span class="btn-text">Save leave</span>
                   </button>
-                  <button id="leave-cancel" type="button" class="btn btn-secondary" hidden>Hủy sửa</button>
+                  <button id="leave-cancel" type="button" class="btn btn-secondary" hidden>Cancel edit</button>
                 </div>
               </form>
             </div>
 
-            <!-- Col 2: Danh sách ngày nghỉ trong tháng & Thống kê -->
+            <!-- Col 2: Monthly leave entries & Statistics -->
             <div class="leave-modal-col leave-modal-list-col">
               <!-- Stats overview card -->
               <div class="leave-stats-banner">
                 <div class="leave-stat-item">
                   <span class="leave-stat-val" id="leave-stat-days">0</span>
-                  <span class="leave-stat-lbl">Ngày nghỉ</span>
+                  <span class="leave-stat-lbl">Leave date</span>
                 </div>
                 <div class="leave-stat-divider"></div>
                 <div class="leave-stat-item">
                   <span class="leave-stat-val color-amber" id="leave-stat-hours">0h</span>
-                  <span class="leave-stat-lbl">Tổng giờ OFF</span>
+                  <span class="leave-stat-lbl">Total OFF hours</span>
                 </div>
                 <div class="leave-stat-divider"></div>
                 <div class="leave-stat-item">
                   <span class="leave-stat-val color-green" id="leave-stat-kpi">+0h</span>
-                  <span class="leave-stat-lbl">Ghi nhận KPI</span>
+                  <span class="leave-stat-lbl">KPI hours</span>
                 </div>
               </div>
 
               <div class="sub-header leave-list-sub-header">
                 <div class="sub-header-title">
-                  <h3>Danh sách ngày nghỉ trong tháng</h3>
-                  <span id="leave-summary-badge" class="badge badge-subtle">0 ngày</span>
+                  <h3>Monthly leave entries</h3>
+                  <span id="leave-summary-badge" class="badge badge-subtle">0 days</span>
                 </div>
               </div>
 
@@ -542,8 +558,8 @@
                 <ul id="leave-list" class="leave-cards"></ul>
                 <div id="leave-empty" class="empty-state leave-empty-state" hidden>
                   <div class="empty-icon">☕</div>
-                  <div class="empty-title">Chưa có lịch nghỉ trong tháng</div>
-                  <div class="empty-desc">Điền thông tin bên cạnh để ghi nhận ngày nghỉ phép hoặc việc riêng.</div>
+                  <div class="empty-title">No leave this month</div>
+                  <div class="empty-desc">Use the form to add leave or personal time off.</div>
                 </div>
               </div>
             </div>
@@ -557,13 +573,13 @@
       <section id="panel-logs" class="dashboard-panel panel-tab-content" aria-labelledby="heading-logs">
         <div class="panel-header">
           <div>
-            <h2 id="heading-logs" class="panel-title">Chi tiết Timelog</h2>
-            <span class="panel-subtitle">Dữ liệu ghi nhận trực tiếp từ GitLab</span>
+            <h2 id="heading-logs" class="panel-title">Timelog details</h2>
+            <span class="panel-subtitle">Timelogs from GitLab</span>
           </div>
           <label class="filter-switch">
             <input id="day-only" type="checkbox">
             <span class="switch-ui"></span>
-            <span class="switch-label">Chỉ ngày chọn</span>
+            <span class="switch-label">Selected day only</span>
           </label>
         </div>
 
@@ -573,10 +589,10 @@
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input id="logs-search" type="search" placeholder="Lọc theo task, merge request, dự án…">
+            <input id="logs-search" type="search" placeholder="Search tasks, merge requests, projects…">
           </div>
           <select id="logs-project-filter" class="project-select">
-            <option value="">Tất cả dự án</option>
+            <option value="">All projects</option>
           </select>
         </div>
 
@@ -584,8 +600,8 @@
           <div id="logs-list" class="logs-card-list"></div>
           <div id="logs-empty" class="empty-state" hidden>
             <div class="empty-icon">📭</div>
-            <div class="empty-title">Không tìm thấy timelog</div>
-            <div class="empty-desc">Chưa có giờ làm nào được ghi nhận cho khoảng thời gian hoặc bộ lọc này.</div>
+            <div class="empty-title">No timelogs found</div>
+            <div class="empty-desc">No work hours match this period or filter.</div>
           </div>
         </div>
       </section>
@@ -596,34 +612,34 @@
       <section id="panel-report" class="dashboard-panel panel-tab-content" aria-labelledby="heading-report">
         <div class="panel-header">
           <div>
-            <h2 id="heading-report" class="panel-title">Báo cáo & Xuất file</h2>
-            <span class="panel-subtitle">Chuẩn hóa dữ liệu đầu vào cho quy trình tạo Excel</span>
+            <h2 id="heading-report" class="panel-title">Reports & exports</h2>
+            <span class="panel-subtitle">Export monthly work and leave reports</span>
           </div>
         </div>
 
         <div class="report-overview-card">
           <div class="report-meta-grid">
             <div class="report-meta-item">
-              <span class="meta-label">Tháng báo cáo</span>
+              <span class="meta-label">Report month</span>
               <strong id="report-month-title" class="meta-value">—</strong>
             </div>
             <div class="report-meta-item">
-              <span class="meta-label">Giờ GitLab</span>
+              <span class="meta-label">GitLab hours</span>
               <strong id="report-work-hours" class="meta-value color-blue">—</strong>
             </div>
             <div class="report-meta-item">
-              <span class="meta-label">Giờ nghỉ phép</span>
+              <span class="meta-label">Leave hours</span>
               <strong id="report-leave-hours" class="meta-value color-amber">—</strong>
             </div>
             <div class="report-meta-item">
-              <span class="meta-label">Số timelog</span>
+              <span class="meta-label">Timelog count</span>
               <strong id="report-log-count" class="meta-value">—</strong>
             </div>
           </div>
 
           <div class="export-actions-card">
             <div class="export-buttons-group">
-              <button id="btn-export-excel" class="btn btn-primary btn-large" type="button" title="Xuất báo cáo Excel (.xlsx) đầy đủ công thức KPI">
+              <button id="btn-export-excel" class="btn btn-primary btn-large" type="button" title="Export Excel report (.xlsx) with KPI formulas">
                 <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
@@ -631,19 +647,19 @@
                   <line x1="16" y1="17" x2="8" y2="17"></line>
                   <line x1="10" y1="9" x2="8" y2="9"></line>
                 </svg>
-                <span id="btn-export-excel-text">Xuất báo cáo Excel (.xlsx)</span>
+                <span id="btn-export-excel-text">Export Excel report (.xlsx)</span>
               </button>
-              <button id="export" class="btn btn-outline" type="button" title="Xuất file CSV dữ liệu thô">
+              <button id="export" class="btn btn-outline" type="button" title="Export raw data as CSV">
                 <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <polyline points="7 10 12 15 17 10"></polyline>
                   <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
-                <span>Xuất CSV</span>
+                <span>Export CSV</span>
               </button>
             </div>
             <p class="export-note">
-              Báo cáo Excel bao gồm đầy đủ công thức KPI, liên kết Issue/MR và phần nghỉ phép theo mẫu chuẩn <code>work_report.xlsx</code>.
+              Excel reports include KPI formulas, issue/MR links, and leave entries using the <code>work_report.xlsx</code> template.
             </p>
             <pre class="code-snippet sr-only" id="report-command-example" hidden></pre>
           </div>
@@ -653,12 +669,12 @@
 
     <!-- App Footer -->
     <footer class="app-footer">
-      <span>Đồng bộ tự động mỗi 30 phút · Múi giờ Việt Nam (UTC+7)</span>
+      <span>Auto-sync every 30 minutes · Vietnam time (UTC+7)</span>
     </footer>
   </div>
 
   <!-- ========================================== -->
-  <!-- 3. SETTINGS MODAL (Cài đặt & Tài khoản)    -->
+  <!-- 3. SETTINGS MODAL (Settings & account)    -->
   <!-- ========================================== -->
   <div id="modal-settings" class="modal-backdrop" hidden>
     <div class="modal-dialog">
@@ -668,56 +684,71 @@
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
-          <h2 class="modal-title">Cài đặt kết nối GitLab</h2>
+          <h2 class="modal-title">GitLab connection settings</h2>
         </div>
-        <button id="btn-close-settings" class="modal-close-btn" type="button" title="Đóng">✕</button>
+        <button id="btn-close-settings" class="modal-close-btn" type="button" title="Close">✕</button>
       </div>
 
       <div class="modal-body">
         <form id="settings-form" class="flow-form">
           <div class="form-group">
-            <label for="gitlab-url">Địa chỉ máy chủ GitLab</label>
+            <label for="gitlab-url">GitLab server URL</label>
             <input id="gitlab-url" type="url" placeholder="https://gitlab.example.com" required>
           </div>
 
           <div class="form-group">
             <label for="gitlab-token">Personal Access Token</label>
             <div class="input-password-wrapper">
-              <input id="gitlab-token" type="password" autocomplete="off" spellcheck="false" placeholder="Nhập token mới nếu muốn đổi">
-              <button id="btn-toggle-settings-token" type="button" class="btn-icon-inside" title="Hiện / Ẩn token">
+              <input id="gitlab-token" type="password" autocomplete="off" spellcheck="false" placeholder="Enter a new token to replace the current one">
+              <button id="btn-toggle-settings-token" type="button" class="btn-icon-inside" title="Show / hide token">
                 <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
                 </svg>
               </button>
             </div>
-            <span class="field-hint">Để trống nếu muốn giữ nguyên token đã lưu trước đó.</span>
+            <span class="field-hint">Leave blank to keep your saved token.</span>
           </div>
 
           <label class="custom-checkbox">
             <input id="remember-token" type="checkbox">
             <span class="checkmark"></span>
-            <span class="checkbox-text">Ghi nhớ token trên máy này (Lưu qua các phiên trình duyệt)</span>
+            <span class="checkbox-text">Remember token across browser sessions</span>
           </label>
 
           <div class="form-group mt-3">
             <div class="label-row">
-              <label for="projects">Danh sách dự án (JSON)</label>
+              <label for="projects">Projects (JSON)</label>
               <label class="btn-link-action">
-                <span>Chọn projects.json</span>
+                <span>Choose projects.json</span>
                 <input id="projects-file" type="file" accept="application/json,.json" class="sr-only">
               </label>
             </div>
-            <textarea id="projects" rows="6" spellcheck="false" required class="json-editor" placeholder='[{"project":"Dự án A","url":"group/project-a"}]'></textarea>
+            <textarea id="projects" rows="6" spellcheck="false" required class="json-editor" placeholder='[{"project":"Project A","url":"group/project-a"}]'></textarea>
           </div>
 
           <div class="form-group mt-3">
             <div class="label-row">
-              <label for="excel-pattern">Định dạng tên file Excel</label>
+              <label for="excel-pattern">Excel filename pattern</label>
               <span class="field-badge">MM, YYYY</span>
             </div>
             <input id="excel-pattern" type="text" spellcheck="false" placeholder="report_MM_YYYY.xlsx">
-            <span class="field-hint">Quy ước: <code>MM</code> là tháng (01–12), <code>YYYY</code> là năm (ví dụ 2026). Mặc định: <code>report_MM_YYYY.xlsx</code></span>
+            <span class="field-hint">Use <code>MM</code> for the month (01–12) and <code>YYYY</code> for the year (e.g. 2026). Default: <code>report_MM_YYYY.xlsx</code></span>
+          </div>
+
+          <div class="reminder-settings-card mt-3">
+            <div class="reminder-toggle-row">
+              <label class="custom-checkbox">
+                <input id="reminder-enabled" type="checkbox" checked>
+                <span class="checkmark"></span>
+                <span class="checkbox-text">Daily note reminders</span>
+              </label>
+              <div class="reminder-time-box">
+                <label for="reminder-time" class="time-label">Time (UTC+7)</label>
+                <input id="reminder-time" type="time" value="10:00" required>
+              </div>
+            </div>
+            <span class="field-hint">Receive today’s note once a day at the chosen time. Missed reminders catch up when the browser resumes that day.</span>
           </div>
 
           <div class="modal-footer">
@@ -727,11 +758,11 @@
                 <polyline points="16 17 21 12 16 7"></polyline>
                 <line x1="21" y1="12" x2="9" y2="12"></line>
               </svg>
-              <span>Ngắt kết nối</span>
+              <span>Disconnect</span>
             </button>
             <div class="footer-right">
-              <button id="btn-cancel-settings" type="button" class="btn btn-secondary">Đóng</button>
-              <button id="connect" type="submit" class="btn btn-primary">Lưu thay đổi</button>
+              <button id="btn-cancel-settings" type="button" class="btn btn-secondary">Close</button>
+              <button id="connect" type="submit" class="btn btn-primary">Save changes</button>
             </div>
           </div>
         </form>
@@ -739,7 +770,7 @@
     </div>
   </div>
   <!-- ========================================== -->
-  <!-- 4. TIME BREAKDOWN MODAL (Chi tiết Làm / Nghỉ) -->
+  <!-- 4. TIME BREAKDOWN MODAL (Work / leave details) -->
   <!-- ========================================== -->
   <div id="modal-breakdown" class="modal-backdrop" hidden>
     <div class="modal-dialog modal-dialog-breakdown">
@@ -752,67 +783,89 @@
             </svg>
           </div>
           <div>
-            <h2 id="breakdown-title" class="modal-title">Chi tiết thời gian tracking</h2>
-            <span id="breakdown-subtitle" class="modal-subtitle">Phân biệt giờ làm việc và giờ nghỉ phép</span>
+            <h2 id="breakdown-title" class="modal-title">Tracked time details</h2>
+            <span id="breakdown-subtitle" class="modal-subtitle">Work and leave breakdown</span>
           </div>
         </div>
-        <button id="btn-close-breakdown" class="modal-close-btn" type="button" title="Đóng">✕</button>
+        <button id="btn-close-breakdown" class="modal-close-btn" type="button" title="Close">✕</button>
       </div>
 
       <div class="modal-body">
         <!-- Top Hero Card in Modal -->
         <div class="breakdown-hero-card">
-          <div class="breakdown-period-badge" id="breakdown-period-badge">Hôm nay</div>
+          <div class="breakdown-period-badge" id="breakdown-period-badge">Today</div>
           <div class="breakdown-hero-val-wrap">
             <strong id="breakdown-total-val" class="breakdown-hero-val">0.00h</strong>
-            <span class="breakdown-hero-label">Tổng thời gian tracking</span>
+            <span class="breakdown-hero-label">Total tracked time</span>
           </div>
 
           <!-- Stacked Ratio Bar -->
           <div class="ratio-bar-wrap">
             <div class="ratio-bar">
-              <div id="breakdown-bar-work" class="ratio-segment ratio-work" style="width: 50%" title="Giờ làm việc"></div>
-              <div id="breakdown-bar-leave" class="ratio-segment ratio-leave" style="width: 50%" title="Giờ nghỉ phép"></div>
+              <div id="breakdown-bar-work" class="ratio-segment ratio-work" style="width: 50%" title="Work hours"></div>
+              <div id="breakdown-bar-leave" class="ratio-segment ratio-leave" style="width: 50%" title="Leave hours"></div>
             </div>
             <div class="ratio-legend-row">
-              <span class="ratio-legend-item"><span class="legend-dot dot-work"></span> Làm việc: <strong id="breakdown-ratio-work">0%</strong></span>
-              <span class="ratio-legend-item"><span class="legend-dot dot-leave"></span> Nghỉ phép: <strong id="breakdown-ratio-leave">0%</strong></span>
+              <span class="ratio-legend-item"><span class="legend-dot dot-work"></span> Work: <strong id="breakdown-ratio-work">0%</strong></span>
+              <span class="ratio-legend-item"><span class="legend-dot dot-leave"></span> Leave: <strong id="breakdown-ratio-leave">0%</strong></span>
             </div>
           </div>
         </div>
 
-        <form id="day-note-form" class="day-note-form" hidden>
-          <label for="day-note">Ghi chú / Công việc ngày <span id="day-note-date"></span></label>
-          <textarea id="day-note" rows="5" maxlength="5000" placeholder="Việc cần làm, nội dung đã xử lý, điều cần nhớ…" aria-describedby="day-note-hint"></textarea>
-          <div class="day-note-actions">
-            <span id="day-note-status" role="status"></span>
-            <button id="day-note-save" type="submit" class="btn btn-primary btn-sm">Lưu ghi chú</button>
+        <form id="day-note-form" class="day-note-card" hidden>
+          <div class="day-note-header">
+            <div class="day-note-title-wrap">
+              <div class="note-card-icon-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="note-card-icon">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+              </div>
+              <div>
+                <strong>Daily note &amp; tasks (<span id="day-note-date"></span>)</strong>
+                <span class="note-card-sub">Personal log stored locally on this device</span>
+              </div>
+            </div>
+            <span id="day-note-status" class="note-status-badge status-empty" role="status">No note</span>
           </div>
-          <p id="day-note-hint" class="panel-subtitle">Bấm Lưu để giữ ghi chú trên máy. Xóa nội dung rồi lưu để bỏ ghi chú.</p>
+
+          <div class="day-note-body">
+            <textarea id="day-note" rows="3" maxlength="5000" placeholder="Tasks to do, work completed, reminders for this day…" aria-describedby="day-note-hint"></textarea>
+          </div>
+
+          <div class="day-note-footer">
+            <p id="day-note-hint" class="note-hint-text">Trigger daily notification at scheduled reminder time</p>
+            <div class="day-note-actions">
+              <button id="day-note-clear" type="button" class="btn btn-outline btn-sm" hidden>Clear</button>
+              <button id="day-note-save" type="submit" class="btn btn-primary btn-sm">Save note</button>
+            </div>
+          </div>
         </form>
 
         <!-- 2 Side-by-side detail cards -->
         <div class="breakdown-details-grid">
-          <!-- Card A: Làm việc GitLab -->
+          <!-- Card A: Work GitLab -->
           <div class="breakdown-col-card work-card">
             <div class="breakdown-col-header">
               <span class="col-icon">💼</span>
               <div>
-                <strong>Giờ làm việc (GitLab)</strong>
-                <span class="col-sub">Ghi nhận từ issue/MR</span>
+                <strong>Work hours (GitLab)</strong>
+                <span class="col-sub">Logged on issues/MRs</span>
               </div>
             </div>
             <div class="breakdown-col-val" id="breakdown-work-val">0.00h</div>
             <div id="breakdown-work-list" class="breakdown-item-list"></div>
           </div>
 
-          <!-- Card B: Nghỉ phép OFF -->
+          <!-- Card B: Leave OFF -->
           <div class="breakdown-col-card leave-card">
             <div class="breakdown-col-header">
               <span class="col-icon">🏖️</span>
               <div>
-                <strong>Giờ nghỉ phép (OFF)</strong>
-                <span class="col-sub">Lịch nghỉ được duyệt</span>
+                <strong>Leave hours (OFF)</strong>
+                <span class="col-sub">Leave entries</span>
               </div>
             </div>
             <div class="breakdown-col-val" id="breakdown-leave-val">0.00h</div>
@@ -826,7 +879,7 @@
             <line x1="12" y1="16" x2="12" y2="12"></line>
             <line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
-          <span id="breakdown-note-text">Thời gian tuần chỉ tính các ngày trong tháng hiện tại.</span>
+          <span id="breakdown-note-text">Weekly totals include only days in the selected month.</span>
         </div>
       </div>
 

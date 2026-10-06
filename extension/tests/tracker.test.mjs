@@ -73,6 +73,7 @@ test('configuration and leave validation; external task links do not become exec
 });
 
 let local = {}, session = {}, fetches = [], replyPages = [], alarm;
+let noteAlarm, notifications = [], openedTabs = [];
 const events = {};
 function area(getData) {
   return {
@@ -82,17 +83,29 @@ function area(getData) {
       return result;
     },
     async set(data) {Object.assign(getData(), structuredClone(data));},
-    async remove(key) {delete getData()[key];},
+    async remove(keys) {for (const key of (Array.isArray(keys) ? keys : [keys])) delete getData()[key];},
     async setAccessLevel() {},
   };
 }
 globalThis.chrome = {
   storage: {local: area(() => local), session: area(() => session)},
   alarms: {
-    async get() {return alarm;}, async create(name, options) {alarm = {name, ...options};},
+    async get(name) {return name === 'daily-note' ? noteAlarm : alarm;},
+    async create(name, options) {
+      if (name === 'daily-note') noteAlarm = {name, ...options};
+      else alarm = {name, ...options};
+    },
+    async clear(name) {if (name === 'daily-note') noteAlarm = undefined;},
     onAlarm: {addListener(fn) {events.alarm = fn;}},
   },
-  runtime: {id: 'test-extension', onMessage: {addListener(fn) {events.message = fn;}},
+  notifications: {
+    async getPermissionLevel() {return 'granted';},
+    async create(id, options) {notifications.push({id, ...options});},
+    async clear() {},
+    onClicked: {addListener(fn) {events.notificationClick = fn;}},
+  },
+  tabs: {async create(options) {openedTabs.push(options);}},
+  runtime: {id: 'test-extension', getURL: (path) => `chrome-extension://test-extension/${path}`, onMessage: {addListener(fn) {events.message = fn;}},
     onInstalled: {addListener(fn) {events.installed = fn;}}, onStartup: {addListener(fn) {events.startup = fn;}},
   },
 };
@@ -142,14 +155,14 @@ globalThis.fetch = async (url, options) => {
   if (!response) throw new Error('Unexpected fetch');
   return {ok: true, async json() {return response;}};
 };
-const {handleMessage} = await import('../src/background.js');
+const {handleMessage, remindDailyNote} = await import('../src/background.js');
 const page = (nodes, hasNextPage = false, endCursor = null) => ({data: {timelogs: {nodes, pageInfo: {hasNextPage, endCursor}}}});
 const day = '2026-10-01';
 async function connect() {
   replyPages.push(page([log('one', '2026-10-01T01:00:00Z')]));
   return handleMessage({type: 'connect', config, token: 'test-token', day});
 }
-beforeEach(() => {local = {}; session = {}; fetches = []; replyPages = [];});
+beforeEach(() => {local = {}; session = {}; fetches = []; replyPages = []; notifications = []; openedTabs = []; noteAlarm = undefined;});
 
 test('thirty-minute scheduling is recreated; refresh reads every page, caches, and handles deleted logs', async () => {
   await new Promise((resolve) => setImmediate(resolve));
@@ -411,4 +424,100 @@ test('handleMessage export_excel_data integrates background enrichment and retur
   assert.equal(data.projectBlocks[0].tasks.length, 1);
   assert.equal(data.projectBlocks[0].tasks[0].Estimate, '4.50');
   assert.equal(data.projectBlocks[0].tasks[0]['Due date'], '10/10/2026');
+});
+
+
+test('daily note reminders respect Vietnam time, catch up once, and open the correct note', async () => {
+  await connect();
+  const profile = local.config.profile;
+  local.profiles[profile].notes = {'2026-10-01': 'Review the release\nCall the team', '2026-10-02': 'Next day'};
+  await remindDailyNote(new Date('2026-10-01T02:59:00Z'));
+  assert.equal(notifications.length, 0);
+  assert.equal(noteAlarm.when, Date.parse('2026-10-01T03:00:00Z'));
+  await remindDailyNote(new Date('2026-10-01T03:00:00Z'));
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].message, 'Review the release\nCall the team');
+  assert.equal(local.profiles[profile].lastNoteReminder, '2026-10-01');
+  assert.equal(noteAlarm.when, Date.parse('2026-10-02T03:00:00Z'));
+  await remindDailyNote(new Date('2026-10-01T06:00:00Z'));
+  assert.equal(notifications.length, 1);
+  events.notificationClick(notifications[0].id);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(openedTabs[0].url, 'chrome-extension://test-extension/src/popup.html?note=2026-10-01');
+  local.config.reminderTime = '08:30';
+  await remindDailyNote(new Date('2026-10-02T01:29:00Z'));
+  assert.equal(notifications.length, 1);
+  assert.equal(noteAlarm.when, Date.parse('2026-10-02T01:30:00Z'));
+  // Resuming hours late catches up for today only.
+  await remindDailyNote(new Date('2026-10-02T08:00:00Z'));
+  assert.equal(notifications.length, 2);
+  assert.equal(notifications[1].message, 'Next day');
+  await remindDailyNote(new Date('2026-10-03T08:00:00Z'));
+  assert.equal(notifications.length, 2);
+});
+
+test('reminders handle disabled settings, blocked notifications, account changes and disconnect', async () => {
+  await connect();
+  const profile = local.config.profile;
+  local.profiles[profile].notes = {[day]: 'Reminder'};
+  const due = new Date('2026-10-01T03:00:00Z');
+  local.config.reminderEnabled = false;
+  await remindDailyNote(due);
+  assert.equal(noteAlarm, undefined);
+  assert.equal(notifications.length, 0);
+  local.config.reminderEnabled = true;
+  const permission = chrome.notifications.getPermissionLevel;
+  chrome.notifications.getPermissionLevel = async () => 'denied';
+  try {
+    await remindDailyNote(due);
+    assert.equal(local.profiles[profile].lastNoteReminder, undefined);
+  } finally {chrome.notifications.getPermissionLevel = permission;}
+  session = {}; // Local notes still work when the session token has expired.
+  await remindDailyNote(due);
+  assert.equal(notifications.length, 1);
+  local.config.profile = 'https://gitlab.example.com|other';
+  local.profiles[local.config.profile] = {notes: {[day]: 'Other account'}, leaves: [], caches: {}};
+  events.notificationClick(notifications[0].id);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(openedTabs.length, 0);
+  await remindDailyNote(due);
+  assert.equal(notifications.at(-1).message, 'Other account');
+  await handleMessage({type: 'disconnect'});
+  await remindDailyNote(due);
+  assert.equal(noteAlarm, undefined);
+  assert.equal(notifications.length, 2);
+});
+
+test('reminder settings default to 10:00 and reject invalid times', () => {
+  assert.equal(validateConfig(config).reminderTime, '10:00');
+  assert.equal(validateConfig(config).reminderEnabled, true);
+  for (const time of ['24:00', '10:60', '9:00', '', 1000]) {
+    assert.throws(() => validateConfig({...config, reminderTime: time}));
+  }
+  assert.equal(validateConfig({...config, reminderTime: '08:15', reminderEnabled: false}).reminderEnabled, false);
+});
+
+
+test('startup restores missing reminder alarms and alarm events deliver only once', async () => {
+  await connect();
+  const profile = local.config.profile;
+  local.config.reminderTime = '00:00';
+  local.profiles[profile].notes = {[today()]: '   '};
+  events.alarm({name: 'daily-note'});
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(notifications.length, 0);
+  local.profiles[profile].notes[today()] = 'Catch up after restart';
+  noteAlarm = undefined;
+  events.startup();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(noteAlarm.when > Date.now());
+  assert.equal(notifications.length, 1);
+  events.alarm({name: 'daily-note'});
+  events.startup();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(notifications.length, 1);
+  local.config.reminderTime = '08:45';
+  const settings = await handleMessage({type: 'settings'});
+  assert.equal(settings.config.reminderTime, '08:45');
+  assert.equal(settings.config.reminderEnabled, true);
 });

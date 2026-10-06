@@ -1,7 +1,8 @@
-import {SYNC_MINUTES, TIMELOG_QUERY, today, parseDay, periods, validateConfig, normalizeLogs, validateLeave, makeSnapshot, exportCsv} from './core.js';
+import {SYNC_MINUTES, TIMELOG_QUERY, today, addDays, parseDay, periods, validateConfig, normalizeLogs, validateLeave, makeSnapshot, exportCsv} from './core.js';
 import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel_generator.js';
 
 const ALARM = 'gitlab-sync';
+const NOTE_ALARM = 'daily-note';
 let pending = Promise.resolve();
 // ponytail: serialize one user's storage mutations; use per-profile queues if this becomes a shared app.
 function serial(action) {
@@ -10,12 +11,38 @@ function serial(action) {
   return task;
 }
 
+// Called through the shared queue so simultaneous wakeups cannot notify twice.
+export async function remindDailyNote(now = new Date()) {
+  const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
+  if (!config?.profile || config.reminderEnabled === false) {
+    await chrome.alarms.clear(NOTE_ALARM);
+    return;
+  }
+  const day = today(now);
+  const time = config.reminderTime || '10:00';
+  const due = Date.parse(`${day}T${time}:00+07:00`);
+  const next = now.getTime() < due ? due : Date.parse(`${addDays(day, 1)}T${time}:00+07:00`);
+  await chrome.alarms.create(NOTE_ALARM, {when: next});
+  const profile = profiles[config.profile];
+  const note = profile?.notes?.[day];
+  if (now.getTime() < due || !note?.trim() || profile.lastNoteReminder === day) return;
+  if (await chrome.notifications.getPermissionLevel() !== 'granted') return;
+  const id = `daily-note:${encodeURIComponent(config.profile)}:${day}`;
+  await chrome.notifications.create(id, {
+    type: 'basic', iconUrl: chrome.runtime.getURL('assets/icon.png'),
+    title: `Daily note · ${day}`, message: note,
+  });
+  profile.lastNoteReminder = day;
+  await chrome.storage.local.set({profiles});
+}
+
 async function initialize() {
   await chrome.storage.local.setAccessLevel({accessLevel: 'TRUSTED_CONTEXTS'});
   const alarm = await chrome.alarms.get(ALARM);
   if (!alarm || alarm.periodInMinutes !== SYNC_MINUTES) {
     await chrome.alarms.create(ALARM, {delayInMinutes: SYNC_MINUTES, periodInMinutes: SYNC_MINUTES});
   }
+  await remindDailyNote();
 }
 
 async function request(config, token, query, variables = {}) {
@@ -24,10 +51,10 @@ async function request(config, token, query, variables = {}) {
     headers: {'Content-Type': 'application/json', Authorization: `Bearer ${token}`},
     body: JSON.stringify({query, variables}),
   });
-  if (!response.ok) throw new Error(`GitLab trả về HTTP ${response.status}. Kiểm tra token và quyền read_api.`);
+  if (!response.ok) throw new Error(`GitLab returned HTTP ${response.status}. Check your token and its read_api scope.`);
   const data = await response.json();
   if (data.errors?.length) throw new Error(`GitLab: ${data.errors.map((error) => error.message).join('; ')}`);
-  if (!data.data) throw new Error('GitLab không trả về dữ liệu.');
+  if (!data.data) throw new Error('GitLab returned no data.');
   return data.data;
 }
 
@@ -48,7 +75,7 @@ async function synchronize(day, force = false) {
   const token = await getToken();
   if (force || !cache || Date.now() - Date.parse(cache.attemptedAt || cache.syncedAt || '') >= SYNC_MINUTES * 60000) {
     try {
-      if (!token) throw new Error('Nhập lại token để tiếp tục đồng bộ GitLab.');
+      if (!token) throw new Error('Re-enter your token to resume GitLab sync.');
       const logs = [], seen = new Set();
       let after = null;
       while (true) {
@@ -57,16 +84,16 @@ async function synchronize(day, force = false) {
           end: `${range.end}T00:00:00+07:00`, after,
         });
         const connection = data.timelogs;
-        if (!Array.isArray(connection?.nodes) || !connection.pageInfo) throw new Error('GitLab không trả về danh sách timelog đầy đủ.');
+        if (!Array.isArray(connection?.nodes) || !connection.pageInfo) throw new Error('GitLab returned an incomplete timelog list.');
         logs.push(...connection.nodes);
         if (!connection.pageInfo.hasNextPage) break;
         after = connection.pageInfo.endCursor;
-        if (!after || seen.has(after)) throw new Error('GitLab trả về cursor phân trang không hợp lệ.');
+        if (!after || seen.has(after)) throw new Error('GitLab returned an invalid pagination cursor.');
         seen.add(after);
       }
       cache = {logs: normalizeLogs(logs, config, config.username, range.start, range.end), syncedAt: new Date().toISOString(), error: null};
     } catch (error) {
-      cache = {...cache, error: error instanceof Error ? error.message : 'Không kết nối được GitLab.'};
+      cache = {...cache, error: error instanceof Error ? error.message : 'Unable to connect to GitLab.'};
     }
     cache.attemptedAt = new Date().toISOString();
     profile.caches[key] = cache;
@@ -89,15 +116,15 @@ export async function handleMessage(message) {
   switch (message.type) {
     case 'settings': {
       const {config} = await chrome.storage.local.get('config');
-      return {config: config ? {url: config.url, projects: config.projects, username: config.username, rememberToken: config.rememberToken, excelPattern: config.excelPattern || 'report_MM_YYYY.xlsx'} : null, hasToken: Boolean(await getToken())};
+      return {config: config ? {url: config.url, projects: config.projects, username: config.username, rememberToken: config.rememberToken, excelPattern: config.excelPattern || 'report_MM_YYYY.xlsx', reminderEnabled: config.reminderEnabled !== false, reminderTime: config.reminderTime || '10:00'} : null, hasToken: Boolean(await getToken())};
     }
     case 'connect': {
       const config = validateConfig(message.config);
       const existing = (await chrome.storage.local.get('config')).config;
       const token = String(message.token || (existing?.url === config.url ? await getToken() : '') || '').trim();
-      if (!token) throw new Error('Cần nhập token GitLab có quyền read_api.');
+      if (!token) throw new Error('Enter a GitLab token with the read_api scope.');
       const user = (await request(config, token, 'query { currentUser { username } }')).currentUser;
-      if (!user?.username) throw new Error('GitLab không xác định được tài khoản của token.');
+      if (!user?.username) throw new Error('GitLab could not identify the account for this token.');
       config.username = user.username;
       config.profile = `${config.url}|${user.username}`;
       const {profiles = {}} = await chrome.storage.local.get('profiles');
@@ -111,28 +138,30 @@ export async function handleMessage(message) {
         await chrome.storage.session.set({token});
         await chrome.storage.local.remove('token');
       }
+      await remindDailyNote();
       return synchronize(message.day || today(), true);
     }
     case 'snapshot': return synchronize(message.day || today(), Boolean(message.force));
     case 'note.save': {
       parseDay(message.day);
-      if (typeof message.text !== 'string' || message.text.length > 5000) throw new Error('Ghi chú tối đa 5.000 ký tự.');
+      if (typeof message.text !== 'string' || message.text.length > 5000) throw new Error('Notes must be 5,000 characters or fewer.');
       const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
-      if (!config?.profile) throw new Error('Kết nối GitLab trước khi ghi chú.');
-      if (message.profile !== config.profile) throw new Error('Tài khoản đã thay đổi. Hãy mở lại ngày cần ghi chú.');
+      if (!config?.profile) throw new Error('Connect to GitLab before adding notes.');
+      if (message.profile !== config.profile) throw new Error('Your account has changed. Reopen the day to edit its note.');
       const profile = profiles[config.profile];
       profile.notes ||= {};
       if (message.text.trim()) profile.notes[message.day] = message.text;
       else delete profile.notes[message.day];
       await chrome.storage.local.set({profiles});
+      await remindDailyNote();
       return {saved: true};
     }
     case 'leave.save': {
       const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
-      if (!config?.profile) throw new Error('Kết nối GitLab trước khi ghi lịch nghỉ.');
+      if (!config?.profile) throw new Error('Connect to GitLab before adding leave.');
       const profile = profiles[config.profile], entry = {...validateLeave(message.entry), id: message.id || crypto.randomUUID()};
-      if (message.id && !profile.leaves.some((row) => row.id === message.id)) throw new Error('Không tìm thấy mục nghỉ cần sửa.');
-      if (profile.leaves.some((row) => row.day === entry.day && row.id !== entry.id)) throw new Error('Ngày này đã có lịch nghỉ. Hãy sửa mục đã lưu.');
+      if (message.id && !profile.leaves.some((row) => row.id === message.id)) throw new Error('The leave entry to edit was not found.');
+      if (profile.leaves.some((row) => row.day === entry.day && row.id !== entry.id)) throw new Error('This day already has a leave entry. Edit the existing entry.');
       profile.leaves = [...profile.leaves.filter((row) => row.id !== entry.id), entry];
       await chrome.storage.local.set({profiles});
       return {saved: true};
@@ -140,27 +169,27 @@ export async function handleMessage(message) {
     case 'leave.delete': {
       const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
       const profile = profiles[config?.profile];
-      if (!profile?.leaves.some((row) => row.id === message.id)) throw new Error('Không tìm thấy mục nghỉ cần xóa.');
+      if (!profile?.leaves.some((row) => row.id === message.id)) throw new Error('The leave entry to delete was not found.');
       profile.leaves = profile.leaves.filter((row) => row.id !== message.id);
       await chrome.storage.local.set({profiles});
       return {deleted: true};
     }
     case 'backup': {
       const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
-      if (!config?.profile) throw new Error('Chưa có tài khoản để sao lưu.');
+      if (!config?.profile) throw new Error('Connect an account before creating a backup.');
       return {version: 1, profile: config.profile, leaves: profiles[config.profile].leaves};
     }
     case 'restore': {
       const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
       const backup = message.backup;
       if (!config?.profile || backup?.version !== 1 || backup.profile !== config.profile || !Array.isArray(backup.leaves)) {
-        throw new Error('Bản sao lưu không hợp lệ hoặc thuộc tài khoản GitLab khác.');
+        throw new Error('This backup is invalid or belongs to another GitLab account.');
       }
       const byDay = new Map(profiles[config.profile].leaves.map((row) => [row.day, row]));
       let added = 0;
       for (const input of backup.leaves) {
         const entry = validateLeave(input), old = byDay.get(entry.day);
-        if (old && (old.hours !== entry.hours || old.reason !== entry.reason)) throw new Error(`Ngày ${entry.day} đã có lịch nghỉ khác. Không ghi đè dữ liệu.`);
+        if (old && (old.hours !== entry.hours || old.reason !== entry.reason)) throw new Error(`A different leave entry already exists for ${entry.day}. No data was overwritten.`);
         if (!old) {byDay.set(entry.day, {...entry, id: crypto.randomUUID()}); added++;}
       }
       profiles[config.profile].leaves = [...byDay.values()];
@@ -169,15 +198,15 @@ export async function handleMessage(message) {
     }
     case 'export': {
       const snapshot = await synchronize(message.day || today(), true);
-      if (!snapshot.configured) throw new Error('Kết nối GitLab trước khi xuất dữ liệu.');
+      if (!snapshot.configured) throw new Error('Connect to GitLab before exporting data.');
       return {csv: exportCsv(snapshot), filename: `tasks_${snapshot.date.slice(5, 7)}_${snapshot.date.slice(0, 4)}.csv`};
     }
     case 'export_excel_data': {
       const snapshot = await synchronize(message.day || today(), true);
-      if (!snapshot.configured) throw new Error('Kết nối GitLab trước khi xuất dữ liệu.');
+      if (!snapshot.configured) throw new Error('Connect to GitLab before exporting data.');
       const {config} = await chrome.storage.local.get('config');
       const token = await getToken();
-      if (!token) throw new Error('Cần token GitLab để truy vấn thông tin công việc.');
+      if (!token) throw new Error('A GitLab token is required to fetch task details.');
 
       const groupedTasks = processProjectData(snapshot.logs);
       const offEntries = processOffData(snapshot.leaves);
@@ -202,21 +231,38 @@ export async function handleMessage(message) {
     case 'disconnect': {
       await chrome.storage.local.remove(['config', 'token']);
       await chrome.storage.session.remove('token');
+      await chrome.alarms.clear(NOTE_ALARM);
       return {disconnected: true};
     }
-    default: throw new Error('Thao tác không được hỗ trợ.');
+    default: throw new Error('This action is not supported.');
   }
 }
 
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return false;
   serial(() => handleMessage(message)).then((data) => reply({ok: true, data}),
-    (error) => reply({ok: false, error: error instanceof Error ? error.message : 'Thao tác chưa thành công.'}));
+    (error) => reply({ok: false, error: error instanceof Error ? error.message : 'The action failed.'}));
   return true;
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === ALARM) void serial(() => synchronize(today(), true)).catch(() => {});
+  if (alarm.name === NOTE_ALARM || alarm.name === ALARM) {
+    void serial(async () => {
+      await remindDailyNote();
+      if (alarm.name === ALARM) await synchronize(today(), true);
+    }).catch(console.error);
+  }
 });
-chrome.runtime.onInstalled.addListener(() => void initialize());
-chrome.runtime.onStartup.addListener(() => void initialize());
-void initialize();
+chrome.notifications.onClicked.addListener((id) => {
+  void serial(async () => {
+    const match = /^daily-note:(.+):(\d{4}-\d{2}-\d{2})$/.exec(id);
+    if (!match) return;
+    const {config} = await chrome.storage.local.get('config');
+    if (encodeURIComponent(config?.profile) !== match[1]) return;
+    await chrome.tabs.create({url: chrome.runtime.getURL(`src/popup.html?note=${match[2]}`)});
+    await chrome.notifications.clear(id);
+  }).catch(console.error);
+});
+const start = () => void serial(initialize).catch(console.error);
+chrome.runtime.onInstalled.addListener(start);
+chrome.runtime.onStartup.addListener(start);
+start();

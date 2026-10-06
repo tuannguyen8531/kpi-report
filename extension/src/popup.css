@@ -1126,9 +1126,6 @@ input:focus, textarea:focus, select:focus {
   height: 9px;
   flex-shrink: 0;
 }
-.cal-note-chip {
-  /* Retained for backward-compat selector */
-}
 
 /* Selected Day Note Tag in Quick Bar */
 .selected-note-tag {
@@ -1444,6 +1441,7 @@ input:focus, textarea:focus, select:focus {
   color: var(--primary);
   text-decoration: none;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;

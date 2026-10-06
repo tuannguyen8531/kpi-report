@@ -75,3 +75,7 @@ Reports are written to `output/`:
 The CLI uses the bundled template at `src/kpi_report/templates/work_report.xlsx`; `example.xlsx` is not required. Excel report labels retain the original Vietnamese template. Tasks with an exact `UNPLANNED` label (case-insensitive) are classified as `Phát sinh`; other tasks and all merge requests are `Kế hoạch`. The company working-time target remains 192 hours, and formulas recalculate when the workbook is opened.
 
 For browser installation, direct Excel export, local storage, and extension tests, see the [extension README](extension/README.md).
+
+## KPI scoring sheet
+
+Excel exports also include **Chấm điểm KPI**, matching the second sheet in `example.xlsx`. Its seven metrics link to the work report and its scores follow the printed thresholds and weights. Excel recalculates the scores when opened and after you edit report values. Reports without tasks leave the metrics and scores blank. Explanation and self-assessment fields are left empty for you to complete.

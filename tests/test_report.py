@@ -105,7 +105,17 @@ class ReportTest(unittest.TestCase):
                     # Exporting does not append summary rows to the caller's list.
                     self.assertEqual(len(frames), 6 if count else 0)
                     workbook = load_workbook(path.with_suffix(".xlsx"))
-                    self.assertEqual(workbook.sheetnames, ["Báo cáo công việc"])
+                    self.assertEqual(workbook.sheetnames, ["Báo cáo công việc", "Chấm điểm KPI"])
+                    kpi = workbook["Chấm điểm KPI"]
+                    for row, metric in [(15, 27), (20, 25), (25, 26), (30, 28), (35, 36), (40, 31), (45, 33)]:
+                        divisor = "" if row == 35 else "/100"
+                        self.assertEqual(kpi[f"F{row}"].value, f'''=IF('Báo cáo công việc'!M5=0,"",'Báo cáo công việc'!M{metric}{divisor})''')
+                        self.assertTrue(kpi[f"G{row}"].value.startswith(f'=IF(F{row}="","",IF('))
+                    self.assertIn('F35>=80,3', kpi['G35'].value)
+                    self.assertEqual(kpi['E35'].value, 3)
+                    self.assertIn('E45*G45)/10', kpi['G50'].value)
+                    for address in ['A53', 'A55', 'A57']:
+                        self.assertIsNone(kpi[address].value)
                     sheet = cast(Worksheet, workbook["Báo cáo công việc"])
                     self.assertEqual(sheet["B2"].value, "Tháng 01/02/2024 - 29/02/2024")
                     self.assertEqual(sheet["M8"].value, 192)

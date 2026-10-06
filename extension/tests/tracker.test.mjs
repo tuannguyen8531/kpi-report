@@ -372,6 +372,15 @@ test('pure JS Excel report matches template formulas, dimensions, hyperlinks and
   // Read back generated workbook with ExcelJS to verify formulas & cells
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer);
+  assert.deepEqual(wb.worksheets.map((sheet) => sheet.name), ['Báo cáo công việc', 'Chấm điểm KPI']);
+  const kpi = wb.getWorksheet('Chấm điểm KPI');
+  for (const [row, metric] of [[15, 27], [20, 25], [25, 26], [30, 28], [35, 36], [40, 31], [45, 33]]) {
+    assert.equal(kpi.getCell(`F${row}`).value.formula, `IF('Báo cáo công việc'!M5=0,"",'Báo cáo công việc'!M${metric}${row === 35 ? '' : '/100'})`);
+    assert.ok(kpi.getCell(`G${row}`).value.formula.startsWith(`IF(F${row}="","",IF(`));
+  }
+  assert.ok(kpi.getCell('G35').value.formula.includes('F35>=80,3'));
+  assert.ok(kpi.getCell('G50').value.formula.includes('E45*G45)/10'));
+  for (const address of ['A53', 'A55', 'A57']) assert.equal(kpi.getCell(address).value, null);
   const sheet = wb.getWorksheet('Báo cáo công việc');
   assert.ok(sheet);
 

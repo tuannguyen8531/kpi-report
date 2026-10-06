@@ -76,3 +76,7 @@ cd extension
 npm ci
 npm test
 ```
+
+## KPI scoring sheet
+
+Excel exports also include **Chấm điểm KPI**, matching the second sheet in `example.xlsx`. Its seven metrics link to the work report and its scores follow the printed thresholds and weights. Excel recalculates the scores when opened and after you edit report values. Reports without tasks leave the metrics and scores blank. Explanation and self-assessment fields are left empty for you to complete.

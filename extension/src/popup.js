@@ -391,7 +391,7 @@ function renderCalendar(data) {
 
     if (data.notes?.[day.date]) {
       const marker = document.createElement('span');
-      marker.className = 'cal-note-indicator cal-note-chip';
+      marker.className = 'cal-note-indicator';
       marker.setAttribute('aria-label', 'Has a note');
       marker.title = `Note: ${data.notes[day.date]}`;
       marker.innerHTML = `

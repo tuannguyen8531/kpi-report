@@ -151,10 +151,10 @@ async function connect() {
 }
 beforeEach(() => {local = {}; session = {}; fetches = []; replyPages = [];});
 
-test('five-minute scheduling is recreated; refresh reads every page, caches, and handles deleted logs', async () => {
+test('thirty-minute scheduling is recreated; refresh reads every page, caches, and handles deleted logs', async () => {
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(SYNC_MINUTES, 5);
-  assert.equal(alarm.periodInMinutes, 5);
+  assert.equal(SYNC_MINUTES, 30);
+  assert.equal(alarm.periodInMinutes, 30);
   await connect();
   assert.equal(local.token, undefined);
   assert.equal(session.token, 'test-token');

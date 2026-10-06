@@ -33,12 +33,12 @@ Mã extension nằm trong `extension/src/`, tách khỏi `src/kpi_report/`.
 - **Cài đặt & Tài khoản**:
   - Bấm vào biểu tượng ⚙️ (Cài đặt) ở góc phải thanh tiêu đề để cập nhật máy chủ, token, danh sách dự án hoặc thực hiện **Ngắt kết nối / Đăng xuất tài khoản**.
 - **Thời gian tracking tổng hợp**: Tổng giờ ghi nhận ở các thẻ (Ngày, Tuần, Tháng) và trên lịch tính gộp cả **Giờ làm việc (GitLab)** và **Giờ nghỉ phép (OFF)**, giúp theo dõi chính xác tiến độ hoàn thành định mức giờ làm (8h/ngày, 40h/tuần, 192h/tháng).
-- **Phân biệt Làm / Nghỉ & Liên kết đến GitLab**: Bấm trực tiếp vào bất kỳ thẻ thời gian nào (Hôm nay, Tuần, Tháng) hoặc nút **Phân bổ Làm/Nghỉ** dưới lịch để mở cửa sổ chi tiết phân bổ:
-  - Cửa sổ popup phân bổ được thiết kế rộng rãi, thoáng đãng.
+- **Phân biệt Làm / Nghỉ & Liên kết đến GitLab**: Bấm trực tiếp vào bất kỳ thẻ thời gian nào (Hôm nay, Tuần, Tháng) hoặc **nhấp đúp chuột vào bất kỳ ô ngày nào trên lịch** để mở cửa sổ đối soát chi tiết:
+  - Cửa sổ popup chi tiết được thiết kế rộng rãi, thoáng đãng.
   - Hiển thị biểu đồ thanh tỷ lệ ngang giữa Giờ làm việc (xanh) và Giờ nghỉ (cam).
   - Thống kê chi tiết từng hạng mục công việc: **các task/MR đều có thể bấm vào để mở trực tiếp đường dẫn trên GitLab**.
 - **Tính toán tuần gói gọn trong tháng**: Thời gian tuần (và các giờ tracking) **chỉ tính các ngày thuộc tháng hiện tại**, kể cả khi thứ Hai của tuần bắt đầu từ những ngày cuối của tháng trước (ví dụ: tuần 28/09 - 04/10 khi xem tháng 10 sẽ chỉ tính từ 01/10 đến 04/10).
-- Tự động đồng bộ **mỗi 5 phút** khi trình duyệt đang chạy. Bấm biểu tượng xoay để **Đồng bộ ngay** lập tức. Mở tiện ích cũng tự động lấy dữ liệu nếu lần cập nhật trước đã quá 5 phút.
+- Tự động đồng bộ **mỗi 30 phút** khi trình duyệt đang chạy. Bấm biểu tượng xoay để **Đồng bộ ngay** lập tức. Mở tiện ích cũng tự động lấy dữ liệu nếu lần cập nhật trước đã quá 30 phút.
 - Múi giờ chuẩn hóa: Tất cả dùng múi giờ `Asia/Ho_Chi_Minh` (UTC+7).
 - Chỉ cộng timelog của chủ token, thuộc các dự án đã cấu hình, dựa trên `spentAt`. Đọc đủ phân trang; giữ cả các log âm điều chỉnh thời gian.
 - Khi GitLab lỗi, giữ dữ liệu cũ và hiển thị lỗi cùng thời điểm cập nhật cũ. Nếu chưa đồng bộ thành công lần nào, hiển thị `—`, không hiển thị 0 giả.
@@ -89,5 +89,5 @@ npm test
 ```
 
 Dùng Node.js 20 trở lên, không có dependency ngoài. Kiểm tra ngày/tuần/tháng,
-biên múi giờ, phân trang, đồng bộ 5 phút/thủ công, lỗi mạng, sửa/xóa timelog,
+biên múi giờ, phân trang, đồng bộ 30 phút/thủ công, lỗi mạng, sửa/xóa timelog,
 ghi/sửa/xóa nghỉ, sao lưu/khôi phục và CSV cho chương trình Python.

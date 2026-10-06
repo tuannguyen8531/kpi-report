@@ -345,8 +345,19 @@ function renderCalendar(data) {
       }
     }
 
-    cell.title = `${day.date}: Tổng ${formatHours(dayTracked.total)} (Làm: ${formatHours(day.hours)}, Nghỉ: ${formatHours(day.leaveHours)})`;
+    cell.title = `${day.date}: Tổng ${formatHours(dayTracked.total)} (Làm: ${formatHours(day.hours)}, Nghỉ: ${formatHours(day.leaveHours)}) · Nhấp đúp để xem chi tiết`;
     cell.addEventListener('click', () => selectDay(day.date));
+    cell.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      selectDay(day.date);
+      openBreakdownModal('day', day.date);
+    });
+    cell.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && cell.classList.contains('is-selected')) {
+        e.preventDefault();
+        openBreakdownModal('day', day.date);
+      }
+    });
 
     container.appendChild(cell);
   }
@@ -654,21 +665,10 @@ $('btn-expand').addEventListener('click', () => {
   chrome.tabs.create({url: chrome.runtime.getURL('src/popup.html')});
 });
 
-// 4. Quick Action from calendar to log leave
-$('btn-quick-log-leave').addEventListener('click', () => {
-  $('leave-day').value = $('anchor').value;
-  openLeaveModal();
-  $('leave-hours').focus();
-});
-
-// 5. Popup Tabs switching (Leave tab opens dedicated leave modal)
+// 4. Popup Tabs switching (Leave tab now directly activates leave panel)
 document.querySelectorAll('.tab-button').forEach((btn) => {
   btn.addEventListener('click', () => {
-    if (btn.dataset.tab === 'leave') {
-      openLeaveModal();
-    } else {
-      switchTab(btn.dataset.tab);
-    }
+    switchTab(btn.dataset.tab);
   });
 });
 
@@ -914,8 +914,17 @@ $('onboarding-form').addEventListener('submit', (e) => {
 });
 
 /* ============================================================
-   SETTINGS MODAL
+   SETTINGS MODAL & SCROLL LOCK
    ============================================================ */
+function updateModalState() {
+  const isAnyModalOpen =
+    Boolean($('modal-settings') && !$('modal-settings').hidden) ||
+    Boolean($('modal-breakdown') && !$('modal-breakdown').hidden);
+
+  document.body.classList.toggle('modal-open', isAnyModalOpen);
+  document.documentElement.classList.toggle('modal-open', isAnyModalOpen);
+}
+
 function openSettingsModal() {
   if (currentConfig) {
     $('gitlab-url').value = currentConfig.url || '';
@@ -925,10 +934,12 @@ function openSettingsModal() {
   }
   $('gitlab-token').value = '';
   $('modal-settings').hidden = false;
+  updateModalState();
 }
 
 function closeSettingsModal() {
   $('modal-settings').hidden = true;
+  updateModalState();
 }
 
 $('btn-settings').addEventListener('click', openSettingsModal);
@@ -1002,9 +1013,9 @@ $('btn-disconnect').addEventListener('click', () => act(async () => {
 }));
 
 /* ============================================================
-   TIME BREAKDOWN MODAL (Chi tiết phân bổ Làm / Nghỉ)
+   TIME BREAKDOWN MODAL (Chi tiết thời gian tracking Làm / Nghỉ)
    ============================================================ */
-function openBreakdownModal(scope = 'day') {
+function openBreakdownModal(scope = 'day', targetDate = null) {
   if (!snapshot) return;
 
   let periodTitle = '';
@@ -1015,20 +1026,22 @@ function openBreakdownModal(scope = 'day') {
   let noteText = '';
 
   if (scope === 'day') {
-    const isToday = snapshot.date === snapshot.today;
-    periodBadge = isToday ? 'Hôm nay' : `Ngày ${shortDay(snapshot.date)}`;
-    periodTitle = `Phân bổ thời gian: ${fullDayLabel(snapshot.date)}`;
-    stats = getTracked(snapshot.day);
-    noteText = `Chi tiết ngày ${shortDay(snapshot.date)}: Gồm giờ làm trên GitLab và giờ nghỉ phép đã lưu trên máy.`;
+    const activeDate = targetDate || snapshot.date;
+    const isToday = activeDate === snapshot.today;
+    periodBadge = isToday ? 'Hôm nay' : `Ngày ${shortDay(activeDate)}`;
+    periodTitle = `Chi tiết thời gian: ${fullDayLabel(activeDate)}`;
+    const dayItem = snapshot.days?.find((d) => d.date === activeDate);
+    stats = dayItem ? getTracked(dayItem) : getTracked(snapshot.day);
+    noteText = `Chi tiết ngày ${shortDay(activeDate)}: Gồm giờ làm trên GitLab và giờ nghỉ phép đã lưu trên máy.`;
 
-    workItems = (snapshot.logs || []).filter((log) => log.date === snapshot.date).map((log) => ({
+    workItems = (snapshot.logs || []).filter((log) => log.date === activeDate).map((log) => ({
       title: `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
       meta: log.project,
       hours: log.hours,
       url: log.url || null,
     }));
 
-    leaveItems = (snapshot.leaves || []).filter((l) => l.day === snapshot.date).map((l) => ({
+    leaveItems = (snapshot.leaves || []).filter((l) => l.day === activeDate).map((l) => ({
       title: l.reason,
       meta: fullDayLabel(l.day),
       hours: l.hours,
@@ -1038,7 +1051,7 @@ function openBreakdownModal(scope = 'day') {
     const endStr = snapshot.week?.end || snapshot.range.weekEnd;
     const endMinus1 = addDays(endStr, -1);
     periodBadge = 'Tuần';
-    periodTitle = `Phân bổ tuần: ${shortDay(startStr)} – ${shortDay(endMinus1)}`;
+    periodTitle = `Chi tiết tuần: ${shortDay(startStr)} – ${shortDay(endMinus1)}`;
     stats = getTracked(snapshot.week);
     noteText = `Thời gian tuần chỉ tính các ngày trong tháng ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)}, kể cả khi tuần bắt đầu từ tháng trước.`;
 
@@ -1057,7 +1070,7 @@ function openBreakdownModal(scope = 'day') {
   } else if (scope === 'month') {
     const monthBadgeStr = `Tháng ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)}`;
     periodBadge = monthBadgeStr;
-    periodTitle = `Phân bổ cả tháng: ${monthBadgeStr}`;
+    periodTitle = `Chi tiết cả tháng: ${monthBadgeStr}`;
     stats = getTracked(snapshot.month);
     noteText = `Tổng thời gian tracking trong tháng ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)} so với chỉ tiêu 192 giờ.`;
 
@@ -1169,17 +1182,18 @@ function openBreakdownModal(scope = 'day') {
   }
 
   $('modal-breakdown').hidden = false;
+  updateModalState();
 }
 
 function closeBreakdownModal() {
   $('modal-breakdown').hidden = true;
+  updateModalState();
 }
 
 // Open breakdown on metric card clicks
 $('card-day').addEventListener('click', () => openBreakdownModal('day'));
 $('card-week').addEventListener('click', () => openBreakdownModal('week'));
 $('card-month').addEventListener('click', () => openBreakdownModal('month'));
-$('btn-day-breakdown').addEventListener('click', () => openBreakdownModal('day'));
 
 ['card-day', 'card-week', 'card-month'].forEach((id) => {
   $(id).addEventListener('keydown', (e) => {
@@ -1197,28 +1211,35 @@ $('modal-breakdown').addEventListener('click', (e) => {
 });
 
 /* ============================================================
-   LEAVE MANAGEMENT MODAL
+   LEAVE MANAGEMENT
    ============================================================ */
 function openLeaveModal() {
-  if ($('anchor')?.value && !$('leave-day').value) {
-    $('leave-day').value = $('anchor').value;
+  switchTab('leave');
+}
+
+// Prevent wheel and touch scrolling on backdrop from moving background
+document.querySelectorAll('.modal-backdrop').forEach((backdrop) => {
+  backdrop.addEventListener('wheel', (e) => {
+    if (e.target === backdrop) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+  backdrop.addEventListener('touchmove', (e) => {
+    if (e.target === backdrop) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+});
+
+// Close active modal on Escape key
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if ($('modal-settings') && !$('modal-settings').hidden) {
+      closeSettingsModal();
+    } else if ($('modal-breakdown') && !$('modal-breakdown').hidden) {
+      closeBreakdownModal();
+    }
   }
-  updatePresetChipsActive();
-  setLeaveModalView('form');
-  $('modal-leave').hidden = false;
-}
-
-function closeLeaveModal() {
-  $('modal-leave').hidden = true;
-}
-
-if ($('btn-open-leave-modal')) {
-  $('btn-open-leave-modal').addEventListener('click', openLeaveModal);
-}
-$('btn-close-leave').addEventListener('click', closeLeaveModal);
-$('btn-done-leave').addEventListener('click', closeLeaveModal);
-$('modal-leave').addEventListener('click', (e) => {
-  if (e.target.id === 'modal-leave') closeLeaveModal();
 });
 
 /* ============================================================

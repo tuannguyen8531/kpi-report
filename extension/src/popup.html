@@ -154,7 +154,7 @@
           <span id="user-name" class="user-name">—</span>
         </div>
 
-        <button id="btn-sync" class="btn-icon" type="button" title="Đồng bộ ngay từ GitLab (5 phút tự động)">
+        <button id="btn-sync" class="btn-icon" type="button" title="Đồng bộ ngay từ GitLab (30 phút tự động)">
           <svg class="icon-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10"></polyline>
             <polyline points="1 20 1 14 7 14"></polyline>
@@ -211,7 +211,7 @@
     <!-- KPI Metric Cards (3 cards) -->
     <section class="metrics-grid" aria-label="Tổng giờ làm việc">
       <!-- Card 1: Ngày -->
-      <article class="metric-card metric-card-interactive" id="card-day" role="button" tabindex="0" title="Bấm để xem phân bổ Làm / Nghỉ">
+      <article class="metric-card metric-card-interactive" id="card-day" role="button" tabindex="0" title="Bấm để xem chi tiết Làm / Nghỉ">
         <div class="metric-header">
           <span class="metric-label" id="day-label">Hôm nay</span>
         </div>
@@ -230,12 +230,12 @@
           </div>
         </div>
         <div class="metric-footer">
-          <span id="day-leave" class="leave-tag">Bấm xem phân bổ</span>
+          <span id="day-leave" class="leave-tag">Bấm xem chi tiết</span>
         </div>
       </article>
 
       <!-- Card 2: Tuần -->
-      <article class="metric-card metric-card-interactive" id="card-week" role="button" tabindex="0" title="Bấm để xem phân bổ Làm / Nghỉ">
+      <article class="metric-card metric-card-interactive" id="card-week" role="button" tabindex="0" title="Bấm để xem chi tiết Làm / Nghỉ">
         <div class="metric-header">
           <span class="metric-label">Tuần</span>
           <span id="week-range" class="badge badge-subtle">—</span>
@@ -255,12 +255,12 @@
           </div>
         </div>
         <div class="metric-footer">
-          <span id="week-leave" class="leave-tag">Bấm xem phân bổ</span>
+          <span id="week-leave" class="leave-tag">Bấm xem chi tiết</span>
         </div>
       </article>
 
       <!-- Card 3: Tháng -->
-      <article class="metric-card metric-card-primary metric-card-interactive" id="card-month" role="button" tabindex="0" title="Bấm để xem phân bổ Làm / Nghỉ">
+      <article class="metric-card metric-card-primary metric-card-interactive" id="card-month" role="button" tabindex="0" title="Bấm để xem chi tiết Làm / Nghỉ">
         <div class="metric-header">
           <span class="metric-label" id="month-label">Tháng này</span>
         </div>
@@ -279,7 +279,7 @@
           </div>
         </div>
         <div class="metric-footer">
-          <span id="month-leave" class="leave-tag leave-tag-light">Bấm xem phân bổ</span>
+          <span id="month-leave" class="leave-tag leave-tag-light">Bấm xem chi tiết</span>
         </div>
       </article>
     </section>
@@ -296,6 +296,18 @@
         <span>Lịch tháng</span>
       </button>
 
+      <button id="tab-nav-leave" class="tab-button" type="button" data-tab="leave">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+          <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+          <line x1="6" y1="1" x2="6" y2="4"></line>
+          <line x1="10" y1="1" x2="10" y2="4"></line>
+          <line x1="14" y1="1" x2="14" y2="4"></line>
+        </svg>
+        <span>Lịch nghỉ</span>
+        <span id="badge-leave-count" class="tab-count" hidden>0</span>
+      </button>
+
       <button id="tab-nav-logs" class="tab-button" type="button" data-tab="logs">
         <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="8" y1="6" x2="21" y2="6"></line>
@@ -307,15 +319,6 @@
         </svg>
         <span>Timelog</span>
         <span id="badge-logs-count" class="tab-count" hidden>0</span>
-      </button>
-
-      <button id="tab-nav-leave" class="tab-button" type="button" data-tab="leave">
-        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2a5 5 0 0 0-5 5v14a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"></path>
-          <path d="M12 12c-2.5 0-4-1.5-4-3"></path>
-        </svg>
-        <span>Lịch nghỉ</span>
-        <span id="badge-leave-count" class="tab-count" hidden>0</span>
       </button>
 
       <button id="tab-nav-report" class="tab-button" type="button" data-tab="report">
@@ -342,14 +345,6 @@
             <span class="panel-subtitle">Bấm vào ngày để xem chi tiết hoặc ghi lịch nghỉ</span>
           </div>
           <div class="calendar-header-actions">
-            <button id="btn-open-leave-modal" class="btn btn-secondary btn-sm" type="button" title="Mở cửa sổ Quản lý lịch nghỉ phép">
-              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2a5 5 0 0 0-5 5v14a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"></path>
-                <path d="M12 12c-2.5 0-4-1.5-4-3"></path>
-              </svg>
-              <span>Quản lý lịch nghỉ</span>
-              <span id="calendar-leave-badge" class="badge badge-accent" hidden>0</span>
-            </button>
             <div class="calendar-legend">
               <span class="legend-item"><span class="legend-dot dot-work"></span> Giờ làm</span>
               <span class="legend-item"><span class="legend-dot dot-leave"></span> Nghỉ phép</span>
@@ -369,17 +364,188 @@
             <span class="info-label">Ngày đang chọn:</span>
             <strong id="selected-day-text">—</strong>
           </div>
-          <div class="calendar-quick-actions">
-            <button id="btn-day-breakdown" class="btn btn-outline btn-sm" type="button" title="Xem phân bổ làm/nghỉ ngày này">
-              <span>Phân bổ Làm/Nghỉ</span>
-            </button>
-            <button id="btn-quick-log-leave" class="btn btn-secondary btn-sm" type="button">
+        </div>
+      </section>
+
+      <!-- ===================================== -->
+      <!-- Panel 2: Leave Management (Quản lý ngày nghỉ) -->
+      <!-- ===================================== -->
+      <section id="panel-leave" class="dashboard-panel panel-tab-content" aria-labelledby="heading-leave">
+        <div class="panel-header">
+          <div>
+            <h2 id="heading-leave" class="panel-title">Quản lý ngày nghỉ</h2>
+            <span class="panel-subtitle">Ghi nhận ngày nghỉ lưu trên máy</span>
+          </div>
+          <div class="backup-tools-bar">
+            <button id="backup" class="btn btn-outline btn-xs" type="button" title="Xuất file JSON sao lưu lịch nghỉ (an toàn, không chứa token)">
               <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
-              <span>Ghi nghỉ</span>
+              <span>Sao lưu JSON</span>
             </button>
+            <label class="btn btn-outline btn-xs file-trigger-label" title="Khôi phục lịch nghỉ từ file JSON đã sao lưu">
+              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <span>Khôi phục</span>
+              <input id="restore" type="file" accept="application/json,.json" class="sr-only">
+            </label>
+          </div>
+        </div>
+
+        <!-- Segmented View Toggle for Small/Popup Screens -->
+        <div class="leave-modal-view-toggle">
+          <button type="button" id="toggle-leave-form" class="view-toggle-btn active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-icon">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            <span>Ghi ngày nghỉ</span>
+          </button>
+          <button type="button" id="toggle-leave-list" class="view-toggle-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-icon">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span>Lịch nghỉ trong tháng</span>
+            <span id="leave-toggle-badge" class="badge badge-accent">0</span>
+          </button>
+        </div>
+
+        <div class="leave-panel-body">
+          <div class="leave-modal-grid">
+            <!-- Col 1: Form Thêm / Sửa ngày nghỉ -->
+            <div class="leave-modal-col leave-modal-form-col">
+              <form id="leave-form" class="leave-form-card">
+                <div class="form-title-row">
+                  <div class="form-title-main">
+                    <span class="form-title-icon">☕</span>
+                    <strong id="leave-form-title">Thêm ngày nghỉ mới</strong>
+                  </div>
+                  <span class="badge badge-accent">OFF</span>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label for="leave-day">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                      </svg>
+                      <span>Ngày nghỉ</span>
+                    </label>
+                    <input id="leave-day" type="date" required class="input-field">
+                  </div>
+                  <div class="form-group">
+                    <label for="leave-hours">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
+                      <span>Số giờ</span>
+                    </label>
+                    <input id="leave-hours" type="number" min="0.25" max="24" step="0.25" value="8" required class="input-field">
+                  </div>
+                </div>
+
+                <!-- Interactive Preset Buttons -->
+                <div class="preset-group">
+                  <div class="preset-label-row">
+                    <span class="preset-label">Chọn mức giờ nhanh:</span>
+                  </div>
+                  <div class="preset-btn-group">
+                    <button type="button" class="preset-chip active" data-hours="8">
+                      <span class="preset-chip-title">Cả ngày</span>
+                      <span class="preset-chip-sub">8h</span>
+                    </button>
+                    <button type="button" class="preset-chip" data-hours="4">
+                      <span class="preset-chip-title">Nửa ngày</span>
+                      <span class="preset-chip-sub">4h</span>
+                    </button>
+                    <button type="button" class="preset-chip" data-hours="2">
+                      <span class="preset-chip-title">Theo giờ</span>
+                      <span class="preset-chip-sub">2h</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="form-group mt-2">
+                  <label for="leave-reason">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>Lý do nghỉ phép</span>
+                  </label>
+                  <input id="leave-reason" type="text" maxlength="500" placeholder="Nghỉ phép năm, việc gia đình, ốm, khám bệnh…" required class="input-field">
+                  <!-- Quick Reason Chips -->
+                  <div class="quick-reason-row">
+                    <span class="quick-reason-label">Gợi ý:</span>
+                    <div class="quick-reason-chips">
+                      <button type="button" class="reason-chip" data-reason="Nghỉ phép năm">Phép năm</button>
+                      <button type="button" class="reason-chip" data-reason="Việc gia đình">Việc riêng</button>
+                      <button type="button" class="reason-chip" data-reason="Nghỉ ốm">Nghỉ ốm</button>
+                      <button type="button" class="reason-chip" data-reason="Khám sức khỏe">Khám bệnh</button>
+                      <button type="button" class="reason-chip" data-reason="Nghỉ bù">Nghỉ bù</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-actions-row">
+                  <button id="leave-save" type="submit" class="btn btn-primary btn-save-leave">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon-svg">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span class="btn-text">Lưu ngày nghỉ</span>
+                  </button>
+                  <button id="leave-cancel" type="button" class="btn btn-secondary" hidden>Hủy sửa</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Col 2: Danh sách ngày nghỉ trong tháng & Thống kê -->
+            <div class="leave-modal-col leave-modal-list-col">
+              <!-- Stats overview card -->
+              <div class="leave-stats-banner">
+                <div class="leave-stat-item">
+                  <span class="leave-stat-val" id="leave-stat-days">0</span>
+                  <span class="leave-stat-lbl">Ngày nghỉ</span>
+                </div>
+                <div class="leave-stat-divider"></div>
+                <div class="leave-stat-item">
+                  <span class="leave-stat-val color-amber" id="leave-stat-hours">0h</span>
+                  <span class="leave-stat-lbl">Tổng giờ OFF</span>
+                </div>
+                <div class="leave-stat-divider"></div>
+                <div class="leave-stat-item">
+                  <span class="leave-stat-val color-green" id="leave-stat-kpi">+0h</span>
+                  <span class="leave-stat-lbl">Ghi nhận KPI</span>
+                </div>
+              </div>
+
+              <div class="sub-header leave-list-sub-header">
+                <div class="sub-header-title">
+                  <h3>Danh sách ngày nghỉ trong tháng</h3>
+                  <span id="leave-summary-badge" class="badge badge-subtle">0 ngày</span>
+                </div>
+              </div>
+
+              <div class="leave-list-scroll-wrap">
+                <ul id="leave-list" class="leave-cards"></ul>
+                <div id="leave-empty" class="empty-state leave-empty-state" hidden>
+                  <div class="empty-icon">☕</div>
+                  <div class="empty-title">Chưa có lịch nghỉ trong tháng</div>
+                  <div class="empty-desc">Điền thông tin bên cạnh để ghi nhận ngày nghỉ phép hoặc việc riêng.</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -486,7 +652,7 @@
 
     <!-- App Footer -->
     <footer class="app-footer">
-      <span>Đồng bộ tự động mỗi 5 phút · Múi giờ Việt Nam (UTC+7)</span>
+      <span>Đồng bộ tự động mỗi 30 phút · Múi giờ Việt Nam (UTC+7)</span>
     </footer>
   </div>
 
@@ -585,7 +751,7 @@
             </svg>
           </div>
           <div>
-            <h2 id="breakdown-title" class="modal-title">Phân bổ thời gian tracking</h2>
+            <h2 id="breakdown-title" class="modal-title">Chi tiết thời gian tracking</h2>
             <span id="breakdown-subtitle" class="modal-subtitle">Phân biệt giờ làm việc và giờ nghỉ phép</span>
           </div>
         </div>
@@ -659,205 +825,5 @@
     </div>
   </div>
 
-  <!-- ========================================== -->
-  <!-- 5. LEAVE MANAGEMENT MODAL (Quản lý lịch nghỉ) -->
-  <!-- ========================================== -->
-  <div id="modal-leave" class="modal-backdrop" hidden>
-    <div class="modal-dialog modal-dialog-leave">
-      <div class="modal-header">
-        <div class="modal-title-wrap">
-          <div class="modal-header-icon-box leave-icon-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2a5 5 0 0 0-5 5v14a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"></path>
-              <path d="M12 12c-2.5 0-4-1.5-4-3"></path>
-            </svg>
-          </div>
-          <div>
-            <h2 class="modal-title">Quản lý lịch nghỉ phép</h2>
-            <span class="modal-subtitle">Ghi nhận ngày nghỉ lưu trên máy, tính vào tổng tracking (OFF)</span>
-          </div>
-        </div>
-        <button id="btn-close-leave" class="modal-close-btn" type="button" title="Đóng">✕</button>
-      </div>
-
-      <!-- Segmented View Toggle for Small/Popup Screens -->
-      <div class="leave-modal-view-toggle">
-        <button type="button" id="toggle-leave-form" class="view-toggle-btn active">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-icon">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-          </svg>
-          <span>Ghi ngày nghỉ</span>
-        </button>
-        <button type="button" id="toggle-leave-list" class="view-toggle-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-icon">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-          <span>Lịch nghỉ trong tháng</span>
-          <span id="leave-toggle-badge" class="badge badge-accent">0</span>
-        </button>
-      </div>
-
-      <div class="modal-body leave-modal-body">
-        <div class="leave-modal-grid">
-          <!-- Col 1: Form Thêm / Sửa ngày nghỉ -->
-          <div class="leave-modal-col leave-modal-form-col">
-            <form id="leave-form" class="leave-form-card">
-              <div class="form-title-row">
-                <div class="form-title-main">
-                  <span class="form-title-icon">🏖️</span>
-                  <strong id="leave-form-title">Thêm ngày nghỉ mới</strong>
-                </div>
-                <span class="badge badge-accent">OFF</span>
-              </div>
-
-              <div class="form-row-2">
-                <div class="form-group">
-                  <label for="leave-day">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                      <line x1="16" y1="2" x2="16" y2="6"></line>
-                      <line x1="8" y1="2" x2="8" y2="6"></line>
-                      <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                    <span>Ngày nghỉ</span>
-                  </label>
-                  <input id="leave-day" type="date" required class="input-field">
-                </div>
-                <div class="form-group">
-                  <label for="leave-hours">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    <span>Số giờ</span>
-                  </label>
-                  <input id="leave-hours" type="number" min="0.25" max="24" step="0.25" value="8" required class="input-field">
-                </div>
-              </div>
-
-              <!-- Interactive Preset Buttons -->
-              <div class="preset-group">
-                <div class="preset-label-row">
-                  <span class="preset-label">Chọn mức giờ nhanh:</span>
-                </div>
-                <div class="preset-btn-group">
-                  <button type="button" class="preset-chip active" data-hours="8">
-                    <span class="preset-chip-title">Cả ngày</span>
-                    <span class="preset-chip-sub">8h</span>
-                  </button>
-                  <button type="button" class="preset-chip" data-hours="4">
-                    <span class="preset-chip-title">Nửa ngày</span>
-                    <span class="preset-chip-sub">4h</span>
-                  </button>
-                  <button type="button" class="preset-chip" data-hours="2">
-                    <span class="preset-chip-title">Theo giờ</span>
-                    <span class="preset-chip-sub">2h</span>
-                  </button>
-                </div>
-              </div>
-
-              <div class="form-group mt-2">
-                <label for="leave-reason">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                  </svg>
-                  <span>Lý do nghỉ phép</span>
-                </label>
-                <input id="leave-reason" type="text" maxlength="500" placeholder="Nghỉ phép năm, việc gia đình, ốm, khám bệnh…" required class="input-field">
-                <!-- Quick Reason Chips -->
-                <div class="quick-reason-row">
-                  <span class="quick-reason-label">Gợi ý:</span>
-                  <div class="quick-reason-chips">
-                    <button type="button" class="reason-chip" data-reason="Nghỉ phép năm">Phép năm</button>
-                    <button type="button" class="reason-chip" data-reason="Việc gia đình">Việc riêng</button>
-                    <button type="button" class="reason-chip" data-reason="Nghỉ ốm">Nghỉ ốm</button>
-                    <button type="button" class="reason-chip" data-reason="Khám sức khỏe">Khám bệnh</button>
-                    <button type="button" class="reason-chip" data-reason="Nghỉ bù">Nghỉ bù</button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="form-actions-row">
-                <button id="leave-save" type="submit" class="btn btn-primary btn-save-leave">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon-svg">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                  <span class="btn-text">Lưu ngày nghỉ</span>
-                </button>
-                <button id="leave-cancel" type="button" class="btn btn-secondary" hidden>Hủy sửa</button>
-              </div>
-            </form>
-          </div>
-
-          <!-- Col 2: Danh sách ngày nghỉ trong tháng & Thống kê -->
-          <div class="leave-modal-col leave-modal-list-col">
-            <!-- Stats overview card -->
-            <div class="leave-stats-banner">
-              <div class="leave-stat-item">
-                <span class="leave-stat-val" id="leave-stat-days">0</span>
-                <span class="leave-stat-lbl">Ngày nghỉ</span>
-              </div>
-              <div class="leave-stat-divider"></div>
-              <div class="leave-stat-item">
-                <span class="leave-stat-val color-amber" id="leave-stat-hours">0h</span>
-                <span class="leave-stat-lbl">Tổng giờ OFF</span>
-              </div>
-              <div class="leave-stat-divider"></div>
-              <div class="leave-stat-item">
-                <span class="leave-stat-val color-green" id="leave-stat-kpi">+0h</span>
-                <span class="leave-stat-lbl">Ghi nhận KPI</span>
-              </div>
-            </div>
-
-            <div class="sub-header leave-list-sub-header">
-              <div class="sub-header-title">
-                <h3>Danh sách ngày nghỉ trong tháng</h3>
-                <span id="leave-summary-badge" class="badge badge-subtle">0 ngày</span>
-              </div>
-            </div>
-
-            <div class="leave-list-scroll-wrap">
-              <ul id="leave-list" class="leave-cards"></ul>
-              <div id="leave-empty" class="empty-state leave-empty-state" hidden>
-                <div class="empty-icon">🏖️</div>
-                <div class="empty-title">Chưa có lịch nghỉ trong tháng</div>
-                <div class="empty-desc">Điền thông tin bên cạnh để ghi nhận ngày nghỉ phép hoặc việc riêng.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modern Modal Footer: Backup tools on left, Done button on right -->
-      <div class="modal-footer leave-modal-footer">
-        <div class="backup-tools-bar">
-          <span class="backup-tools-tag">Dữ liệu:</span>
-          <button id="backup" class="btn btn-outline btn-xs" type="button" title="Xuất file JSON sao lưu lịch nghỉ (an toàn, không chứa token)">
-            <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            <span>Sao lưu JSON</span>
-          </button>
-          <label class="btn btn-outline btn-xs file-trigger-label" title="Khôi phục lịch nghỉ từ file JSON đã sao lưu">
-            <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            <span>Khôi phục</span>
-            <input id="restore" type="file" accept="application/json,.json" class="sr-only">
-          </label>
-        </div>
-
-        <button id="btn-done-leave" type="button" class="btn btn-secondary">Đóng</button>
-      </div>
-    </div>
-  </div>
 </body>
 </html>

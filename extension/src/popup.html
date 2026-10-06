@@ -342,7 +342,7 @@
         <div class="panel-header">
           <div>
             <h2 id="heading-calendar" class="panel-title">Lịch làm việc trong tháng</h2>
-            <span class="panel-subtitle">Bấm vào ngày để xem chi tiết hoặc ghi lịch nghỉ</span>
+            <span class="panel-subtitle">Nhấp đúp vào ngày để xem chi tiết và ghi chú</span>
           </div>
           <div class="calendar-header-actions">
             <div class="calendar-legend">
@@ -364,6 +364,7 @@
             <span class="info-label">Ngày đang chọn:</span>
             <strong id="selected-day-text">—</strong>
           </div>
+          <button id="btn-day-details" type="button" class="btn btn-secondary btn-sm">Chi tiết &amp; Ghi chú</button>
         </div>
       </section>
 
@@ -780,6 +781,16 @@
           </div>
         </div>
 
+        <form id="day-note-form" class="day-note-form" hidden>
+          <label for="day-note">Ghi chú / Công việc ngày <span id="day-note-date"></span></label>
+          <textarea id="day-note" rows="5" maxlength="5000" placeholder="Việc cần làm, nội dung đã xử lý, điều cần nhớ…" aria-describedby="day-note-hint"></textarea>
+          <div class="day-note-actions">
+            <span id="day-note-status" role="status"></span>
+            <button id="day-note-save" type="submit" class="btn btn-primary btn-sm">Lưu ghi chú</button>
+          </div>
+          <p id="day-note-hint" class="panel-subtitle">Bấm Lưu để giữ ghi chú trên máy. Xóa nội dung rồi lưu để bỏ ghi chú.</p>
+        </form>
+
         <!-- 2 Side-by-side detail cards -->
         <div class="breakdown-details-grid">
           <!-- Card A: Làm việc GitLab -->
@@ -819,9 +830,6 @@
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button id="btn-done-breakdown" type="button" class="btn btn-secondary btn-block">Đóng</button>
-      </div>
     </div>
   </div>
 

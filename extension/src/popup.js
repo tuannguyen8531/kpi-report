@@ -34,6 +34,8 @@ let currentConfig = null;
 let editingLeaveId = null;
 let busy = false;
 let activeTab = 'calendar';
+const noteDrafts = new Map();
+let noteDay = null;
 
 // Initialize default date
 const initialToday = today();
@@ -84,7 +86,7 @@ async function act(action) {
   const interactiveElements = [
     'anchor', 'btn-today', 'btn-prev-day', 'btn-next-day',
     'btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'connect',
-    'leave-save', 'btn-onboarding-submit'
+    'leave-save', 'btn-onboarding-submit', 'day-note-save', 'day-note'
   ];
   for (const id of interactiveElements) {
     const el = $(id);
@@ -106,7 +108,7 @@ async function act(action) {
     }
 
     const isConfigured = Boolean(snapshot?.configured);
-    for (const id of ['btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'leave-save']) {
+    for (const id of ['btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'leave-save', 'day-note-save', 'day-note']) {
       const el = $(id);
       if (el) el.disabled = !isConfigured;
     }
@@ -204,6 +206,7 @@ function render(data) {
 
   // Selected Day info
   $('selected-day-text').textContent = fullDayLabel(data.date);
+  if (noteDay && !$('modal-breakdown').hidden) renderDayNote(data, noteDay);
 
   // Top KPI Metrics (Combined Tracking Time: Work + Leave)
   // 1. Day Card
@@ -284,6 +287,14 @@ function render(data) {
   updateProjectFilterOptions();
 }
 
+function renderDayNote(data, day) {
+  const key = `${data.profile}|${day}`;
+  const saved = data.notes?.[day] || '';
+  $('day-note-date').textContent = `${shortDay(day)}/${day.slice(0, 4)}`;
+  $('day-note').value = noteDrafts.has(key) ? noteDrafts.get(key) : saved;
+  $('day-note-status').textContent = $('day-note').value !== saved ? 'Chưa lưu' : saved ? 'Đã lưu' : 'Chưa có ghi chú';
+}
+
 /**
  * Render Calendar Grid
  */
@@ -330,7 +341,7 @@ function renderCalendar(data) {
 
         const leaveSub = document.createElement('span');
         leaveSub.className = 'cal-leave-chip';
-        leaveSub.textContent = `Nghỉ ${formatHours(day.leaveHours)}`;
+        leaveSub.textContent = formatHours(day.leaveHours);
         cell.appendChild(leaveSub);
       } else if (day.hours > 0) {
         const workChip = document.createElement('span');
@@ -340,12 +351,21 @@ function renderCalendar(data) {
       } else if (day.leaveHours > 0) {
         const leaveChip = document.createElement('span');
         leaveChip.className = 'cal-leave-chip';
-        leaveChip.textContent = `Nghỉ ${formatHours(day.leaveHours)}`;
+        leaveChip.textContent = formatHours(day.leaveHours);
         cell.appendChild(leaveChip);
       }
     }
 
+    if (data.notes?.[day.date]) {
+      const marker = document.createElement('span');
+      marker.className = 'cal-leave-chip cal-note-chip';
+      marker.textContent = 'Note';
+      marker.setAttribute('aria-label', 'Có ghi chú');
+      cell.appendChild(marker);
+    }
+
     cell.title = `${day.date}: Tổng ${formatHours(dayTracked.total)} (Làm: ${formatHours(day.hours)}, Nghỉ: ${formatHours(day.leaveHours)}) · Nhấp đúp để xem chi tiết`;
+    if (data.notes?.[day.date]) cell.title += ` · Ghi chú: ${data.notes[day.date]}`;
     cell.addEventListener('click', () => selectDay(day.date));
     cell.addEventListener('dblclick', (e) => {
       e.preventDefault();
@@ -635,6 +655,30 @@ async function reload(force = false) {
     render(data);
   }
 }
+
+$('day-note').addEventListener('input', () => {
+  if (!snapshot?.configured || !noteDay) return;
+  const text = $('day-note').value;
+  noteDrafts.set(`${snapshot.profile}|${noteDay}`, text);
+  const saved = snapshot.notes?.[noteDay] || '';
+  $('day-note-status').textContent = text !== saved ? 'Chưa lưu' : saved ? 'Đã lưu' : 'Chưa có ghi chú';
+});
+$('day-note-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  void act(async () => {
+    if (!snapshot?.configured || !noteDay) return;
+    const day = noteDay, profile = snapshot.profile;
+    const text = $('day-note').value;
+    await send({type: 'note.save', day, profile, text});
+    snapshot.notes ||= {};
+    if (text.trim()) snapshot.notes[day] = text;
+    else delete snapshot.notes[day];
+    noteDrafts.delete(`${profile}|${day}`);
+    if (noteDay) renderDayNote(snapshot, noteDay);
+    renderCalendar(snapshot);
+    showToast(text.trim() ? 'Đã lưu ghi chú.' : 'Đã xóa ghi chú.', 'success');
+  });
+});
 
 /* ============================================================
    EVENT HANDLERS & LISTENERS
@@ -1018,6 +1062,10 @@ $('btn-disconnect').addEventListener('click', () => act(async () => {
 function openBreakdownModal(scope = 'day', targetDate = null) {
   if (!snapshot) return;
 
+  noteDay = scope === 'day' ? targetDate || snapshot.date : null;
+  $('day-note-form').hidden = !noteDay;
+  if (noteDay) renderDayNote(snapshot, noteDay);
+
   let periodTitle = '';
   let periodBadge = '';
   let stats = null;
@@ -1187,10 +1235,12 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
 
 function closeBreakdownModal() {
   $('modal-breakdown').hidden = true;
+  noteDay = null;
   updateModalState();
 }
 
 // Open breakdown on metric card clicks
+$('btn-day-details').addEventListener('click', () => openBreakdownModal('day'));
 $('card-day').addEventListener('click', () => openBreakdownModal('day'));
 $('card-week').addEventListener('click', () => openBreakdownModal('week'));
 $('card-month').addEventListener('click', () => openBreakdownModal('month'));
@@ -1205,7 +1255,6 @@ $('card-month').addEventListener('click', () => openBreakdownModal('month'));
 });
 
 $('btn-close-breakdown').addEventListener('click', closeBreakdownModal);
-$('btn-done-breakdown').addEventListener('click', closeBreakdownModal);
 $('modal-breakdown').addEventListener('click', (e) => {
   if (e.target.id === 'modal-breakdown') closeBreakdownModal();
 });

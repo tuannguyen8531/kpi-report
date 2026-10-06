@@ -221,6 +221,47 @@ test('leave create/edit/delete, atomic restore, account isolation and token-free
   assert.ok(exported.csv.includes('"OFF","Vacation, ""AM""","OFF","4"'));
 });
 
+test('daily notes persist independently of sync, validate input and stay isolated by account and month', async () => {
+  await assert.rejects(handleMessage({type: 'note.save', day, text: 'No account'}));
+  await connect();
+  const profile = local.config.profile;
+  const save = (date, text) => handleMessage({type: 'note.save', day: date, profile, text});
+  const text = 'Việc cần làm\n<script>alert(1)</script>';
+  await save(day, text);
+  await save('2026-10-02', 'Ngày mai');
+  await save('2026-11-01', 'Tháng sau');
+  let snapshot = await handleMessage({type: 'snapshot', day});
+  assert.deepEqual(snapshot.notes, {[day]: text, '2026-10-02': 'Ngày mai'});
+  assert.equal(snapshot.month.hours, 1);
+  const before = fetches.length;
+  await save(day, 'Nội dung đã sửa');
+  assert.equal(fetches.length, before);
+  await assert.rejects(save('2026-02-30', 'Invalid day'));
+  await assert.rejects(save(day, 'x'.repeat(5001)));
+  await assert.rejects(save(day, null));
+  assert.equal(local.profiles[profile].notes[day], 'Nội dung đã sửa');
+  await save('2026-10-02', '   ');
+  assert.equal(local.profiles[profile].notes['2026-10-02'], undefined);
+  replyPages.push(new Error('Offline'));
+  snapshot = await handleMessage({type: 'snapshot', day, force: true});
+  assert.equal(snapshot.error, 'Offline');
+  assert.equal(snapshot.notes[day], 'Nội dung đã sửa');
+  await save(day, 'Ghi được khi mất mạng');
+  session = {};
+  snapshot = await handleMessage({type: 'snapshot', day});
+  assert.equal(snapshot.notes[day], 'Ghi được khi mất mạng');
+  await handleMessage({type: 'disconnect'});
+  await connect();
+  assert.equal((await handleMessage({type: 'snapshot', day})).notes[day], 'Ghi được khi mất mạng');
+  local.config.profile = 'https://gitlab.example.com|other';
+  local.profiles[local.config.profile] = {leaves: [], caches: {}};
+  await assert.rejects(save(day, 'Wrong account'));
+  replyPages.push(page([]));
+  assert.deepEqual((await handleMessage({type: 'snapshot', day})).notes, {});
+  await handleMessage({type: 'note.save', day, profile: local.config.profile, text: 'Other account'});
+  assert.equal(local.profiles[profile].notes[day], 'Ghi được khi mất mạng');
+});
+
 test('message router rejects other extensions and returns errors intentionally', async () => {
   assert.equal(events.message({type: 'settings'}, {id: 'other'}, () => {}), false);
   const result = await new Promise((resolve) => {

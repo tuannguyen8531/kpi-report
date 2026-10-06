@@ -24,6 +24,7 @@ Mã extension nằm trong `extension/src/`, tách khỏi `src/kpi_report/`.
 
 - **Màn hình Popup thu nhỏ**: Thiết kế gọn gàng, hiển thị 3 thẻ KPI trực quan (**Hôm nay**, **Tuần**, **Tháng**) kèm thanh tiến độ công việc kép (Làm / Nghỉ) và hệ thống điều hướng tiện lợi:
   - 📅 **Lịch tháng**: Lưới lịch trực quan, bấm vào từng ngày để xem và cập nhật dữ liệu; phân biệt rõ ngày làm việc và ngày nghỉ phép.
+  - 📝 **Ghi chú từng ngày**: Nhấp đúp vào ngày trên lịch (hoặc bấm thẻ thời gian Ngày) để mở popup chi tiết ngày, nhập công việc hoặc điều cần nhớ rồi bấm **Lưu ghi chú**. Ngày có ghi chú hiện badge **Note** màu xanh lá; xóa hết nội dung rồi lưu để bỏ ghi chú. Bản nháp được giữ khi mở chi tiết ngày khác trong cửa sổ đang mở; cần bấm Lưu trước khi đóng cửa sổ tiện ích.
   - ⏱️ **Timelog**: Danh sách chi tiết các công việc đã log và ngày nghỉ OFF, hỗ trợ tìm kiếm nhanh, lọc theo dự án/OFF và xem "Chỉ ngày chọn" hoặc "Cả tháng".
   - 🌴 **Lịch nghỉ**: Mở cửa sổ popup chuyên biệt (spacious modal dialog) để ghi nhận ngày nghỉ với các nút chọn nhanh (8h, 4h, 2h), danh sách nghỉ trong tháng kèm chức năng Sửa/Xóa, Sao lưu & Khôi phục file JSON.
   - 📊 **Báo cáo**: Tóm tắt giờ làm việc và nút **Xuất CSV** nhanh chóng.
@@ -55,6 +56,7 @@ Mã extension nằm trong `extension/src/`, tách khỏi `src/kpi_report/`.
   trình duyệt. Có thể chọn **Ghi nhớ token trên máy** để lưu cục bộ qua các phiên;
   lựa chọn này không mã hóa token và không đồng bộ token lên tài khoản Chrome.
 - Đổi tài khoản GitLab sẽ dùng lịch nghỉ riêng cho tài khoản đó.
+- Ghi chú lưu trên máy theo từng ngày và tài khoản GitLab, có thể sửa khi mất mạng hoặc chưa nhập lại token. Ghi chú không cộng vào giờ làm, không xuất vào CSV/Excel và không nằm trong bản sao lưu lịch nghỉ.
 - **Sao lưu lịch nghỉ** xuất JSON không chứa token. **Khôi phục** chỉ chấp nhận
   đúng tài khoản/máy chủ, bổ sung ngày chưa có và bỏ qua bản ghi giống nhau.
   Nếu ngày đã có dữ liệu khác, báo lỗi và giữ nguyên toàn bộ dữ liệu.

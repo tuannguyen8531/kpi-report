@@ -1,4 +1,4 @@
-import {SYNC_MINUTES, TIMELOG_QUERY, today, periods, validateConfig, normalizeLogs, validateLeave, makeSnapshot, exportCsv} from './core.js';
+import {SYNC_MINUTES, TIMELOG_QUERY, today, parseDay, periods, validateConfig, normalizeLogs, validateLeave, makeSnapshot, exportCsv} from './core.js';
 import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel_generator.js';
 
 const ALARM = 'gitlab-sync';
@@ -81,7 +81,8 @@ async function synchronize(day, force = false) {
   // A failed first fetch is unknown, not zero hours.
   const snapshot = makeSnapshot(day, cache?.syncedAt ? cache : null, profile.leaves);
   snapshot.error = cache?.error || null;
-  return {...snapshot, configured: true, username: config.username, needsToken: !token};
+  const notes = Object.fromEntries(Object.entries(profile.notes || {}).filter(([date]) => date >= range.monthStart && date < range.monthEnd));
+  return {...snapshot, notes, profile: config.profile, configured: true, username: config.username, needsToken: !token};
 }
 
 export async function handleMessage(message) {
@@ -113,6 +114,19 @@ export async function handleMessage(message) {
       return synchronize(message.day || today(), true);
     }
     case 'snapshot': return synchronize(message.day || today(), Boolean(message.force));
+    case 'note.save': {
+      parseDay(message.day);
+      if (typeof message.text !== 'string' || message.text.length > 5000) throw new Error('Ghi chú tối đa 5.000 ký tự.');
+      const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
+      if (!config?.profile) throw new Error('Kết nối GitLab trước khi ghi chú.');
+      if (message.profile !== config.profile) throw new Error('Tài khoản đã thay đổi. Hãy mở lại ngày cần ghi chú.');
+      const profile = profiles[config.profile];
+      profile.notes ||= {};
+      if (message.text.trim()) profile.notes[message.day] = message.text;
+      else delete profile.notes[message.day];
+      await chrome.storage.local.set({profiles});
+      return {saved: true};
+    }
     case 'leave.save': {
       const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
       if (!config?.profile) throw new Error('Kết nối GitLab trước khi ghi lịch nghỉ.');

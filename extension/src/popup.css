@@ -1061,6 +1061,7 @@ input:focus, textarea:focus, select:focus {
   font-weight: 700;
   color: var(--primary);
   background: #dbeafe;
+  border: 1px solid var(--primary-border);
   padding: 1px 4px;
   border-radius: 3px;
   margin-top: 2px;
@@ -1071,6 +1072,7 @@ input:focus, textarea:focus, select:focus {
   font-weight: 600;
   color: var(--amber);
   background: var(--amber-soft);
+  border: 1px solid var(--amber-border);
   padding: 1px 3px;
   border-radius: 3px;
   margin-top: 2px;
@@ -1094,6 +1096,40 @@ input:focus, textarea:focus, select:focus {
   font-size: 11.5px;
   color: var(--ink-muted);
   user-select: none;
+}
+
+.day-note-form {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--primary-border);
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+}
+.day-note-form label {
+  font-size: 14px;
+  font-weight: 600;
+}
+.day-note-form textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+}
+.day-note-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+#day-note-status {
+  font-size: 11px;
+  color: var(--muted);
+}
+.cal-note-chip {
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: var(--success-border);
 }
 
 /* Timelog Styles */

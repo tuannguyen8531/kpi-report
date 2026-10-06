@@ -82,21 +82,21 @@ def sort_projects_by_order(
     return grouped_projects.sort_values(['Project_order', 'Start_date'])
 
 
-def get_gitlab_dates(
+def get_gitlab_details(
     project: str,
     task: str,
     task_type: str,
     url_map: Dict[str, str],
     client: GraphQLClient,
-) -> Tuple[str, str, str, str]:
-    """Fetch start_date, due_date, closed_date, and estimate from GitLab API.
+) -> Tuple[str, str, str, str, str]:
+    """Fetch dates, estimate, and task classification from GitLab API.
 
     Returns:
-        Tuple of (start_date, due_date, closed_date, estimate).
+        Tuple of (start_date, due_date, closed_date, estimate, task_type).
     """
     project_path = url_map.get(project, '')
     if project == 'OFF' or not project_path:
-        return '', '', '', ''
+        return '', '', '', '', DEFAULT_TASK_TYPE
 
     try:
         if task_type == 'TASK':
@@ -106,15 +106,16 @@ def get_gitlab_dates(
                 data.get('due_date', ''),
                 data.get('closed_date', ''),
                 data.get('estimate', ''),
+                data.get('task_type', DEFAULT_TASK_TYPE),
             )
         elif task_type == 'MR':
             data = client.get_merge_request(project_path, str(task))
-            return '', '', '', data.get('estimate', '')
+            return '', '', '', data.get('estimate', ''), DEFAULT_TASK_TYPE
         else:
-            return '', '', '', ''
+            return '', '', '', '', DEFAULT_TASK_TYPE
     except Exception as e:
         print(f"Error fetching GitLab data for {project} task {task}: {e}")
-        return '', '', '', ''
+        return '', '', '', '', DEFAULT_TASK_TYPE
 
 
 def create_project_dataframes(
@@ -165,6 +166,7 @@ def create_project_dataframes(
             [], [], [], [], [], []
         )
 
+        task_types = []
         for _, row in tqdm(
             group.iterrows(), total=len(group),
             desc=f"{project} tasks", leave=False,
@@ -172,7 +174,7 @@ def create_project_dataframes(
             urls.append(row['Url'])
             spent_times.append(row['Spent'])
 
-            gitlab_start, gitlab_due, gitlab_closed, gitlab_estimate = get_gitlab_dates(
+            gitlab_start, gitlab_due, gitlab_closed, gitlab_estimate, task_type = get_gitlab_details(
                 row['Project'], row['Task'], row['Type'], url_map, client
             )
 
@@ -189,6 +191,7 @@ def create_project_dataframes(
             due_dates.append(final_due)
             closed_dates.append(final_closed)
             estimates.append(gitlab_estimate)
+            task_types.append(task_type)
 
             # Accumulate stats directly (avoids re-deriving from output DataFrames)
             total_tasks += 1
@@ -206,7 +209,7 @@ def create_project_dataframes(
             'Estimate': estimates,
             'Spent': spent_times,
             'Reopen count': 0,
-            'Task Type': DEFAULT_TASK_TYPE,
+            'Task Type': task_types,
             'Progress': DEFAULT_PROGRESS,
         })
         output_dfs.append(project_df)

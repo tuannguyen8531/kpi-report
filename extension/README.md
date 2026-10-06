@@ -39,7 +39,7 @@ Click **Save & Connect** and allow access to your GitLab server when prompted. H
 
 - Select a date to view its month. Click a total or double-click a calendar day for details; save daily notes from the day dialog.
 - Open **Leave** to add, edit, or delete time off. Each date supports one entry with up to 24 hours.
-- Click **Export Excel** to download the selected month's report. The original Excel template, Vietnamese report labels, and KPI formulas are preserved.
+- Click **Export Excel** to download the selected month's report. Work items with an exact `UNPLANNED` label (case-insensitive) are classified as `Phát sinh`; other tasks and all merge requests remain `Kế hoạch`. The original Excel template, Vietnamese report labels, and KPI formulas are preserved.
 - Use **Export CSV** to download `tasks_MM_YYYY.csv`. For the CLI workflow, place it in the repository's `input/` directory and run `uv run report -m 10 -y 2026` with the appropriate month and year. The Python CLI still requires `projects.json`; its project names must match the CSV `Project` values. Direct Excel export needs no project file.
 - Open settings to update the connection, projects, or Excel filename pattern (`MM` and `YYYY` placeholders).
 

@@ -10,7 +10,7 @@ export const DEFAULT_TASK_TYPE = 'Kế hoạch';
 export const DEFAULT_PROGRESS = 'Đúng hạn';
 
 export const QUERY_WORK_ITEM = `
-query($fullPath: ID!, $iid: String!) {
+query($fullPath: ID!, $iid: String!, $labelsAfter: String) {
   project(fullPath: $fullPath) {
     workItems(iid: $iid) {
       nodes {
@@ -19,6 +19,12 @@ query($fullPath: ID!, $iid: String!) {
           ... on WorkItemWidgetStartAndDueDate {
             startDate
             dueDate
+          }
+          ... on WorkItemWidgetLabels {
+            labels(first: 100, after: $labelsAfter) {
+              nodes { title }
+              pageInfo { hasNextPage endCursor }
+            }
           }
           ... on WorkItemWidgetTimeTracking {
             timeEstimate
@@ -160,6 +166,7 @@ export function parseWorkItemResponse(data) {
     due_date: '',
     closed_date: '',
     estimate: '',
+    task_type: DEFAULT_TASK_TYPE,
   };
 
   try {
@@ -173,6 +180,9 @@ export function parseWorkItemResponse(data) {
 
     const widgets = workItem.widgets || [];
     for (const widget of widgets) {
+      if (widget.labels?.nodes?.some((label) => String(label?.title || '').trim().toUpperCase() === 'UNPLANNED')) {
+        info.task_type = 'Phát sinh';
+      }
       if (widget.startDate) {
         info.start_date = formatMonthDayYear(widget.startDate);
       }
@@ -242,11 +252,23 @@ export async function enrichTasks(requestFn, config, token, tasks, onProgress = 
 
       try {
         if (item.Type === 'TASK') {
-          const data = await requestFn(config, token, QUERY_WORK_ITEM, {
-            fullPath: projectPath,
-            iid: String(item.Task),
-          });
-          enrichmentMap.set(key, parseWorkItemResponse(data));
+          let labelsAfter = null;
+          const seen = new Set();
+          let info;
+          do {
+            const data = await requestFn(config, token, QUERY_WORK_ITEM, {
+              fullPath: projectPath, iid: String(item.Task), labelsAfter,
+            });
+            const parsed = parseWorkItemResponse(data);
+            info ||= parsed;
+            if (parsed.task_type === 'Phát sinh') info.task_type = parsed.task_type;
+            const labels = data?.project?.workItems?.nodes?.[0]?.widgets?.find((widget) => widget.labels)?.labels;
+            if (info.task_type === 'Phát sinh' || !labels?.pageInfo?.hasNextPage) break;
+            labelsAfter = labels.pageInfo.endCursor;
+            if (!labelsAfter || seen.has(labelsAfter)) throw new Error('GitLab returned an invalid label pagination cursor.');
+            seen.add(labelsAfter);
+          } while (labelsAfter);
+          enrichmentMap.set(key, info);
         } else if (item.Type === 'MR') {
           const data = await requestFn(config, token, QUERY_MERGE_REQUEST, {
             fullPath: projectPath,
@@ -351,7 +373,7 @@ export function buildProjectData(groupedProjects, enrichmentMap, config) {
         Estimate: finalEstimate,
         Spent: spentNum,
         'Reopen count': 0,
-        'Task Type': DEFAULT_TASK_TYPE,
+        'Task Type': row.Type === 'TASK' ? enriched.task_type || DEFAULT_TASK_TYPE : DEFAULT_TASK_TYPE,
         Progress: DEFAULT_PROGRESS,
       });
     }

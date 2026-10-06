@@ -72,6 +72,6 @@ Reports are written to `output/`:
 - `report_MM_YYYY.csv`: enriched task data, excluding leave.
 - `report_MM_YYYY.xlsx`: formatted work report with project tables, task statistics, and KPI formulas. Leave appears in a separate section outside task statistics.
 
-The CLI uses the bundled template at `src/kpi_report/templates/work_report.xlsx`; `example.xlsx` is not required. Excel report labels and default task values retain the original Vietnamese template. The company working-time target remains 192 hours, and formulas recalculate when the workbook is opened.
+The CLI uses the bundled template at `src/kpi_report/templates/work_report.xlsx`; `example.xlsx` is not required. Excel report labels retain the original Vietnamese template. Tasks with an exact `UNPLANNED` label (case-insensitive) are classified as `Phát sinh`; other tasks and all merge requests are `Kế hoạch`. The company working-time target remains 192 hours, and formulas recalculate when the workbook is opened.
 
 For browser installation, direct Excel export, local storage, and extension tests, see the [extension README](extension/README.md).

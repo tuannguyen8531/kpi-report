@@ -5,6 +5,8 @@ from datetime import datetime
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from .constants import DEFAULT_TASK_TYPE
+
 REQUEST_TIMEOUT = 30  # seconds
 
 
@@ -12,7 +14,7 @@ class GraphQLClient:
     """Client for querying GitLab's GraphQL API."""
 
     query_task = """
-    query($fullPath: ID!, $iid: String!) {
+    query($fullPath: ID!, $iid: String!, $labelsAfter: String) {
         project(fullPath: $fullPath) {
             workItems(iid: $iid) {
                 nodes {
@@ -21,6 +23,12 @@ class GraphQLClient:
                         ... on WorkItemWidgetStartAndDueDate {
                             startDate
                             dueDate
+                        }
+                        ... on WorkItemWidgetLabels {
+                            labels(first: 100, after: $labelsAfter) {
+                                nodes { title }
+                                pageInfo { hasNextPage endCursor }
+                            }
                         }
                         ... on WorkItemWidgetTimeTracking {
                             timeEstimate
@@ -85,7 +93,7 @@ class GraphQLClient:
         """Get work item details by project full path and item IID.
 
         Returns:
-            Dict with keys: closed_date, start_date, due_date, estimate
+            Dict with keys: closed_date, start_date, due_date, estimate, task_type
             (values in MM/DD/YYYY format for dates, hours for estimate).
         """
         variables = {"fullPath": full_path, "iid": iid}
@@ -96,6 +104,7 @@ class GraphQLClient:
             "start_date": "",
             "due_date": "",
             "estimate": "",
+            "task_type": DEFAULT_TASK_TYPE,
         }
 
         try:
@@ -128,6 +137,24 @@ class GraphQLClient:
                 elif "timeEstimate" in widget and widget.get("timeEstimate"):
                     estimate_hours = widget["timeEstimate"] / 3600
                     work_item_info["estimate"] = f"{estimate_hours:.2f}"
+
+            seen = set()
+            while True:
+                labels = next((widget["labels"] for widget in work_item.get("widgets", [])
+                               if widget.get("labels")), {})
+                if any(str(label.get("title") or "").strip().upper() == "UNPLANNED"
+                       for label in labels.get("nodes", []) if label):
+                    work_item_info["task_type"] = "Phát sinh"
+                    break
+                page = labels.get("pageInfo") or {}
+                if not page.get("hasNextPage"):
+                    break
+                cursor = page.get("endCursor")
+                if not cursor or cursor in seen:
+                    raise RuntimeError("GitLab returned an invalid label pagination cursor.")
+                seen.add(cursor)
+                result = self.execute_query(self.query_task, {**variables, "labelsAfter": cursor})
+                work_item = result["data"]["project"]["workItems"]["nodes"][0]
 
         except Exception as e:
             print(f"Error processing work item data: {e}")

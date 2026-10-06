@@ -5,6 +5,9 @@ import {test, beforeEach} from 'node:test';
 import ExcelJS from 'exceljs';
 import {SYNC_MINUTES, today, periods, parseDay, normalizeLogs, makeSnapshot, validateConfig, validateLeave, exportCsv} from '../src/core.js';
 import {
+  parseWorkItemResponse,
+  QUERY_WORK_ITEM,
+  QUERY_MERGE_REQUEST,
   processProjectData,
   processOffData,
   enrichTasks,
@@ -570,4 +573,44 @@ test('connecting without a project file exports discovered projects with correct
   replyPages.push(page([]));
   const empty = await handleMessage({type: 'export_excel_data', day});
   assert.deepEqual(empty.projectBlocks, []);
+});
+
+
+test('UNPLANNED labels classify only work items, including later label pages, in Excel', async () => {
+  const response = (titles, hasNextPage = false, endCursor = null) => ({project: {workItems: {nodes: [{widgets: [
+    {labels: {nodes: titles.map((title) => ({title})), pageInfo: {hasNextPage, endCursor}}},
+    {timeEstimate: 3600},
+  ]}]}}});
+  for (const title of ['UNPLANNED', 'unplanned', ' UnPlAnNeD ']) {
+    assert.equal(parseWorkItemResponse(response([title])).task_type, 'Phát sinh');
+  }
+  for (const titles of [[], ['PLANNED'], ['NOT_UNPLANNED'], ['type::UNPLANNED']]) {
+    assert.equal(parseWorkItemResponse(response(titles)).task_type, 'Kế hoạch');
+  }
+  assert.equal(parseWorkItemResponse({}).task_type, 'Kế hoạch');
+  const tasks = [
+    {Project: 'Project A', Task: '1', Type: 'TASK', Start_date: '10/01/2026', Spent: 2},
+    {Project: 'Project A', Task: '2', Type: 'TASK', Start_date: '10/01/2026', Spent: 3},
+    {Project: 'Project A', Task: '1', Type: 'MR', Start_date: '10/01/2026', Spent: 1},
+  ];
+  const calls = [];
+  const request = async (_, token, query, variables) => {
+    calls.push({query, variables});
+    if (query === QUERY_MERGE_REQUEST) return {project: {mergeRequests: {nodes: [{timeEstimate: 7200}]}}};
+    assert.equal(query, QUERY_WORK_ITEM);
+    assert.ok(query.includes('... on WorkItemWidgetLabels'));
+    if (variables.iid === '2') return response(['PLANNED']);
+    return variables.labelsAfter ? response(['UNPLANNED']) : response(['backend'], true, 'page-2');
+  };
+  const enriched = await enrichTasks(request, config, 'token', tasks);
+  assert.ok(calls.some(({variables}) => variables.labelsAfter === 'page-2'));
+  const {projectBlocks} = buildProjectData(tasks, enriched, config);
+  assert.deepEqual(projectBlocks[0].tasks.map((task) => task['Task Type']), ['Phát sinh', 'Kế hoạch', 'Kế hoạch']);
+  const template = fs.readFileSync(new URL('../assets/templates/work_report.xlsx', import.meta.url));
+  const bytes = await generateExcelWorkbook(template, {month: 10, year: 2026, projectBlocks}, ExcelJS);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(bytes);
+  const sheet = workbook.getWorksheet('Báo cáo công việc');
+  assert.deepEqual([6, 7, 8].map((row) => sheet.getCell(`I${row}`).value), ['Phát sinh', 'Kế hoạch', 'Kế hoạch']);
+  assert.equal(sheet.getCell('M7').value.formula, 'COUNTIF(I6:I9,"Phát sinh")');
 });

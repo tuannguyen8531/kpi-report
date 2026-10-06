@@ -18,6 +18,12 @@
   <!-- ========================================== -->
   <main id="view-onboarding" class="onboarding-container" hidden>
     <div class="onboarding-card">
+      <div class="onboarding-top-bar">
+        <div class="lang-switch-wrap" role="group" aria-label="Language selection">
+          <button class="btn-lang btn-lang-vi active" type="button" title="Tiếng Việt">VI</button>
+          <button class="btn-lang btn-lang-en" type="button" title="English">EN</button>
+        </div>
+      </div>
       <div class="onboarding-hero">
         <div class="brand-badge">
           <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -26,8 +32,8 @@
           </svg>
           <span class="pulse-indicator"></span>
         </div>
-        <h1 class="onboarding-title">Connect to GitLab</h1>
-        <p class="onboarding-subtitle">Welcome to KPI Tracker. Connect your GitLab account to start tracking logged work hours.</p>
+        <h1 class="onboarding-title" data-i18n="onboarding.title">Thiết lập kết nối GitLab</h1>
+        <p class="onboarding-subtitle" data-i18n="onboarding.subtitle">Chào mừng bạn đến với KPI Tracker. Vui lòng cung cấp thông tin kết nối GitLab để bắt đầu theo dõi giờ làm việc thời gian thực.</p>
       </div>
 
       <div id="onboarding-notice" class="notice notice-error" hidden></div>
@@ -36,7 +42,7 @@
         <!-- Field 1: GitLab URL -->
         <div class="form-group">
           <div class="label-row">
-            <label for="onboarding-url">GitLab server URL</label>
+            <label for="onboarding-url" data-i18n="onboarding.url_label">GitLab server URL</label>
             <span class="required-badge">Required</span>
           </div>
           <div class="input-with-icon">
@@ -45,7 +51,7 @@
               <line x1="2" y1="12" x2="22" y2="12"></line>
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
             </svg>
-            <input id="onboarding-url" type="url" placeholder="https://gitlab.com or https://gitlab.example.com" required>
+            <input id="onboarding-url" type="url" data-i18n-placeholder="onboarding.url_placeholder" placeholder="https://gitlab.com or https://gitlab.example.com" required>
           </div>
           <span class="field-hint">Use HTTPS, or HTTP on localhost. Omit the trailing slash.</span>
         </div>
@@ -53,7 +59,7 @@
         <!-- Field 2: Personal Access Token -->
         <div class="form-group">
           <div class="label-row">
-            <label for="onboarding-token">Personal Access Token</label>
+            <label for="onboarding-token" data-i18n="onboarding.token_label">Personal Access Token</label>
             <span class="required-badge">Required</span>
           </div>
           <div class="input-with-icon input-password-wrapper">
@@ -61,7 +67,7 @@
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>
-            <input id="onboarding-token" type="password" autocomplete="off" spellcheck="false" placeholder="glpat-xxxxxxxxxxxxxxxxxxxx" required>
+            <input id="onboarding-token" type="password" autocomplete="off" spellcheck="false" data-i18n-placeholder="onboarding.token_placeholder" placeholder="glpat-xxxxxxxxxxxxxxxxxxxx" required>
             <button id="btn-toggle-onboarding-token" type="button" class="btn-icon-inside" title="Show / hide token">
               <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -71,25 +77,25 @@
           </div>
           <div class="token-helper-card">
             <div class="helper-icon">ℹ️</div>
-            <div class="helper-text">
+            <div class="helper-text" data-i18n="onboarding.token_hint">
               Your token needs the <strong><code>read_api</code></strong> scope. The extension reads your timelogs and never modifies GitLab data.
             </div>
           </div>
           <label class="custom-checkbox mt-2">
             <input id="onboarding-remember" type="checkbox">
             <span class="checkmark"></span>
-            <span class="checkbox-text">Remember token on this device</span>
+            <span class="checkbox-text" data-i18n="onboarding.remember_token">Remember token on this device</span>
           </label>
         </div>
 
         <!-- Optional project filter -->
         <div class="form-group">
           <div class="label-row">
-            <label for="onboarding-projects">Project filter</label>
+            <label for="onboarding-projects" data-i18n="onboarding.projects_label">Project filter</label>
             <span class="field-badge">Optional</span>
           </div>
 
-          <p class="field-hint">Projects are detected automatically from your GitLab timelogs. Leave the filter empty to track all projects.</p>
+          <p class="field-hint" data-i18n="onboarding.projects_hint">Projects are detected automatically from your GitLab timelogs. Leave the filter empty to track all projects.</p>
           <details>
             <summary>Limit projects or use custom names</summary>
           <div id="onboarding-dropzone" class="dropzone">
@@ -101,7 +107,7 @@
                 <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
               <div class="dropzone-title">Drop <strong>projects.json</strong> here</div>
-              <div class="dropzone-sub">or <button type="button" id="btn-browse-onboarding" class="btn-link">browse files</button></div>
+              <div class="dropzone-sub">or <button type="button" id="btn-browse-onboarding" class="btn-link" data-i18n="onboarding.choose_file">browse files</button></div>
             </div>
           </div>
           <div id="onboarding-projects-status" class="file-status-badge" hidden></div>
@@ -119,7 +125,7 @@
         <!-- Submit Button -->
         <div class="onboarding-actions">
           <button id="btn-onboarding-submit" type="submit" class="btn btn-primary btn-large btn-block">
-            <span class="btn-text">Save & Connect</span>
+            <span class="btn-text" data-i18n="onboarding.submit">Save & Connect</span>
             <span class="spinner" hidden></span>
           </button>
         </div>
@@ -150,6 +156,11 @@
       </div>
 
       <div class="header-actions">
+        <div class="lang-switch-wrap" role="group" aria-label="Language selection">
+          <button id="btn-lang-vi" class="btn-lang btn-lang-vi active" type="button" title="Tiếng Việt">VI</button>
+          <button id="btn-lang-en" class="btn-lang btn-lang-en" type="button" title="English">EN</button>
+        </div>
+
         <div id="user-chip" class="user-chip" title="GitLab account">
           <svg class="user-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -158,7 +169,7 @@
           <span id="user-name" class="user-name">—</span>
         </div>
 
-        <button id="btn-sync" class="btn-icon" type="button" title="Sync GitLab now (auto-sync every 30 minutes)">
+        <button id="btn-sync" class="btn-icon" type="button" data-i18n-title="header.sync_tooltip" title="Sync GitLab now (auto-sync every 30 minutes)">
           <svg class="icon-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10"></polyline>
             <polyline points="1 20 1 14 7 14"></polyline>
@@ -166,7 +177,7 @@
           </svg>
         </button>
 
-        <button id="btn-expand" class="btn-icon" type="button" title="Open dashboard in a new tab">
+        <button id="btn-expand" class="btn-icon" type="button" data-i18n-title="header.expand_tooltip" title="Open dashboard in a new tab">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 3 21 3 21 9"></polyline>
             <polyline points="9 21 3 21 3 15"></polyline>
@@ -175,7 +186,7 @@
           </svg>
         </button>
 
-        <button id="btn-settings" class="btn-icon" type="button" title="Connection & project settings">
+        <button id="btn-settings" class="btn-icon" type="button" data-i18n-title="header.settings_tooltip" title="Connection & project settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -196,18 +207,18 @@
         <button id="btn-next-day" class="nav-arrow" type="button" title="Next day">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <button id="btn-today" class="btn btn-secondary btn-sm" type="button">Today</button>
+        <button id="btn-today" class="btn btn-secondary btn-sm" type="button" data-i18n="calendar.today_btn">Today</button>
       </div>
 
       <div class="toolbar-quick-actions">
-        <button id="btn-quick-export-excel" class="btn btn-primary btn-sm" type="button" title="Export Excel report (.xlsx)">
+        <button id="btn-quick-export-excel" class="btn btn-primary btn-sm" type="button" data-i18n-title="report.export_excel" title="Export Excel report (.xlsx)">
           <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
             <line x1="12" y1="18" x2="12" y2="12"></line>
             <line x1="9" y1="15" x2="15" y2="15"></line>
           </svg>
-          <span>Export Excel</span>
+          <span data-i18n="report.export_excel">Export Excel</span>
         </button>
       </div>
     </section>
@@ -241,7 +252,7 @@
       <!-- Card 2: Week -->
       <article class="metric-card metric-card-interactive" id="card-week" role="button" tabindex="0" title="View work and leave details">
         <div class="metric-header">
-          <span class="metric-label">Week</span>
+          <span class="metric-label" data-i18n="card.week">Week</span>
           <span id="week-range" class="badge badge-subtle">—</span>
         </div>
         <div class="metric-body">
@@ -297,7 +308,7 @@
           <line x1="8" y1="2" x2="8" y2="6"></line>
           <line x1="3" y1="10" x2="21" y2="10"></line>
         </svg>
-        <span>Calendar</span>
+        <span data-i18n="tab.calendar">Calendar</span>
       </button>
 
       <button id="tab-nav-leave" class="tab-button" type="button" data-tab="leave">
@@ -308,7 +319,7 @@
           <line x1="10" y1="1" x2="10" y2="4"></line>
           <line x1="14" y1="1" x2="14" y2="4"></line>
         </svg>
-        <span>Leave</span>
+        <span data-i18n="tab.leave">Leave</span>
         <span id="badge-leave-count" class="tab-count" hidden>0</span>
       </button>
 
@@ -321,7 +332,7 @@
           <line x1="3" y1="12" x2="3.01" y2="12"></line>
           <line x1="3" y1="18" x2="3.01" y2="18"></line>
         </svg>
-        <span>Timelog</span>
+        <span data-i18n="tab.logs">Timelog</span>
         <span id="badge-logs-count" class="tab-count" hidden>0</span>
       </button>
 
@@ -333,7 +344,7 @@
           <line x1="16" y1="17" x2="8" y2="17"></line>
           <polyline points="10 9 9 9 8 9"></polyline>
         </svg>
-        <span>Reports</span>
+        <span data-i18n="tab.report">Reports</span>
       </button>
     </nav>
 
@@ -345,28 +356,28 @@
       <section id="panel-calendar" class="dashboard-panel panel-tab-content active" aria-labelledby="heading-calendar">
         <div class="panel-header">
           <div>
-            <h2 id="heading-calendar" class="panel-title">Monthly calendar</h2>
-            <span class="panel-subtitle">Double-click a day to view details and notes</span>
+            <h2 id="heading-calendar" class="panel-title" data-i18n="calendar.title">Monthly calendar</h2>
+            <span class="panel-subtitle" data-i18n="calendar.subtitle">Double-click a day to view details and notes</span>
           </div>
           <div class="calendar-header-actions">
             <div class="calendar-legend">
-              <span class="legend-item"><span class="legend-dot dot-work"></span> Work hours</span>
-              <span class="legend-item"><span class="legend-dot dot-leave"></span> Leave</span>
-              <span class="legend-item"><span class="legend-dot dot-note"></span> Note</span>
+              <span class="legend-item"><span class="legend-dot dot-work"></span> <span data-i18n="calendar.legend_work">Work hours</span></span>
+              <span class="legend-item"><span class="legend-dot dot-leave"></span> <span data-i18n="calendar.legend_leave">Leave</span></span>
+              <span class="legend-item"><span class="legend-dot dot-note"></span> <span data-i18n="calendar.legend_note">Note</span></span>
             </div>
           </div>
         </div>
 
         <div class="calendar-wrapper">
-          <div class="weekdays-row" aria-hidden="true">
-            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+          <div id="weekdays-row" class="weekdays-row" aria-hidden="true">
+            <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
           </div>
           <div id="calendar" class="calendar-grid"></div>
         </div>
 
         <div class="calendar-quick-bar">
           <div class="selected-day-info">
-            <span class="info-label">Selected day:</span>
+            <span class="info-label" data-i18n="calendar.selected_day">Selected day:</span>
             <strong id="selected-day-text">—</strong>
             <span id="selected-day-note-badge" class="selected-note-tag" hidden title="This day has a saved note">
               <svg class="tag-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -375,7 +386,7 @@
                 <line x1="16" y1="13" x2="8" y2="13"></line>
                 <line x1="16" y1="17" x2="8" y2="17"></line>
               </svg>
-              <span>Note</span>
+              <span data-i18n="calendar.note_badge">Note</span>
             </span>
           </div>
           <button id="btn-day-details" type="button" class="btn btn-secondary btn-sm" title="View details and notes">
@@ -383,7 +394,7 @@
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            <span>Details &amp; Notes</span>
+            <span data-i18n="calendar.details_and_notes">Details &amp; Notes</span>
           </button>
         </div>
       </section>
@@ -394,25 +405,25 @@
       <section id="panel-leave" class="dashboard-panel panel-tab-content" aria-labelledby="heading-leave">
         <div class="panel-header">
           <div>
-            <h2 id="heading-leave" class="panel-title">Manage leave</h2>
-            <span class="panel-subtitle">Store leave on this device</span>
+            <h2 id="heading-leave" class="panel-title" data-i18n="leave.title">Manage leave</h2>
+            <span class="panel-subtitle" data-i18n="leave.subtitle">Store leave on this device</span>
           </div>
           <div class="backup-tools-bar">
-            <button id="backup" class="btn btn-outline btn-xs" type="button" title="Back up leave as JSON (no token included)">
+            <button id="backup" class="btn btn-outline btn-xs" type="button" data-i18n-title="leave.backup_json" title="Back up leave as JSON (no token included)">
               <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
-              <span>Back up JSON</span>
+              <span data-i18n="leave.backup_json">Back up JSON</span>
             </button>
-            <label class="btn btn-outline btn-xs file-trigger-label" title="Restore leave from a JSON backup">
+            <label class="btn btn-outline btn-xs file-trigger-label" data-i18n-title="leave.restore_json" title="Restore leave from a JSON backup">
               <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="17 8 12 3 7 8"></polyline>
                 <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
-              <span>Restore</span>
+              <span data-i18n="leave.restore_json">Restore</span>
               <input id="restore" type="file" accept="application/json,.json" class="sr-only">
             </label>
           </div>
@@ -425,7 +436,7 @@
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
-            <span>Add leave</span>
+            <span data-i18n="leave.tab_log">Add leave</span>
           </button>
           <button type="button" id="toggle-leave-list" class="view-toggle-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-icon">
@@ -434,7 +445,7 @@
               <line x1="8" y1="2" x2="8" y2="6"></line>
               <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
-            <span>Monthly leave</span>
+            <span data-i18n="leave.tab_list">Monthly leave</span>
             <span id="leave-toggle-badge" class="badge badge-accent">0</span>
           </button>
         </div>
@@ -447,7 +458,7 @@
                 <div class="form-title-row">
                   <div class="form-title-main">
                     <span class="form-title-icon">☕</span>
-                    <strong id="leave-form-title">Add leave</strong>
+                    <strong id="leave-form-title" data-i18n="leave.form_title">Add leave</strong>
                   </div>
                   <span class="badge badge-accent">OFF</span>
                 </div>
@@ -461,7 +472,7 @@
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                       </svg>
-                      <span>Leave date</span>
+                      <span data-i18n="leave.date_label">Leave date</span>
                     </label>
                     <input id="leave-day" type="date" required class="input-field">
                   </div>
@@ -471,7 +482,7 @@
                         <circle cx="12" cy="12" r="10"></circle>
                         <polyline points="12 6 12 12 16 14"></polyline>
                       </svg>
-                      <span>Hours</span>
+                      <span data-i18n="leave.hours_label">Hours</span>
                     </label>
                     <input id="leave-hours" type="number" min="0.25" max="24" step="0.25" value="8" required class="input-field">
                   </div>
@@ -484,11 +495,11 @@
                   </div>
                   <div class="preset-btn-group">
                     <button type="button" class="preset-chip active" data-hours="8">
-                      <span class="preset-chip-title">Full day</span>
+                      <span class="preset-chip-title" data-i18n="leave.full_day">Full day</span>
                       <span class="preset-chip-sub">8h</span>
                     </button>
                     <button type="button" class="preset-chip" data-hours="4">
-                      <span class="preset-chip-title">Half day</span>
+                      <span class="preset-chip-title" data-i18n="leave.half_day">Half day</span>
                       <span class="preset-chip-sub">4h</span>
                     </button>
                     <button type="button" class="preset-chip" data-hours="2">
@@ -503,16 +514,16 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    <span>Reason for leave</span>
+                    <span data-i18n="leave.reason_label">Reason for leave</span>
                   </label>
-                  <input id="leave-reason" type="text" maxlength="500" placeholder="Annual leave, family matters, illness, medical appointment…" required class="input-field">
+                  <input id="leave-reason" type="text" maxlength="500" data-i18n-placeholder="leave.reason_placeholder" placeholder="Annual leave, family matters, illness, medical appointment…" required class="input-field">
                   <!-- Quick Reason Chips -->
                   <div class="quick-reason-row">
                     <span class="quick-reason-label">Suggestions:</span>
                     <div class="quick-reason-chips">
-                      <button type="button" class="reason-chip" data-reason="Nghỉ phép năm">Annual leave</button>
-                      <button type="button" class="reason-chip" data-reason="Việc gia đình">Personal leave</button>
-                      <button type="button" class="reason-chip" data-reason="Nghỉ ốm">Sick leave</button>
+                      <button type="button" class="reason-chip" data-reason="Nghỉ phép năm" data-i18n="leave.reason_annual">Annual leave</button>
+                      <button type="button" class="reason-chip" data-reason="Việc gia đình" data-i18n="leave.reason_personal">Personal leave</button>
+                      <button type="button" class="reason-chip" data-reason="Nghỉ ốm" data-i18n="leave.reason_sick">Sick leave</button>
                       <button type="button" class="reason-chip" data-reason="Khám sức khỏe">Medical visit</button>
                       <button type="button" class="reason-chip" data-reason="Nghỉ bù">Compensatory leave</button>
                     </div>
@@ -524,9 +535,9 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon-svg">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    <span class="btn-text">Save leave</span>
+                    <span class="btn-text" data-i18n="leave.save_btn">Save leave</span>
                   </button>
-                  <button id="leave-cancel" type="button" class="btn btn-secondary" hidden>Cancel edit</button>
+                  <button id="leave-cancel" type="button" class="btn btn-secondary" hidden data-i18n="leave.cancel_btn">Cancel edit</button>
                 </div>
               </form>
             </div>
@@ -537,12 +548,12 @@
               <div class="leave-stats-banner">
                 <div class="leave-stat-item">
                   <span class="leave-stat-val" id="leave-stat-days">0</span>
-                  <span class="leave-stat-lbl">Leave date</span>
+                  <span class="leave-stat-lbl" data-i18n="leave.date_label">Leave date</span>
                 </div>
                 <div class="leave-stat-divider"></div>
                 <div class="leave-stat-item">
                   <span class="leave-stat-val color-amber" id="leave-stat-hours">0h</span>
-                  <span class="leave-stat-lbl">Total OFF hours</span>
+                  <span class="leave-stat-lbl" data-i18n="leave.hours_label">Total OFF hours</span>
                 </div>
                 <div class="leave-stat-divider"></div>
                 <div class="leave-stat-item">
@@ -553,7 +564,7 @@
 
               <div class="sub-header leave-list-sub-header">
                 <div class="sub-header-title">
-                  <h3>Monthly leave entries</h3>
+                  <h3 data-i18n="leave.list_title">Monthly leave entries</h3>
                   <span id="leave-summary-badge" class="badge badge-subtle">0 days</span>
                 </div>
               </div>
@@ -562,7 +573,7 @@
                 <ul id="leave-list" class="leave-cards"></ul>
                 <div id="leave-empty" class="empty-state leave-empty-state" hidden>
                   <div class="empty-icon">☕</div>
-                  <div class="empty-title">No leave this month</div>
+                  <div class="empty-title" data-i18n="leave.empty">No leave this month</div>
                   <div class="empty-desc">Use the form to add leave or personal time off.</div>
                 </div>
               </div>
@@ -577,13 +588,13 @@
       <section id="panel-logs" class="dashboard-panel panel-tab-content" aria-labelledby="heading-logs">
         <div class="panel-header">
           <div>
-            <h2 id="heading-logs" class="panel-title">Timelog details</h2>
-            <span class="panel-subtitle">Timelogs from GitLab</span>
+            <h2 id="heading-logs" class="panel-title" data-i18n="logs.title">Timelog details</h2>
+            <span class="panel-subtitle" data-i18n="logs.subtitle">Timelogs from GitLab</span>
           </div>
           <label class="filter-switch">
             <input id="day-only" type="checkbox">
             <span class="switch-ui"></span>
-            <span class="switch-label">Selected day only</span>
+            <span class="switch-label" data-i18n="logs.day_only">Selected day only</span>
           </label>
         </div>
 
@@ -593,7 +604,7 @@
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input id="logs-search" type="search" placeholder="Search tasks, merge requests, projects…">
+            <input id="logs-search" type="search" data-i18n-placeholder="logs.search_placeholder" placeholder="Search tasks, merge requests, projects…">
           </div>
           <select id="logs-project-filter" class="project-select">
             <option value="">All projects</option>
@@ -604,7 +615,7 @@
           <div id="logs-list" class="logs-card-list"></div>
           <div id="logs-empty" class="empty-state" hidden>
             <div class="empty-icon">📭</div>
-            <div class="empty-title">No timelogs found</div>
+            <div class="empty-title" data-i18n="logs.empty">No timelogs found</div>
             <div class="empty-desc">No work hours match this period or filter.</div>
           </div>
         </div>
@@ -616,34 +627,34 @@
       <section id="panel-report" class="dashboard-panel panel-tab-content" aria-labelledby="heading-report">
         <div class="panel-header">
           <div>
-            <h2 id="heading-report" class="panel-title">Reports & exports</h2>
-            <span class="panel-subtitle">Export monthly work and leave reports</span>
+            <h2 id="heading-report" class="panel-title" data-i18n="report.title">Reports & exports</h2>
+            <span class="panel-subtitle" data-i18n="report.subtitle">Export monthly work and leave reports</span>
           </div>
         </div>
 
         <div class="report-overview-card">
           <div class="report-meta-grid">
             <div class="report-meta-item">
-              <span class="meta-label">Report month</span>
+              <span class="meta-label" data-i18n="report.summary_title">Report month</span>
               <strong id="report-month-title" class="meta-value">—</strong>
             </div>
             <div class="report-meta-item">
-              <span class="meta-label">GitLab hours</span>
+              <span class="meta-label" data-i18n="report.work_hours">GitLab hours</span>
               <strong id="report-work-hours" class="meta-value color-blue">—</strong>
             </div>
             <div class="report-meta-item">
-              <span class="meta-label">Leave hours</span>
+              <span class="meta-label" data-i18n="report.leave_hours">Leave hours</span>
               <strong id="report-leave-hours" class="meta-value color-amber">—</strong>
             </div>
             <div class="report-meta-item">
-              <span class="meta-label">Timelog count</span>
+              <span class="meta-label" data-i18n="report.timelogs_count">Timelog count</span>
               <strong id="report-log-count" class="meta-value">—</strong>
             </div>
           </div>
 
           <div class="export-actions-card">
             <div class="export-buttons-group">
-              <button id="btn-export-excel" class="btn btn-primary btn-large" type="button" title="Export Excel report (.xlsx) with KPI formulas">
+              <button id="btn-export-excel" class="btn btn-primary btn-large" type="button" data-i18n-title="report.export_excel" title="Export Excel report (.xlsx) with KPI formulas">
                 <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
@@ -651,18 +662,18 @@
                   <line x1="16" y1="17" x2="8" y2="17"></line>
                   <line x1="10" y1="9" x2="8" y2="9"></line>
                 </svg>
-                <span id="btn-export-excel-text">Export Excel report (.xlsx)</span>
+                <span id="btn-export-excel-text" data-i18n="report.export_excel">Export Excel report (.xlsx)</span>
               </button>
-              <button id="export" class="btn btn-outline" type="button" title="Export raw data as CSV">
+              <button id="export" class="btn btn-outline" type="button" data-i18n-title="report.export_csv" title="Export raw data as CSV">
                 <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <polyline points="7 10 12 15 17 10"></polyline>
                   <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
-                <span>Export CSV</span>
+                <span data-i18n="report.export_csv">Export CSV</span>
               </button>
             </div>
-            <p class="export-note">
+            <p class="export-note" data-i18n="report.export_note">
               Excel reports include KPI formulas, issue/MR links, and leave entries using the <code>work_report.xlsx</code> template.
             </p>
             <pre class="code-snippet sr-only" id="report-command-example" hidden></pre>
@@ -673,7 +684,7 @@
 
     <!-- App Footer -->
     <footer class="app-footer">
-      <span>Auto-sync every 30 minutes · Vietnam time (UTC+7)</span>
+      <span data-i18n="footer.sync_note">Auto-sync every 30 minutes · Vietnam time (UTC+7)</span>
     </footer>
   </div>
 
@@ -688,7 +699,7 @@
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
-          <h2 class="modal-title">GitLab connection settings</h2>
+          <h2 class="modal-title" data-i18n="settings.title">GitLab connection settings</h2>
         </div>
         <button id="btn-close-settings" class="modal-close-btn" type="button" title="Close">✕</button>
       </div>
@@ -696,14 +707,14 @@
       <div class="modal-body">
         <form id="settings-form" class="flow-form">
           <div class="form-group">
-            <label for="gitlab-url">GitLab server URL</label>
+            <label for="gitlab-url" data-i18n="settings.url_label">GitLab server URL</label>
             <input id="gitlab-url" type="url" placeholder="https://gitlab.example.com" required>
           </div>
 
           <div class="form-group">
-            <label for="gitlab-token">Personal Access Token</label>
+            <label for="gitlab-token" data-i18n="settings.token_label">Personal Access Token</label>
             <div class="input-password-wrapper">
-              <input id="gitlab-token" type="password" autocomplete="off" spellcheck="false" placeholder="Enter a new token to replace the current one">
+              <input id="gitlab-token" type="password" autocomplete="off" spellcheck="false" data-i18n-placeholder="settings.token_placeholder" placeholder="Enter a new token to replace the current one">
               <button id="btn-toggle-settings-token" type="button" class="btn-icon-inside" title="Show / hide token">
                 <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -711,20 +722,20 @@
                 </svg>
               </button>
             </div>
-            <span class="field-hint">Leave blank to keep your saved token.</span>
+            <span class="field-hint" data-i18n="settings.token_hint">Leave blank to keep your saved token.</span>
           </div>
 
           <label class="custom-checkbox">
             <input id="remember-token" type="checkbox">
             <span class="checkmark"></span>
-            <span class="checkbox-text">Remember token across browser sessions</span>
+            <span class="checkbox-text" data-i18n="settings.remember_token">Remember token across browser sessions</span>
           </label>
 
           <div class="form-group mt-3">
             <div class="label-row">
-              <label for="projects">Project filter (optional JSON)</label>
+              <label for="projects" data-i18n="settings.projects_label">Project filter (optional JSON)</label>
               <label class="btn-link-action">
-                <span>Choose projects.json</span>
+                <span data-i18n="settings.projects_btn">Choose projects.json</span>
                 <input id="projects-file" type="file" accept="application/json,.json" class="sr-only">
               </label>
             </div>
@@ -734,11 +745,11 @@
 
           <div class="form-group mt-3">
             <div class="label-row">
-              <label for="excel-pattern">Excel filename pattern</label>
+              <label for="excel-pattern" data-i18n="settings.excel_pattern">Excel filename pattern</label>
               <span class="field-badge">MM, YYYY</span>
             </div>
             <input id="excel-pattern" type="text" spellcheck="false" placeholder="report_MM_YYYY.xlsx">
-            <span class="field-hint">Use <code>MM</code> for the month (01–12) and <code>YYYY</code> for the year (e.g. 2026). Default: <code>report_MM_YYYY.xlsx</code></span>
+            <span class="field-hint" data-i18n="settings.excel_pattern_hint">Use <code>MM</code> for the month (01–12) and <code>YYYY</code> for the year (e.g. 2026). Default: <code>report_MM_YYYY.xlsx</code></span>
           </div>
 
           <div class="reminder-settings-card mt-3">
@@ -746,14 +757,24 @@
               <label class="custom-checkbox">
                 <input id="reminder-enabled" type="checkbox" checked>
                 <span class="checkmark"></span>
-                <span class="checkbox-text">Daily note reminders</span>
+                <span class="checkbox-text" data-i18n="settings.reminder_title">Daily note reminders</span>
               </label>
               <div class="reminder-time-box">
-                <label for="reminder-time" class="time-label">Time (UTC+7)</label>
+                <label for="reminder-time" class="time-label" data-i18n="settings.reminder_time">Time (UTC+7)</label>
                 <input id="reminder-time" type="time" value="10:00" required>
               </div>
             </div>
-            <span class="field-hint">Receive today’s note once a day at the chosen time. Missed reminders catch up when the browser resumes that day.</span>
+            <span class="field-hint" data-i18n="settings.reminder_hint">Receive today’s note once a day at the chosen time. Missed reminders catch up when the browser resumes that day.</span>
+          </div>
+
+          <div class="form-group mt-3">
+            <div class="label-row">
+              <label for="settings-language" data-i18n="settings.lang_label">Ngôn ngữ hiển thị</label>
+            </div>
+            <select id="settings-language" class="select-input">
+              <option value="vi">Tiếng Việt (VI)</option>
+              <option value="en">English (EN)</option>
+            </select>
           </div>
 
           <div class="modal-footer">
@@ -763,11 +784,11 @@
                 <polyline points="16 17 21 12 16 7"></polyline>
                 <line x1="21" y1="12" x2="9" y2="12"></line>
               </svg>
-              <span>Disconnect</span>
+              <span data-i18n="settings.disconnect">Disconnect</span>
             </button>
             <div class="footer-right">
-              <button id="btn-cancel-settings" type="button" class="btn btn-secondary">Close</button>
-              <button id="connect" type="submit" class="btn btn-primary">Save changes</button>
+              <button id="btn-cancel-settings" type="button" class="btn btn-secondary" data-i18n="settings.close">Close</button>
+              <button id="connect" type="submit" class="btn btn-primary" data-i18n="settings.save">Save changes</button>
             </div>
           </div>
         </form>
@@ -789,7 +810,7 @@
           </div>
           <div>
             <h2 id="breakdown-title" class="modal-title">Tracked time details</h2>
-            <span id="breakdown-subtitle" class="modal-subtitle">Work and leave breakdown</span>
+            <span id="breakdown-subtitle" class="modal-subtitle" data-i18n="breakdown.details_and_notes">Work and leave breakdown</span>
           </div>
         </div>
         <button id="btn-close-breakdown" class="modal-close-btn" type="button" title="Close">✕</button>
@@ -801,7 +822,7 @@
           <div class="breakdown-period-badge" id="breakdown-period-badge">Today</div>
           <div class="breakdown-hero-val-wrap">
             <strong id="breakdown-total-val" class="breakdown-hero-val">0.00h</strong>
-            <span class="breakdown-hero-label">Total tracked time</span>
+            <span class="breakdown-hero-label" data-i18n="breakdown.total_tracked">Total tracked time</span>
           </div>
 
           <!-- Stacked Ratio Bar -->
@@ -830,21 +851,21 @@
               </div>
               <div>
                 <strong>Daily note &amp; tasks (<span id="day-note-date"></span>)</strong>
-                <span class="note-card-sub">Personal log stored locally on this device</span>
+                <span class="note-card-sub" data-i18n="note.card_sub">Personal log stored locally on this device</span>
               </div>
             </div>
             <span id="day-note-status" class="note-status-badge status-empty" role="status">No note</span>
           </div>
 
           <div class="day-note-body">
-            <textarea id="day-note" rows="3" maxlength="5000" placeholder="Tasks to do, work completed, reminders for this day…" aria-describedby="day-note-hint"></textarea>
+            <textarea id="day-note" rows="3" maxlength="5000" data-i18n-placeholder="note.placeholder" placeholder="Tasks to do, work completed, reminders for this day…" aria-describedby="day-note-hint"></textarea>
           </div>
 
           <div class="day-note-footer">
-            <p id="day-note-hint" class="note-hint-text">Trigger daily notification at scheduled reminder time</p>
+            <p id="day-note-hint" class="note-hint-text" data-i18n="note.hint">Trigger daily notification at scheduled reminder time</p>
             <div class="day-note-actions">
-              <button id="day-note-clear" type="button" class="btn btn-outline btn-sm" hidden>Clear</button>
-              <button id="day-note-save" type="submit" class="btn btn-primary btn-sm">Save note</button>
+              <button id="day-note-clear" type="button" class="btn btn-outline btn-sm" hidden data-i18n="note.clear">Clear</button>
+              <button id="day-note-save" type="submit" class="btn btn-primary btn-sm" data-i18n="note.save">Save note</button>
             </div>
           </div>
         </form>
@@ -856,8 +877,8 @@
             <div class="breakdown-col-header">
               <span class="col-icon">💼</span>
               <div>
-                <strong>Work hours (GitLab)</strong>
-                <span class="col-sub">Logged on issues/MRs</span>
+                <strong data-i18n="breakdown.work_card">Work hours (GitLab)</strong>
+                <span class="col-sub" data-i18n="breakdown.work_sub">Logged on issues/MRs</span>
               </div>
             </div>
             <div class="breakdown-col-val" id="breakdown-work-val">0.00h</div>
@@ -869,8 +890,8 @@
             <div class="breakdown-col-header">
               <span class="col-icon">🏖️</span>
               <div>
-                <strong>Leave hours (OFF)</strong>
-                <span class="col-sub">Leave entries</span>
+                <strong data-i18n="breakdown.leave_card">Leave hours (OFF)</strong>
+                <span class="col-sub" data-i18n="breakdown.leave_sub">Leave entries</span>
               </div>
             </div>
             <div class="breakdown-col-val" id="breakdown-leave-val">0.00h</div>

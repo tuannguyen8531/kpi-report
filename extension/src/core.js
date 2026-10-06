@@ -84,8 +84,9 @@ export function validateConfig(input) {
   if (typeof reminderTime !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)) {
     throw new Error('Choose a valid reminder time.');
   }
+  const language = input.language === 'en' ? 'en' : 'vi';
   return {url: parsed.href.replace(/\/$/, ''), projects: clean, rememberToken: Boolean(input.rememberToken), excelPattern,
-    reminderEnabled: input.reminderEnabled !== false, reminderTime};
+    reminderEnabled: input.reminderEnabled !== false, reminderTime, language};
 }
 
 export function normalizeLogs(logs, config, username, start, end) {

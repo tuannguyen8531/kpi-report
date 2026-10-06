@@ -1,8 +1,11 @@
 import {today, parseDay, addDays, validateConfig} from './core.js';
 import {generateExcelWorkbook} from './excel_generator.js';
+import {getLanguage, setLanguage, t} from './i18n.js';
 
 // DOM selector helper
 const $ = (id) => document.getElementById(id);
+
+let currentLang = 'vi';
 
 // Number and date formatters
 const formatHours = (value) => value === null ? '—' : `${new Intl.NumberFormat('en-GB', {maximumFractionDigits: 2}).format(value)}h`;
@@ -10,12 +13,87 @@ const shortDay = (value) => `${value.slice(8, 10)}/${value.slice(5, 7)}`;
 const fullDayLabel = (dateStr) => {
   try {
     const d = parseDay(dateStr);
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    return `${dayNames[d.getUTCDay()]}, ${shortDay(dateStr)}/${dateStr.slice(0, 4)}`;
+    const dayNamesVi = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    const dayNamesEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const names = currentLang === 'en' ? dayNamesEn : dayNamesVi;
+    return `${names[d.getUTCDay()]}, ${shortDay(dateStr)}/${dateStr.slice(0, 4)}`;
   } catch {
     return dateStr;
   }
 };
+
+function applyI18n(lang = currentLang) {
+  currentLang = setLanguage(lang);
+  document.documentElement.lang = currentLang;
+
+  // Static translations via data-i18n attributes
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const key = el.dataset.i18n;
+    const text = t(key);
+    if (text) el.textContent = text;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+    const key = el.dataset.i18nPlaceholder;
+    const text = t(key);
+    if (text) el.placeholder = text;
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+    const key = el.dataset.i18nTitle;
+    const text = t(key);
+    if (text) el.title = text;
+  });
+
+  // Weekdays row
+  const weekdaysVi = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const weekdaysEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weekdays = currentLang === 'en' ? weekdaysEn : weekdaysVi;
+  const row = $('weekdays-row');
+  if (row) {
+    row.replaceChildren(...weekdays.map((txt) => {
+      const s = document.createElement('span');
+      s.textContent = txt;
+      return s;
+    }));
+  }
+
+  // Header and onboarding switcher pills active states
+  document.querySelectorAll('.btn-lang-vi, #btn-lang-vi').forEach((btn) => {
+    btn.classList.toggle('active', currentLang === 'vi');
+  });
+  document.querySelectorAll('.btn-lang-en, #btn-lang-en').forEach((btn) => {
+    btn.classList.toggle('active', currentLang === 'en');
+  });
+  if ($('settings-language')) {
+    $('settings-language').value = currentLang;
+  }
+
+  // Update dynamic rendering if snapshot is loaded
+  if (snapshot) {
+    render(snapshot);
+  }
+
+  // Refresh active breakdown modal if open
+  if (currentBreakdownScope && $('modal-breakdown') && !$('modal-breakdown').hidden) {
+    openBreakdownModal(currentBreakdownScope, currentBreakdownDate);
+  }
+}
+
+async function setAppLanguage(lang) {
+  applyI18n(lang);
+  try {
+    await chrome.storage.local.set({ language: currentLang });
+    if (currentConfig) {
+      currentConfig.language = currentLang;
+      const stored = await chrome.storage.local.get(['config']);
+      if (stored.config) {
+        stored.config.language = currentLang;
+        await chrome.storage.local.set({ config: stored.config });
+      }
+    }
+  } catch (e) {
+    console.error('Failed to persist language preference', e);
+  }
+}
 
 /**
  * Calculate total tracking time combining work hours and leave hours
@@ -36,6 +114,8 @@ let busy = false;
 let activeTab = 'calendar';
 const noteDrafts = new Map();
 let noteDay = null;
+let currentBreakdownScope = null;
+let currentBreakdownDate = null;
 
 // Initialize default date
 const requestedNote = new URLSearchParams(location.search).get('note');
@@ -148,9 +228,9 @@ function resetLeaveForm() {
   editingLeaveId = null;
   $('leave-day').value = $('anchor').value;
   $('leave-hours').value = 8;
-  $('leave-reason').value = '';
-  $('leave-form-title').textContent = 'Add leave';
-  $('leave-save').querySelector('.btn-text').textContent = 'Save leave';
+  $('leave-form-title').textContent = t('leave.form_title');
+  $('leave-save').querySelector('.btn-text').textContent = t('leave.save_btn');
+  $('leave-cancel').textContent = t('leave.cancel_btn');
   $('leave-cancel').hidden = true;
   updatePresetChipsActive();
   if (snapshot) renderLeaves(snapshot);
@@ -200,9 +280,9 @@ function render(data) {
     statusDot.className = 'status-dot live';
     const updatedTime = data.syncedAt ? new Date(data.syncedAt).toLocaleTimeString('en-GB', {
       timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit'
-    }) : 'Connected';
-    statusText.textContent = `Synced at ${updatedTime}`;
-    statusText.title = `Last synced: ${updatedTime}`;
+    }) : t('header.connected');
+    statusText.textContent = t('header.synced_at', {time: updatedTime});
+    statusText.title = t('header.synced_at', {time: updatedTime});
   }
 
   // Selected Day info
@@ -211,7 +291,7 @@ function render(data) {
     const hasNote = Boolean(data.notes?.[data.date]);
     $('selected-day-note-badge').hidden = !hasNote;
     if (hasNote) {
-      $('selected-day-note-badge').title = `Note: ${data.notes[data.date]}`;
+      $('selected-day-note-badge').title = `${t('calendar.legend_note')}: ${data.notes[data.date]}`;
     }
   }
   if (noteDay && !$('modal-breakdown').hidden) renderDayNote(data, noteDay);
@@ -219,11 +299,11 @@ function render(data) {
   // Top KPI Metrics (Combined Tracking Time: Work + Leave)
   // 1. Day Card
   const isToday = data.date === data.today;
-  $('day-label').textContent = isToday ? 'Today' : `Day ${shortDay(data.date)}`;
+  $('day-label').textContent = isToday ? t('card.today') : `${t('card.day')} ${shortDay(data.date)}`;
   const dayStats = getTracked(data.day);
   $('day-hours').textContent = formatHours(dayStats.total);
-  $('day-split-work').textContent = `Work: ${formatHours(dayStats.work)}`;
-  $('day-split-leave').textContent = `Leave: ${formatHours(dayStats.leave)}`;
+  $('day-split-work').textContent = t('card.work', {hours: formatHours(dayStats.work)});
+  $('day-split-leave').textContent = t('card.leave', {hours: formatHours(dayStats.leave)});
   const dayTotal = dayStats.total || 0;
   const dayWork = dayStats.work || 0;
   const dayLeave = dayStats.leave || 0;
@@ -232,21 +312,27 @@ function render(data) {
   $('day-progress-work').style.width = `${dayWorkPct}%`;
   $('day-progress-leave').style.width = `${dayLeavePct}%`;
   const dayPercent = Math.min(100, Math.round((dayTotal / 8) * 100));
-  $('day-progress-text').textContent = `8h target · ${dayPercent}% (Work ${formatHours(dayStats.work)} + Leave ${formatHours(dayStats.leave)})`;
-  $('day-leave').textContent = dayStats.leave > 0 ? `Includes leave: ${formatHours(dayStats.leave)}` : '100% work hours';
+  $('day-progress-text').textContent = t('card.day_target', {
+    percent: dayPercent,
+    work: formatHours(dayStats.work),
+    leave: formatHours(dayStats.leave)
+  });
+  $('day-leave').textContent = dayStats.leave > 0
+    ? t('card.includes_leave', {leave: formatHours(dayStats.leave)})
+    : t('card.work_100');
 
   // Selected Day info in calendar bar
-  $('selected-day-text').textContent = `${fullDayLabel(data.date)} · ${formatHours(dayStats.total)} (Work: ${formatHours(dayStats.work)} · Leave: ${formatHours(dayStats.leave)})`;
+  $('selected-day-text').textContent = `${fullDayLabel(data.date)} · ${formatHours(dayStats.total)} (${t('card.work', {hours: formatHours(dayStats.work)})} · ${t('card.leave', {hours: formatHours(dayStats.leave)})})`;
 
   // 2. Week Card (Calculated strictly within current month)
   const weekStartStr = data.week?.start || data.range.weekStart;
   const weekEndStr = data.week?.end || data.range.weekEnd;
   const isClamped = weekStartStr !== data.range.weekStart || weekEndStr !== data.range.weekEnd;
-  $('week-range').textContent = `${shortDay(weekStartStr)} – ${shortDay(addDays(weekEndStr, -1))}${isClamped ? ' (within month)' : ''}`;
+  $('week-range').textContent = `${shortDay(weekStartStr)} – ${shortDay(addDays(weekEndStr, -1))}${isClamped ? t('card.in_month') : ''}`;
   const weekStats = getTracked(data.week);
   $('week-hours').textContent = formatHours(weekStats.total);
-  $('week-split-work').textContent = `Work: ${formatHours(weekStats.work)}`;
-  $('week-split-leave').textContent = `Leave: ${formatHours(weekStats.leave)}`;
+  $('week-split-work').textContent = t('card.work', {hours: formatHours(weekStats.work)});
+  $('week-split-leave').textContent = t('card.leave', {hours: formatHours(weekStats.leave)});
   const weekTotal = weekStats.total || 0;
   const weekWork = weekStats.work || 0;
   const weekLeave = weekStats.leave || 0;
@@ -255,15 +341,21 @@ function render(data) {
   $('week-progress-work').style.width = `${weekWorkPct}%`;
   $('week-progress-leave').style.width = `${weekLeavePct}%`;
   const weekPercent = Math.min(100, Math.round((weekTotal / 40) * 100));
-  $('week-progress-text').textContent = `40h target · ${weekPercent}% (Work ${formatHours(weekStats.work)} + Leave ${formatHours(weekStats.leave)})`;
-  $('week-leave').textContent = weekStats.leave > 0 ? `Includes leave: ${formatHours(weekStats.leave)}` : '100% work hours';
+  $('week-progress-text').textContent = t('card.week_target', {
+    percent: weekPercent,
+    work: formatHours(weekStats.work),
+    leave: formatHours(weekStats.leave)
+  });
+  $('week-leave').textContent = weekStats.leave > 0
+    ? t('card.includes_leave', {leave: formatHours(weekStats.leave)})
+    : t('card.work_100');
 
   // 3. Month Card (Target: 192h standard)
-  $('month-label').textContent = `Month ${data.date.slice(5, 7)}/${data.date.slice(0, 4)}`;
+  $('month-label').textContent = t('card.month_label', {month: data.date.slice(5, 7), year: data.date.slice(0, 4)});
   const monthStats = getTracked(data.month);
   $('month-hours').textContent = formatHours(monthStats.total);
-  $('month-split-work').textContent = `Work: ${formatHours(monthStats.work)}`;
-  $('month-split-leave').textContent = `Leave: ${formatHours(monthStats.leave)}`;
+  $('month-split-work').textContent = t('card.work', {hours: formatHours(monthStats.work)});
+  $('month-split-leave').textContent = t('card.leave', {hours: formatHours(monthStats.leave)});
   const monthTotal = monthStats.total || 0;
   const monthWork = monthStats.work || 0;
   const monthLeave = monthStats.leave || 0;
@@ -272,14 +364,20 @@ function render(data) {
   $('month-progress-work').style.width = `${monthWorkPct}%`;
   $('month-progress-leave').style.width = `${monthLeavePct}%`;
   const monthPercent = Math.min(100, Math.round((monthTotal / 192) * 100));
-  $('month-progress-text').textContent = `${monthPercent}% of 192h target (Work ${formatHours(monthStats.work)} + Leave ${formatHours(monthStats.leave)})`;
-  $('month-leave').textContent = monthStats.leave > 0 ? `Total leave: ${formatHours(monthStats.leave)}` : 'No leave recorded';
+  $('month-progress-text').textContent = t('card.month_target', {
+    percent: monthPercent,
+    work: formatHours(monthStats.work),
+    leave: formatHours(monthStats.leave)
+  });
+  $('month-leave').textContent = monthStats.leave > 0
+    ? t('card.total_leave', {leave: formatHours(monthStats.leave)})
+    : t('card.no_leave');
 
   // Report Overview Card in Report Panel
-  if ($('report-month-title')) $('report-month-title').textContent = `Month ${data.date.slice(5, 7)}/${data.date.slice(0, 4)}`;
+  if ($('report-month-title')) $('report-month-title').textContent = t('card.month_label', {month: data.date.slice(5, 7), year: data.date.slice(0, 4)});
   if ($('report-work-hours')) $('report-work-hours').textContent = formatHours(data.month.hours);
   if ($('report-leave-hours')) $('report-leave-hours').textContent = formatHours(data.month.leaveHours);
-  if ($('report-log-count')) $('report-log-count').textContent = `${(data.logs || []).length} entries`;
+  if ($('report-log-count')) $('report-log-count').textContent = t('report.items_count', {count: (data.logs || []).length});
   if ($('report-command-example')) $('report-command-example').textContent = `uv run report -m ${parseInt(data.date.slice(5, 7), 10)} -y ${data.date.slice(0, 4)}`;
 
   // Render Calendar Grid
@@ -315,16 +413,16 @@ function updateNoteStatus(saved = null) {
   if (!statusEl) return;
   if (current !== saved) {
     statusEl.className = 'note-status-badge status-unsaved';
-    statusEl.innerHTML = '<span class="status-dot"></span> Unsaved';
-    statusEl.title = 'You have unsaved changes in this note';
+    statusEl.innerHTML = `<span class="status-dot"></span> ${t('note.status_unsaved')}`;
+    statusEl.title = t('note.status_unsaved');
   } else if (saved) {
     statusEl.className = 'note-status-badge status-saved';
-    statusEl.innerHTML = '<span class="status-dot"></span> Saved';
-    statusEl.title = 'This note is saved locally';
+    statusEl.innerHTML = `<span class="status-dot"></span> ${t('note.status_saved')}`;
+    statusEl.title = t('note.status_saved');
   } else {
     statusEl.className = 'note-status-badge status-empty';
-    statusEl.innerHTML = '<span class="status-dot"></span> No note';
-    statusEl.title = 'No note for this day';
+    statusEl.innerHTML = `<span class="status-dot"></span> ${t('note.status_empty')}`;
+    statusEl.title = t('note.status_empty');
   }
 }
 
@@ -392,8 +490,8 @@ function renderCalendar(data) {
     if (data.notes?.[day.date]) {
       const marker = document.createElement('span');
       marker.className = 'cal-note-indicator';
-      marker.setAttribute('aria-label', 'Has a note');
-      marker.title = `Note: ${data.notes[day.date]}`;
+      marker.setAttribute('aria-label', t('calendar.legend_note'));
+      marker.title = `${t('calendar.legend_note')}: ${data.notes[day.date]}`;
       marker.innerHTML = `
         <svg class="cal-note-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -405,8 +503,13 @@ function renderCalendar(data) {
       cell.appendChild(marker);
     }
 
-    cell.title = `${day.date}: Total ${formatHours(dayTracked.total)} (Work: ${formatHours(day.hours)}, Leave: ${formatHours(day.leaveHours)}) · Double-click for details`;
-    if (data.notes?.[day.date]) cell.title += ` · Note: ${data.notes[day.date]}`;
+    cell.title = t('calendar.cell_title', {
+      date: day.date,
+      total: formatHours(dayTracked.total),
+      work: formatHours(day.hours),
+      leave: formatHours(day.leaveHours)
+    });
+    if (data.notes?.[day.date]) cell.title += ` · ${t('calendar.legend_note')}: ${data.notes[day.date]}`;
     cell.addEventListener('click', () => selectDay(day.date));
     cell.addEventListener('dblclick', (e) => {
       e.preventDefault();
@@ -564,7 +667,7 @@ function renderLeaves(data) {
     $('calendar-leave-badge').textContent = leaves.length;
     $('calendar-leave-badge').hidden = leaves.length === 0;
   }
-  $('leave-summary-badge').textContent = `${leaves.length} days`;
+  $('leave-summary-badge').textContent = t('leave.days_count', {count: leaves.length});
   if ($('leave-toggle-badge')) {
     $('leave-toggle-badge').textContent = leaves.length;
   }
@@ -595,7 +698,7 @@ function renderLeaves(data) {
 
     const hoursBadge = document.createElement('span');
     hoursBadge.className = 'leave-hours-badge';
-    hoursBadge.textContent = `${entry.hours}h leave`;
+    hoursBadge.textContent = `${entry.hours}h OFF`;
 
     header.append(dateBadge, hoursBadge);
 
@@ -608,7 +711,7 @@ function renderLeaves(data) {
     if (isEditingThis) {
       const editTag = document.createElement('span');
       editTag.className = 'leave-editing-tag';
-      editTag.textContent = '✏️ Editing in form';
+      editTag.textContent = `✏️ ${currentLang === 'en' ? 'Editing in form' : 'Đang sửa trên form'}`;
       main.appendChild(editTag);
     }
 
@@ -618,15 +721,15 @@ function renderLeaves(data) {
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
     editBtn.className = 'btn btn-secondary btn-sm btn-icon-text';
-    editBtn.title = 'Edit leave';
-    editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><span>Edit</span>';
+    editBtn.title = t('leave.edit_title');
+    editBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><span>${currentLang === 'en' ? 'Edit' : 'Sửa'}</span>`;
     editBtn.addEventListener('click', () => {
       editingLeaveId = entry.id;
       $('leave-day').value = entry.day;
       $('leave-hours').value = entry.hours;
       $('leave-reason').value = entry.reason;
-      $('leave-form-title').textContent = `Edit leave for ${shortDay(entry.day)}`;
-      $('leave-save').querySelector('.btn-text').textContent = 'Save changes';
+      $('leave-form-title').textContent = `${currentLang === 'en' ? 'Edit leave for' : 'Sửa ngày nghỉ'} ${shortDay(entry.day)}`;
+      $('leave-save').querySelector('.btn-text').textContent = t('settings.save');
       $('leave-cancel').hidden = false;
       updatePresetChipsActive();
       setLeaveModalView('form');
@@ -637,14 +740,14 @@ function renderLeaves(data) {
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'btn btn-danger-outline btn-sm btn-icon-text';
-    removeBtn.title = 'Delete leave';
-    removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>Delete</span>';
+    removeBtn.title = t('leave.delete_title');
+    removeBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>${currentLang === 'en' ? 'Delete' : 'Xóa'}</span>`;
     removeBtn.addEventListener('click', () => act(async () => {
-      if (!confirm(`Delete the leave entry for ${shortDay(entry.day)}?`)) return;
+      if (!confirm(t('confirm.delete_leave', {date: shortDay(entry.day)}))) return;
       await send({type: 'leave.delete', id: entry.id});
       if (editingLeaveId === entry.id) resetLeaveForm();
       await reload();
-      showToast('Leave entry deleted.', 'success');
+      showToast(t('toast.leave_deleted'), 'success');
     }));
 
     actions.append(editBtn, removeBtn);
@@ -664,7 +767,7 @@ function updateProjectFilterOptions() {
   select.replaceChildren();
   const defaultOpt = document.createElement('option');
   defaultOpt.value = '';
-  defaultOpt.textContent = 'All projects';
+  defaultOpt.textContent = t('logs.all_projects');
   select.appendChild(defaultOpt);
 
   for (const p of [...projects].sort()) {
@@ -677,7 +780,7 @@ function updateProjectFilterOptions() {
   if ((snapshot?.leaves || []).length > 0) {
     const offOpt = document.createElement('option');
     offOpt.value = 'OFF';
-    offOpt.textContent = '🏖️ OFF (Leave)';
+    offOpt.textContent = `🏖️ OFF (${t('card.leave', {hours: ''}).replace(':', '').trim()})`;
     select.appendChild(offOpt);
   }
 
@@ -726,9 +829,9 @@ $('day-note-form').addEventListener('submit', (event) => {
     if ($('selected-day-note-badge')) {
       const hasNote = Boolean(snapshot.notes?.[snapshot.date]);
       $('selected-day-note-badge').hidden = !hasNote;
-      if (hasNote) $('selected-day-note-badge').title = `Note: ${snapshot.notes[snapshot.date]}`;
+      if (hasNote) $('selected-day-note-badge').title = `${t('calendar.legend_note')}: ${snapshot.notes[snapshot.date]}`;
     }
-    showToast(text.trim() ? 'Note saved.' : 'Note deleted.', 'success');
+    showToast(text.trim() ? t('toast.note_saved') : t('toast.note_deleted'), 'success');
   });
 });
 
@@ -752,7 +855,7 @@ $('btn-next-day').addEventListener('click', () => {
 $('btn-sync').addEventListener('click', () => act(async () => {
   await reload(true);
   if (!snapshot.error) {
-    showToast('Synced the latest data from GitLab.', 'success');
+    showToast(t('toast.synced'), 'success');
   }
 }));
 
@@ -834,7 +937,7 @@ $('leave-form').addEventListener('submit', (e) => {
     $('anchor').value = entry.day;
     resetLeaveForm();
     await reload();
-    showToast('Leave entry saved.', 'success');
+    showToast(t('toast.leave_saved'), 'success');
     setLeaveModalView('list');
   });
 });
@@ -843,7 +946,7 @@ $('leave-form').addEventListener('submit', (e) => {
 $('backup').addEventListener('click', () => act(async () => {
   const backupData = await send({type: 'backup'});
   downloadFile(`kpi-ngay-nghi-${today()}.json`, JSON.stringify(backupData, null, 2), 'application/json');
-  showToast('Leave backup exported.', 'success');
+  showToast(t('toast.leave_backup'), 'success');
 }));
 $('restore').addEventListener('change', (e) => act(async () => {
   const file = e.target.files[0];
@@ -853,7 +956,7 @@ $('restore').addEventListener('change', (e) => act(async () => {
     const result = await send({type: 'restore', backup: json});
     e.target.value = '';
     await reload();
-    showToast(`Restored ${result.added} leave entries.`, 'success');
+    showToast(t('toast.leave_restored', {count: result.added}), 'success');
   } catch (err) {
     showToast(`Restore failed: ${err.message}`, 'error', 4500);
   }
@@ -870,7 +973,7 @@ const handleExportExcel = () => act(async () => {
     if (btnExcel) btnExcel.disabled = true;
     if (btnQuickExcel) btnQuickExcel.disabled = true;
     if (btnText) btnText.textContent = 'Fetching GitLab data...';
-    showToast('Preparing data and fetching GitLab task details...', 'info', 3000);
+    showToast(t('toast.excel_generating'), 'info', 3000);
 
     const anchorDay = $('anchor').value || today();
     const excelData = await send({type: 'export_excel_data', day: anchorDay});
@@ -896,7 +999,7 @@ const handleExportExcel = () => act(async () => {
     );
 
     await reload();
-    showToast(`Excel report exported: ${excelData.filename}`, 'success', 4000);
+    showToast(t('toast.excel_success'), 'success', 4000);
   } finally {
     if (btnExcel) btnExcel.disabled = false;
     if (btnQuickExcel) btnQuickExcel.disabled = false;
@@ -941,9 +1044,11 @@ function handleProjectJsonText(text) {
     $('onboarding-projects').value = JSON.stringify(parsed, null, 2);
     const statusBadge = $('onboarding-projects-status');
     statusBadge.hidden = false;
-    statusBadge.textContent = validCount ? `✓ Loaded ${validCount} projects from file` : 'All projects will be detected automatically';
+    statusBadge.textContent = validCount
+      ? (currentLang === 'en' ? `✓ Loaded ${validCount} projects from file` : `✓ Đã nạp ${validCount} dự án từ file`)
+      : (currentLang === 'en' ? 'All projects will be detected automatically' : 'Tự động nhận diện tất cả dự án');
   } catch (err) {
-    showToast(`Invalid JSON file: ${err.message}`, 'error');
+    showToast(t('toast.invalid_json'), 'error');
   }
 }
 
@@ -983,7 +1088,8 @@ $('onboarding-form').addEventListener('submit', (e) => {
       const config = validateConfig({
         url: $('onboarding-url').value,
         projects: $('onboarding-projects').value,
-        rememberToken: $('onboarding-remember').checked
+        rememberToken: $('onboarding-remember').checked,
+        language: currentLang
       });
 
       const parsedUrl = new URL(config.url);
@@ -1001,7 +1107,7 @@ $('onboarding-form').addEventListener('submit', (e) => {
 
       currentConfig = config;
       render(data);
-      showToast(`Connected as @${data.username}.`, 'success');
+      showToast(t('toast.connected', {username: data.username}), 'success');
     } catch (err) {
       errorNotice.textContent = err.message;
       errorNotice.hidden = false;
@@ -1066,9 +1172,9 @@ $('projects-file').addEventListener('change', async (e) => {
   try {
     const text = await file.text();
     $('projects').value = JSON.stringify(JSON.parse(text), null, 2);
-    showToast('Projects loaded. Click Save changes to apply.', 'info');
+    showToast(t('toast.projects_loaded'), 'info');
   } catch (err) {
-    showToast('Invalid JSON file.', 'error');
+    showToast(t('toast.invalid_json'), 'error');
   }
 });
 
@@ -1083,6 +1189,7 @@ $('settings-form').addEventListener('submit', (e) => {
       excelPattern: $('excel-pattern')?.value?.trim() || 'report_MM_YYYY.xlsx',
       reminderEnabled: $('reminder-enabled').checked,
       reminderTime: $('reminder-time').value,
+      language: currentLang
     });
 
     const parsedUrl = new URL(config.url);
@@ -1101,13 +1208,13 @@ $('settings-form').addEventListener('submit', (e) => {
     currentConfig = config;
     closeSettingsModal();
     render(data);
-    showToast(data.error || `Connection updated for @${data.username}.`, data.error ? 'error' : 'success');
+    showToast(data.error || t('toast.connected', {username: data.username}), data.error ? 'error' : 'success');
   });
 });
 
 // Disconnect account
 $('btn-disconnect').addEventListener('click', () => act(async () => {
-  if (!confirm('Disconnect this GitLab account from the extension?')) return;
+  if (!confirm(t('confirm.disconnect'))) return;
   await send({type: 'disconnect'});
   currentConfig = null;
   snapshot = null;
@@ -1115,7 +1222,7 @@ $('btn-disconnect').addEventListener('click', () => act(async () => {
   $('onboarding-token').value = '';
   $('view-dashboard').hidden = true;
   $('view-onboarding').hidden = false;
-  showToast('Disconnected.', 'info');
+  showToast(t('toast.disconnected'), 'info');
 }));
 
 /* ============================================================
@@ -1123,6 +1230,9 @@ $('btn-disconnect').addEventListener('click', () => act(async () => {
    ============================================================ */
 function openBreakdownModal(scope = 'day', targetDate = null) {
   if (!snapshot) return;
+
+  currentBreakdownScope = scope;
+  currentBreakdownDate = targetDate;
 
   noteDay = scope === 'day' ? targetDate || snapshot.date : null;
   $('day-note-form').hidden = !noteDay;
@@ -1138,11 +1248,11 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
   if (scope === 'day') {
     const activeDate = targetDate || snapshot.date;
     const isToday = activeDate === snapshot.today;
-    periodBadge = isToday ? 'Today' : `Day ${shortDay(activeDate)}`;
-    periodTitle = `Time details: ${fullDayLabel(activeDate)}`;
+    periodBadge = isToday ? t('card.today') : `${t('card.day')} ${shortDay(activeDate)}`;
+    periodTitle = t('breakdown.title_day', {date: fullDayLabel(activeDate)});
     const dayItem = snapshot.days?.find((d) => d.date === activeDate);
     stats = dayItem ? getTracked(dayItem) : getTracked(snapshot.day);
-    noteText = `Details for ${shortDay(activeDate)}: GitLab work hours and leave stored on this device.`;
+    noteText = t('breakdown.note_day', {day: shortDay(activeDate)});
 
     workItems = (snapshot.logs || []).filter((log) => log.date === activeDate).map((log) => ({
       title: `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
@@ -1160,10 +1270,10 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
     const startStr = snapshot.week?.start || snapshot.range.weekStart;
     const endStr = snapshot.week?.end || snapshot.range.weekEnd;
     const endMinus1 = addDays(endStr, -1);
-    periodBadge = 'Week';
-    periodTitle = `Week details: ${shortDay(startStr)} – ${shortDay(endMinus1)}`;
+    periodBadge = t('card.week');
+    periodTitle = t('breakdown.title_week', {range: `${shortDay(startStr)} – ${shortDay(endMinus1)}`});
     stats = getTracked(snapshot.week);
-    noteText = `Weekly totals include only days in ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)}, even if the week starts in the previous month.`;
+    noteText = t('breakdown.note_week', {month: snapshot.date.slice(5, 7), year: snapshot.date.slice(0, 4)});
 
     workItems = (snapshot.logs || []).filter((log) => log.date >= startStr && log.date < endStr).map((log) => ({
       title: `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
@@ -1178,11 +1288,11 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
       hours: l.hours,
     }));
   } else if (scope === 'month') {
-    const monthBadgeStr = `Month ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)}`;
+    const monthBadgeStr = t('card.month_label', {month: snapshot.date.slice(5, 7), year: snapshot.date.slice(0, 4)});
     periodBadge = monthBadgeStr;
-    periodTitle = `Month details: ${monthBadgeStr}`;
+    periodTitle = t('breakdown.title_month', {month: monthBadgeStr});
     stats = getTracked(snapshot.month);
-    noteText = `Total tracked time for ${snapshot.date.slice(5, 7)}/${snapshot.date.slice(0, 4)} against the 192-hour target.`;
+    noteText = t('breakdown.note_month', {month: snapshot.date.slice(5, 7), year: snapshot.date.slice(0, 4)});
 
     workItems = (snapshot.logs || []).map((log) => ({
       title: `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
@@ -1224,7 +1334,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
   if (workItems.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'breakdown-item-entry';
-    empty.textContent = 'No work hours recorded.';
+    empty.textContent = t('breakdown.no_work');
     workListEl.appendChild(empty);
   } else {
     for (const item of workItems) {
@@ -1264,7 +1374,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
   if (leaveItems.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'breakdown-item-entry';
-    empty.textContent = 'No leave recorded.';
+    empty.textContent = t('breakdown.no_leave');
     leaveListEl.appendChild(empty);
   } else {
     for (const item of leaveItems) {
@@ -1298,6 +1408,8 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
 function closeBreakdownModal() {
   $('modal-breakdown').hidden = true;
   noteDay = null;
+  currentBreakdownScope = null;
+  currentBreakdownDate = null;
   updateModalState();
 }
 
@@ -1353,6 +1465,17 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+// Language switcher click & change events
+document.querySelectorAll('.btn-lang-vi, #btn-lang-vi').forEach((btn) => {
+  btn.addEventListener('click', () => setAppLanguage('vi'));
+});
+document.querySelectorAll('.btn-lang-en, #btn-lang-en').forEach((btn) => {
+  btn.addEventListener('click', () => setAppLanguage('en'));
+});
+$('settings-language')?.addEventListener('change', (e) => {
+  setAppLanguage(e.target.value);
+});
+
 /* ============================================================
    STORAGE CHANGE LISTENER & INITIAL LOAD
    ============================================================ */
@@ -1364,7 +1487,11 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // Initial boot
 void act(async () => {
+  const storedLang = await chrome.storage.local.get(['language']);
   const settings = await send({type: 'settings'});
+  const initialLang = storedLang.language || settings.config?.language || 'vi';
+  applyI18n(initialLang);
+
   if (settings.config) {
     currentConfig = settings.config;
     $('onboarding-url').value = settings.config.url || '';
@@ -1374,7 +1501,9 @@ void act(async () => {
       const validCount = settings.config.projects.length;
       const statusBadge = $('onboarding-projects-status');
       statusBadge.hidden = false;
-      statusBadge.textContent = `✓ ${validCount} saved projects loaded`;
+      statusBadge.textContent = currentLang === 'en'
+        ? `✓ ${validCount} saved projects loaded`
+        : `✓ Đã nạp ${validCount} dự án đã lưu`;
     }
   }
 

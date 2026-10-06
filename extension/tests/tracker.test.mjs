@@ -4,6 +4,7 @@ import path from 'node:path';
 import {test, beforeEach} from 'node:test';
 import ExcelJS from 'exceljs';
 import {SYNC_MINUTES, today, periods, parseDay, normalizeLogs, makeSnapshot, validateConfig, validateLeave, exportCsv} from '../src/core.js';
+import {t, getLanguage, setLanguage} from '../src/i18n.js';
 import {
   parseWorkItemResponse,
   QUERY_WORK_ITEM,
@@ -622,4 +623,25 @@ test('UNPLANNED labels classify only work items, including later label pages, in
   const sheet = workbook.getWorksheet('Báo cáo công việc');
   assert.deepEqual([6, 7, 8].map((row) => sheet.getCell(`I${row}`).value), ['Phát sinh', 'Kế hoạch', 'Kế hoạch']);
   assert.equal(sheet.getCell('M7').value.formula, 'COUNTIF(I6:I9,"Phát sinh")');
+});
+
+test('i18n dictionary supports English and Vietnamese switching and config preservation', () => {
+  setLanguage('vi');
+  assert.equal(getLanguage(), 'vi');
+  assert.equal(t('card.today'), 'Hôm nay');
+  assert.equal(t('card.work', {hours: '8h'}), 'Làm: 8h');
+
+  setLanguage('en');
+  assert.equal(getLanguage(), 'en');
+  assert.equal(t('card.today'), 'Today');
+  assert.equal(t('card.work', {hours: '8h'}), 'Work: 8h');
+
+  const cfgVi = validateConfig({url: 'https://gitlab.example.com', language: 'vi'});
+  assert.equal(cfgVi.language, 'vi');
+  const cfgEn = validateConfig({url: 'https://gitlab.example.com', language: 'en'});
+  assert.equal(cfgEn.language, 'en');
+  const cfgDefault = validateConfig({url: 'https://gitlab.example.com'});
+  assert.equal(cfgDefault.language, 'vi');
+
+  setLanguage('vi');
 });

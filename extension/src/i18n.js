@@ -1,0 +1,384 @@
+/**
+ * Internationalization (i18n) Module for KPI Tracker
+ * Supports English (en) and Vietnamese (vi)
+ */
+
+export const TRANSLATIONS = {
+  vi: {
+    // App & Header
+    'app.title': 'KPI Tracker',
+    'app.subtitle': 'Theo dõi giờ làm việc Realtime',
+    'header.sync_tooltip': 'Đồng bộ ngay (30 phút/lần)',
+    'header.settings_tooltip': 'Cài đặt kết nối & tài khoản',
+    'header.expand_tooltip': 'Mở rộng toàn màn hình',
+    'header.lang_tooltip': 'Chuyển đổi ngôn ngữ / Switch language',
+    'header.syncing': 'Đang đồng bộ...',
+    'header.synced_at': 'Đã đồng bộ lúc {time}',
+    'header.connected': 'Đã kết nối',
+    'footer.sync_note': 'Tự động đồng bộ mỗi 30 phút khi mở trình duyệt.',
+
+    // Onboarding
+    'onboarding.title': 'Thiết lập kết nối GitLab',
+    'onboarding.subtitle': 'Chào mừng bạn đến với KPI Tracker. Vui lòng cung cấp thông tin kết nối GitLab để bắt đầu theo dõi giờ làm việc thời gian thực.',
+    'onboarding.url_label': 'Địa chỉ GitLab (URL)',
+    'onboarding.url_placeholder': 'https://gitlab.example.com',
+    'onboarding.token_label': 'Personal Access Token (PAT)',
+    'onboarding.token_placeholder': 'glpat-xxxxxxxxxxxxxxxxxxxx',
+    'onboarding.token_hint': 'Tạo tại GitLab > Preferences > Access Tokens với quyền api hoặc read_api.',
+    'onboarding.remember_token': 'Ghi nhớ token trên máy',
+    'onboarding.remember_hint': 'Lưu token cục bộ để không phải nhập lại sau khi khởi động lại trình duyệt.',
+    'onboarding.projects_label': 'Danh sách dự án (JSON)',
+    'onboarding.choose_file': 'Chọn file projects.json',
+    'onboarding.projects_hint': 'Để trống để tự động nhận diện dự án từ timelog trên GitLab.',
+    'onboarding.submit': 'Bắt đầu theo dõi',
+
+    // Navigation Tabs
+    'tab.calendar': 'Lịch',
+    'tab.leave': 'Lịch nghỉ',
+    'tab.logs': 'Nhật ký',
+    'tab.report': 'Báo cáo',
+
+    // Metric Cards
+    'card.today': 'Hôm nay',
+    'card.day': 'Ngày',
+    'card.day_title': 'Chi tiết ngày công',
+    'card.day_target': 'Mục tiêu 8h · {percent}% (Làm {work} + Nghỉ {leave})',
+    'card.week': 'Tuần',
+    'card.week_title': 'Chi tiết tuần',
+    'card.week_target': 'Mục tiêu 40h · {percent}% (Làm {work} + Nghỉ {leave})',
+    'card.in_month': ' (trong tháng)',
+    'card.month_title': 'Chi tiết cả tháng',
+    'card.month_target': '{percent}% chỉ tiêu 192h (Làm {work} + Nghỉ {leave})',
+    'card.work': 'Làm: {hours}',
+    'card.leave': 'Nghỉ: {hours}',
+    'card.work_100': '100% Giờ làm việc',
+    'card.includes_leave': 'Bao gồm Nghỉ {leave}',
+    'card.total_leave': 'Tổng nghỉ {leave}',
+    'card.no_leave': 'Không có lịch nghỉ',
+    'card.month_label': 'Tháng {month}/{year}',
+
+    // Calendar
+    'calendar.title': 'Lịch làm việc trong tháng',
+    'calendar.subtitle': 'Nhấp đúp vào ngày để xem chi tiết và ghi chú',
+    'calendar.legend_work': 'Giờ làm việc',
+    'calendar.legend_leave': 'Nghỉ phép',
+    'calendar.legend_note': 'Ghi chú',
+    'calendar.selected_day': 'Ngày đang chọn:',
+    'calendar.quick_hint': 'Nhấp đúp ngày để xem chi tiết',
+    'calendar.details_and_notes': 'Chi tiết & Ghi chú',
+    'calendar.today_btn': 'Hôm nay',
+    'calendar.note_badge': 'Ghi chú',
+    'calendar.cell_title': '{date}: Tổng {total} (Làm: {work}, Nghỉ: {leave}) · Nhấp đúp để xem chi tiết',
+
+    // Leave Panel
+    'leave.title': 'Quản lý ngày nghỉ',
+    'leave.subtitle': 'Lưu lịch nghỉ trên máy tính này',
+    'leave.tab_log': 'Ghi ngày nghỉ',
+    'leave.tab_list': 'Lịch nghỉ trong tháng',
+    'leave.form_title': 'Ghi nhận ngày nghỉ',
+    'leave.date_label': 'Ngày nghỉ',
+    'leave.hours_label': 'Thời gian nghỉ',
+    'leave.full_day': 'Cả ngày (8h)',
+    'leave.half_day': 'Nửa ngày (4h)',
+    'leave.reason_label': 'Lý do nghỉ',
+    'leave.reason_placeholder': 'Nghỉ phép năm, việc gia đình, khám bệnh...',
+    'leave.reason_annual': 'Nghỉ phép năm',
+    'leave.reason_sick': 'Nghỉ ốm',
+    'leave.reason_holiday': 'Nghỉ lễ',
+    'leave.reason_personal': 'Việc riêng',
+    'leave.save_btn': 'Lưu ngày nghỉ',
+    'leave.cancel_btn': 'Hủy',
+    'leave.list_title': 'Lịch nghỉ trong tháng',
+    'leave.days_count': '{count} ngày',
+    'leave.backup_json': 'Sao lưu JSON',
+    'leave.restore_json': 'Khôi phục',
+    'leave.empty': 'Chưa có ngày nghỉ nào trong tháng này.',
+    'leave.edit_title': 'Chỉnh sửa ngày nghỉ này',
+    'leave.delete_title': 'Xóa ngày nghỉ này',
+
+    // Timelogs Panel
+    'logs.title': 'Chi tiết Timelog',
+    'logs.subtitle': 'Giờ làm việc trên GitLab và giờ nghỉ phép đã lưu',
+    'logs.day_only': 'Chỉ xem ngày đang chọn',
+    'logs.search_placeholder': 'Tìm kiếm công việc, mã task, dự án...',
+    'logs.all_projects': 'Tất cả dự án',
+    'logs.empty': 'Không tìm thấy dữ liệu timelog phù hợp.',
+
+    // Report & Export Panel
+    'report.title': 'Báo cáo & Xuất file',
+    'report.subtitle': 'Tạo file báo cáo KPI hàng tháng',
+    'report.summary_title': 'Tổng hợp số liệu tháng',
+    'report.work_hours': 'Giờ làm việc',
+    'report.leave_hours': 'Giờ nghỉ phép',
+    'report.timelogs_count': 'Số timelog',
+    'report.items_count': '{count} mục',
+    'report.cli_hint': 'Lệnh tạo báo cáo Python (CLI dự phòng):',
+    'report.export_excel': 'Xuất Excel (.xlsx)',
+    'report.export_csv': 'Xuất CSV',
+    'report.export_note': 'Tiện ích tự động tạo file Excel chuẩn KPI với đầy đủ công thức và liên kết GitLab.',
+
+    // Settings Modal
+    'settings.title': 'Cài đặt & Tài khoản',
+    'settings.subtitle': 'Cấu hình kết nối GitLab và tùy chọn tiện ích',
+    'settings.lang_label': 'Ngôn ngữ hiển thị',
+    'settings.url_label': 'Địa chỉ GitLab (URL)',
+    'settings.token_label': 'Personal Access Token mới',
+    'settings.token_placeholder': 'Nhập token mới để thay thế token hiện tại',
+    'settings.token_hint': 'Để trống nếu muốn giữ nguyên token hiện tại.',
+    'settings.remember_token': 'Ghi nhớ token trên máy',
+    'settings.projects_label': 'Danh sách dự án (JSON)',
+    'settings.projects_btn': 'Chọn projects.json',
+    'settings.excel_pattern': 'Định dạng tên file Excel',
+    'settings.excel_pattern_hint': 'Sử dụng MM cho tháng (01–12) và YYYY cho năm (vd: 2026). Mặc định: report_MM_YYYY.xlsx',
+    'settings.reminder_title': 'Báo nhắc ghi chú hàng ngày',
+    'settings.reminder_time': 'Giờ nhắc (UTC+7)',
+    'settings.reminder_hint': 'Nhận thông báo ghi chú của ngày một lần mỗi ngày vào giờ đã chọn. Lời nhắc bị lỡ sẽ hiện khi mở lại trình duyệt.',
+    'settings.disconnect': 'Ngắt kết nối',
+    'settings.close': 'Đóng',
+    'settings.save': 'Lưu thay đổi',
+
+    // Breakdown Modal
+    'breakdown.title_day': 'Chi tiết thời gian: {date}',
+    'breakdown.title_week': 'Chi tiết tuần: {range}',
+    'breakdown.title_month': 'Chi tiết cả tháng: {month}',
+    'breakdown.total_tracked': 'Tổng thời gian ghi nhận',
+    'breakdown.details_and_notes': 'Chi tiết phân bổ làm việc & nghỉ',
+    'breakdown.note_day': 'Chi tiết ngày {day}: Gồm giờ làm trên GitLab và giờ nghỉ phép đã lưu trên máy.',
+    'breakdown.note_week': 'Thời gian tuần chỉ tính các ngày trong tháng {month}/{year}, kể cả khi tuần bắt đầu từ tháng trước.',
+    'breakdown.note_month': 'Tổng thời gian tracking trong tháng {month}/{year} so với chỉ tiêu 192 giờ.',
+    'breakdown.work_card': 'Giờ làm việc (GitLab)',
+    'breakdown.work_sub': 'Đã log trên issues / MRs',
+    'breakdown.leave_card': 'Giờ nghỉ phép (OFF)',
+    'breakdown.leave_sub': 'Lịch nghỉ đã lưu',
+    'breakdown.no_work': 'Chưa có giờ làm việc nào.',
+    'breakdown.no_leave': 'Không có lịch nghỉ phép.',
+    'breakdown.close': 'Đóng',
+
+    // Day Note
+    'note.card_title': 'Ghi chú & Công việc ngày ({date})',
+    'note.card_sub': 'Lưu cục bộ trên thiết bị này',
+    'note.status_empty': 'Chưa có ghi chú',
+    'note.status_saved': 'Đã lưu',
+    'note.status_unsaved': 'Chưa lưu',
+    'note.placeholder': 'Việc cần làm, nội dung đã xử lý, điều cần nhớ cho ngày này…',
+    'note.hint': 'Tự động kích hoạt thông báo vào giờ nhắc nhở đã hẹn',
+    'note.clear': 'Xóa',
+    'note.save': 'Lưu ghi chú',
+
+    // Toasts & Dialogs
+    'toast.note_saved': 'Đã lưu ghi chú.',
+    'toast.note_deleted': 'Đã xóa ghi chú.',
+    'toast.leave_saved': 'Đã lưu ngày nghỉ.',
+    'toast.leave_deleted': 'Đã xóa ngày nghỉ.',
+    'toast.leave_backup': 'Đã tải file sao lưu lịch nghỉ.',
+    'toast.leave_restored': 'Đã khôi phục thành công {count} ngày nghỉ!',
+    'toast.synced': 'Đã đồng bộ dữ liệu mới nhất.',
+    'toast.connected': 'Đã cập nhật kết nối tài khoản @{username}!',
+    'toast.disconnected': 'Đã ngắt kết nối thành công.',
+    'toast.excel_generating': 'Đang tạo báo cáo Excel...',
+    'toast.excel_success': 'Đã tạo file Excel thành công!',
+    'toast.projects_loaded': 'Đã đọc danh sách dự án. Bấm Lưu thay đổi để áp dụng.',
+    'toast.invalid_json': 'File JSON không hợp lệ.',
+    'confirm.disconnect': 'Bạn có chắc muốn ngắt kết nối tài khoản GitLab này khỏi tiện ích?',
+    'confirm.delete_leave': 'Bạn có chắc chắn muốn xóa lịch nghỉ ngày {date} không?'
+  },
+
+  en: {
+    // App & Header
+    'app.title': 'KPI Tracker',
+    'app.subtitle': 'Realtime Work Hours',
+    'header.sync_tooltip': 'Sync now (every 30 mins)',
+    'header.settings_tooltip': 'Connection & account settings',
+    'header.expand_tooltip': 'Expand to full screen',
+    'header.lang_tooltip': 'Switch language / Chuyển đổi ngôn ngữ',
+    'header.syncing': 'Syncing...',
+    'header.synced_at': 'Synced at {time}',
+    'header.connected': 'Connected',
+    'footer.sync_note': 'Auto-syncs every 30 minutes while browser is running.',
+
+    // Onboarding
+    'onboarding.title': 'Connect to GitLab',
+    'onboarding.subtitle': 'Welcome to KPI Tracker. Connect your GitLab account to start tracking logged work hours in real-time.',
+    'onboarding.url_label': 'GitLab Server URL',
+    'onboarding.url_placeholder': 'https://gitlab.example.com',
+    'onboarding.token_label': 'Personal Access Token (PAT)',
+    'onboarding.token_placeholder': 'glpat-xxxxxxxxxxxxxxxxxxxx',
+    'onboarding.token_hint': 'Create in GitLab > Preferences > Access Tokens with api or read_api scope.',
+    'onboarding.remember_token': 'Remember token across browser sessions',
+    'onboarding.remember_hint': 'Save token locally to avoid re-entering after restarting the browser.',
+    'onboarding.projects_label': 'Projects (JSON)',
+    'onboarding.choose_file': 'Choose projects.json',
+    'onboarding.projects_hint': 'Leave blank to automatically discover projects from timelogs.',
+    'onboarding.submit': 'Start Tracking',
+
+    // Navigation Tabs
+    'tab.calendar': 'Calendar',
+    'tab.leave': 'Leave',
+    'tab.logs': 'Logs',
+    'tab.report': 'Report',
+
+    // Metric Cards
+    'card.today': 'Today',
+    'card.day': 'Day',
+    'card.day_title': 'Day work details',
+    'card.day_target': 'Target 8h · {percent}% (Work {work} + Leave {leave})',
+    'card.week': 'Week',
+    'card.week_title': 'Week details',
+    'card.week_target': 'Target 40h · {percent}% (Work {work} + Leave {leave})',
+    'card.in_month': ' (in month)',
+    'card.month_title': 'Month details',
+    'card.month_target': '{percent}% of 192h target (Work {work} + Leave {leave})',
+    'card.work': 'Work: {hours}',
+    'card.leave': 'Leave: {hours}',
+    'card.work_100': '100% Work hours',
+    'card.includes_leave': 'Includes Leave {leave}',
+    'card.total_leave': 'Total leave {leave}',
+    'card.no_leave': 'No leave scheduled',
+    'card.month_label': 'Month {month}/{year}',
+
+    // Calendar
+    'calendar.title': 'Monthly calendar',
+    'calendar.subtitle': 'Double-click a day to view details and notes',
+    'calendar.legend_work': 'Work hours',
+    'calendar.legend_leave': 'Leave',
+    'calendar.legend_note': 'Note',
+    'calendar.selected_day': 'Selected day:',
+    'calendar.quick_hint': 'Double-click day for details',
+    'calendar.details_and_notes': 'Details & Notes',
+    'calendar.today_btn': 'Today',
+    'calendar.note_badge': 'Note',
+    'calendar.cell_title': '{date}: Total {total} (Work: {work}, Leave: {leave}) · Double-click for details',
+
+    // Leave Panel
+    'leave.title': 'Manage leave',
+    'leave.subtitle': 'Store leave on this device',
+    'leave.tab_log': 'Log leave',
+    'leave.tab_list': 'Leave this month',
+    'leave.form_title': 'Record leave',
+    'leave.date_label': 'Leave date',
+    'leave.hours_label': 'Leave hours',
+    'leave.full_day': 'Full day (8h)',
+    'leave.half_day': 'Half day (4h)',
+    'leave.reason_label': 'Reason',
+    'leave.reason_placeholder': 'Annual leave, family event, medical...',
+    'leave.reason_annual': 'Annual leave',
+    'leave.reason_sick': 'Sick leave',
+    'leave.reason_holiday': 'Holiday',
+    'leave.reason_personal': 'Personal',
+    'leave.save_btn': 'Save leave',
+    'leave.cancel_btn': 'Cancel',
+    'leave.list_title': 'Leave this month',
+    'leave.days_count': '{count} days',
+    'leave.backup_json': 'Backup JSON',
+    'leave.restore_json': 'Restore',
+    'leave.empty': 'No leave records in this month.',
+    'leave.edit_title': 'Edit this leave entry',
+    'leave.delete_title': 'Delete this leave entry',
+
+    // Timelogs Panel
+    'logs.title': 'Work Timelogs',
+    'logs.subtitle': 'Work logged on GitLab and saved leave',
+    'logs.day_only': 'Selected day only',
+    'logs.search_placeholder': 'Search tasks, issues, projects...',
+    'logs.all_projects': 'All projects',
+    'logs.empty': 'No timelogs found matching criteria.',
+
+    // Report & Export Panel
+    'report.title': 'Report & Export',
+    'report.subtitle': 'Generate monthly KPI reports',
+    'report.summary_title': 'Monthly summary',
+    'report.work_hours': 'Work hours',
+    'report.leave_hours': 'Leave hours',
+    'report.timelogs_count': 'Total timelogs',
+    'report.items_count': '{count} items',
+    'report.cli_hint': 'CLI report command (Python fallback):',
+    'report.export_excel': 'Export Excel (.xlsx)',
+    'report.export_csv': 'Export CSV',
+    'report.export_note': 'Automatically generates Excel KPI report with formulas and GitLab hyperlinks.',
+
+    // Settings Modal
+    'settings.title': 'Settings & Account',
+    'settings.subtitle': 'Configure GitLab connection and extension options',
+    'settings.lang_label': 'Display language',
+    'settings.url_label': 'GitLab Server URL',
+    'settings.token_label': 'Personal Access Token',
+    'settings.token_placeholder': 'Enter a new token to replace the current one',
+    'settings.token_hint': 'Leave blank to keep your saved token.',
+    'settings.remember_token': 'Remember token across browser sessions',
+    'settings.projects_label': 'Projects (JSON)',
+    'settings.projects_btn': 'Choose projects.json',
+    'settings.excel_pattern': 'Excel filename pattern',
+    'settings.excel_pattern_hint': 'Use MM for the month (01–12) and YYYY for the year (e.g. 2026). Default: report_MM_YYYY.xlsx',
+    'settings.reminder_title': 'Daily note reminders',
+    'settings.reminder_time': 'Time (UTC+7)',
+    'settings.reminder_hint': 'Receive today’s note once a day at the chosen time. Missed reminders catch up when the browser resumes that day.',
+    'settings.disconnect': 'Disconnect',
+    'settings.close': 'Close',
+    'settings.save': 'Save changes',
+
+    // Breakdown Modal
+    'breakdown.title_day': 'Time details: {date}',
+    'breakdown.title_week': 'Week details: {range}',
+    'breakdown.title_month': 'Month details: {month}',
+    'breakdown.total_tracked': 'Total tracked time',
+    'breakdown.details_and_notes': 'Work and leave breakdown',
+    'breakdown.note_day': 'Details for {day}: GitLab work hours and leave stored on this device.',
+    'breakdown.note_week': 'Weekly totals include only days in {month}/{year}, even if the week starts in the previous month.',
+    'breakdown.note_month': 'Total tracked time for {month}/{year} against the 192-hour target.',
+    'breakdown.work_card': 'Work hours (GitLab)',
+    'breakdown.work_sub': 'Logged on issues/MRs',
+    'breakdown.leave_card': 'Leave hours (OFF)',
+    'breakdown.leave_sub': 'Leave entries',
+    'breakdown.no_work': 'No work hours recorded.',
+    'breakdown.no_leave': 'No leave recorded.',
+    'breakdown.close': 'Close',
+
+    // Day Note
+    'note.card_title': 'Daily note & tasks ({date})',
+    'note.card_sub': 'Personal log stored locally on this device',
+    'note.status_empty': 'No note',
+    'note.status_saved': 'Saved',
+    'note.status_unsaved': 'Unsaved',
+    'note.placeholder': 'Tasks to do, work completed, reminders for this day…',
+    'note.hint': 'Trigger daily notification at scheduled reminder time',
+    'note.clear': 'Clear',
+    'note.save': 'Save note',
+
+    // Toasts & Dialogs
+    'toast.note_saved': 'Note saved.',
+    'toast.note_deleted': 'Note deleted.',
+    'toast.leave_saved': 'Leave entry saved.',
+    'toast.leave_deleted': 'Leave entry deleted.',
+    'toast.leave_backup': 'Leave backup downloaded.',
+    'toast.leave_restored': 'Successfully restored {count} leave entries!',
+    'toast.synced': 'Synced successfully.',
+    'toast.connected': 'Connection updated for @{username}.',
+    'toast.disconnected': 'Disconnected.',
+    'toast.excel_generating': 'Generating Excel report...',
+    'toast.excel_success': 'Excel file generated successfully!',
+    'toast.projects_loaded': 'Projects loaded. Click Save changes to apply.',
+    'toast.invalid_json': 'Invalid JSON file.',
+    'confirm.disconnect': 'Disconnect this GitLab account from the extension?',
+    'confirm.delete_leave': 'Are you sure you want to delete leave on {date}?'
+  }
+};
+
+let currentLang = 'vi';
+
+export function getLanguage() {
+  return currentLang;
+}
+
+export function setLanguage(lang) {
+  currentLang = lang === 'en' ? 'en' : 'vi';
+  return currentLang;
+}
+
+export function t(key, params = {}) {
+  const dict = TRANSLATIONS[currentLang] || TRANSLATIONS.vi;
+  let text = dict[key] || TRANSLATIONS.vi[key] || TRANSLATIONS.en[key] || key;
+  for (const [k, v] of Object.entries(params)) {
+    text = text.replaceAll(`{${k}}`, String(v));
+  }
+  return text;
+}

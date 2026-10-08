@@ -207,6 +207,9 @@ function switchTab(tabId) {
   document.querySelectorAll('.panel-tab-content').forEach((panel) => {
     panel.classList.toggle('active', panel.id === `panel-${tabId}`);
   });
+  if (tabId === 'leave' && !editingLeaveId) {
+    setLeaveModalView('list');
+  }
 }
 
 /**
@@ -234,6 +237,7 @@ function resetLeaveForm() {
   $('leave-cancel').hidden = true;
   updatePresetChipsActive();
   if (snapshot) renderLeaves(snapshot);
+  setLeaveModalView('list');
 }
 
 /**
@@ -1508,5 +1512,6 @@ void act(async () => {
   }
 
   await reload();
+  setLeaveModalView('list');
   if (requestedNote && snapshot?.configured) openBreakdownModal('day', initialToday);
 });

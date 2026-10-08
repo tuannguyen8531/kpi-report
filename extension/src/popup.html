@@ -431,14 +431,7 @@
 
         <!-- Segmented View Toggle for Small/Popup Screens -->
         <div class="leave-modal-view-toggle">
-          <button type="button" id="toggle-leave-form" class="view-toggle-btn active">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-icon">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            <span data-i18n="leave.tab_log">Add leave</span>
-          </button>
-          <button type="button" id="toggle-leave-list" class="view-toggle-btn">
+          <button type="button" id="toggle-leave-list" class="view-toggle-btn active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-icon">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
               <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -448,12 +441,19 @@
             <span data-i18n="leave.tab_list">Monthly leave</span>
             <span id="leave-toggle-badge" class="badge badge-accent">0</span>
           </button>
+          <button type="button" id="toggle-leave-form" class="view-toggle-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-icon">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            <span data-i18n="leave.tab_log">Add leave</span>
+          </button>
         </div>
 
         <div class="leave-panel-body">
           <div class="leave-modal-grid">
             <!-- Col 1: Add / edit leave form -->
-            <div class="leave-modal-col leave-modal-form-col">
+            <div class="leave-modal-col leave-modal-form-col mobile-hidden">
               <form id="leave-form" class="leave-form-card">
                 <div class="form-title-row">
                   <div class="form-title-main">

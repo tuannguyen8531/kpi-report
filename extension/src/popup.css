@@ -2179,7 +2179,7 @@ a.breakdown-item-link:hover strong {
   gap: 20px;
 }
 
-@media (min-width: 700px) {
+@media (min-width: 820px) {
   .leave-modal-grid {
     grid-template-columns: 330px 1fr;
     gap: 22px;
@@ -2587,9 +2587,6 @@ a.breakdown-item-link:hover strong {
   .toolbar-quick-actions {
     display: none !important;
   }
-}
-
-@media (max-width: 699px) {
   .leave-modal-view-toggle {
     display: flex;
   }

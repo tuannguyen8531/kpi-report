@@ -223,6 +223,47 @@
       </div>
     </section>
 
+    <section class="odoo-card is-disconnected" aria-labelledby="odoo-heading">
+      <div class="odoo-card-top">
+        <div class="odoo-brand-row">
+          <div class="odoo-icon-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="odoo-clock-icon">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div class="odoo-title-group">
+            <div class="odoo-title-row">
+              <h2 id="odoo-heading" class="odoo-title" data-i18n="odoo.title">Odoo</h2>
+              <span id="odoo-status" class="odoo-status-pill status-disconnected" role="status">Chưa kết nối Odoo</span>
+            </div>
+            <span id="odoo-updated" class="odoo-meta-hint"></span>
+          </div>
+        </div>
+
+        <div class="odoo-actions">
+          <a id="odoo-open" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-xs odoo-action-btn" data-i18n-title="odoo.open" title="Mở Odoo" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span data-i18n="odoo.open">Mở Odoo</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="odoo-card-body">
+        <div class="odoo-stat-box">
+          <span class="odoo-stat-label" data-i18n="odoo.hours">Giờ chấm công hôm nay:</span>
+          <strong id="odoo-hours" class="odoo-hours-val">—</strong>
+        </div>
+        <div id="odoo-connect-prompt" class="odoo-connect-prompt" hidden>
+          <button id="odoo-connect-prompt-btn" type="button" class="btn btn-link-subtle btn-xs" data-i18n="odoo.connect_prompt">Thiết lập kết nối Odoo</button>
+        </div>
+      </div>
+    </section>
+
     <!-- KPI Metric Cards (3 cards) -->
     <section class="metrics-grid" aria-label="Total work hours">
       <!-- Card 1: Day -->
@@ -704,8 +745,25 @@
         <button id="btn-close-settings" class="modal-close-btn" type="button" title="Close">✕</button>
       </div>
 
+      <!-- Segmented Tabs at top of Settings Modal -->
+      <div class="settings-tabs-bar" role="tablist">
+        <button type="button" id="tab-btn-settings-gitlab" class="settings-tab-btn active" data-settings-tab="gitlab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon">
+            <path d="M12 2L2 9.5l3.5 11.5h13L22 9.5 12 2z"></path>
+          </svg>
+          <span data-i18n="settings.tab_gitlab">GitLab</span>
+        </button>
+        <button type="button" id="tab-btn-settings-odoo" class="settings-tab-btn" data-settings-tab="odoo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span data-i18n="settings.tab_odoo">Chấm công Odoo</span>
+        </button>
+      </div>
+
       <div class="modal-body">
-        <form id="settings-form" class="flow-form">
+        <form id="settings-form" class="flow-form settings-panel-tab active">
           <div class="form-group">
             <label for="gitlab-url" data-i18n="settings.url_label">GitLab server URL</label>
             <input id="gitlab-url" type="url" placeholder="https://gitlab.example.com" required>
@@ -789,6 +847,69 @@
             <div class="footer-right">
               <button id="btn-cancel-settings" type="button" class="btn btn-secondary" data-i18n="settings.close">Close</button>
               <button id="connect" type="submit" class="btn btn-primary" data-i18n="settings.save">Save changes</button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Odoo Settings Tab -->
+        <form id="odoo-form" class="flow-form settings-panel-tab">
+          <div class="odoo-settings-hero">
+            <div class="odoo-hero-icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="odoo-hero-icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <div>
+              <strong class="odoo-hero-title" data-i18n="odoo.title">Odoo</strong>
+              <p class="field-hint" data-i18n="odoo.session">Dùng tài khoản đã đăng nhập Odoo trong trình duyệt này. Chỉ đọc trạng thái chấm công.</p>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="odoo-url" data-i18n="odoo.url">Địa chỉ Odoo</label>
+            <input id="odoo-url" type="url" placeholder="https://odoo.example.com" required>
+            <span class="field-hint" data-i18n="odoo.session">Dùng tài khoản đã đăng nhập Odoo trong trình duyệt này. Chỉ đọc trạng thái chấm công.</span>
+          </div>
+
+          <div class="reminder-settings-card mt-3">
+            <label class="custom-checkbox">
+              <input id="odoo-reminders" type="checkbox" checked>
+              <span class="checkmark"></span>
+              <span class="checkbox-text" data-i18n="odoo.reminders">Nhắc chấm công từ thứ Hai đến thứ Sáu (UTC+7)</span>
+            </label>
+            <div class="odoo-times-grid mt-2">
+              <div class="odoo-time-item">
+                <label for="odoo-time-0"><span data-i18n="odoo.morning_in">Check-in sáng</span></label>
+                <input id="odoo-time-0" type="time" value="08:30" required>
+              </div>
+              <div class="odoo-time-item">
+                <label for="odoo-time-1"><span data-i18n="odoo.morning_out">Check-out trưa</span></label>
+                <input id="odoo-time-1" type="time" value="12:00" required>
+              </div>
+              <div class="odoo-time-item">
+                <label for="odoo-time-2"><span data-i18n="odoo.afternoon_in">Check-in chiều</span></label>
+                <input id="odoo-time-2" type="time" value="13:30" required>
+              </div>
+              <div class="odoo-time-item">
+                <label for="odoo-time-3"><span data-i18n="odoo.afternoon_out">Check-out tối</span></label>
+                <input id="odoo-time-3" type="time" value="18:00" required>
+              </div>
+            </div>
+            <span class="field-hint mt-2" data-i18n="odoo.hint">Đồng bộ mỗi 30 phút. Trong 30 phút sau mỗi mốc, kiểm tra và nhắc mỗi 10 phút; dừng khi đã chấm công hoặc hết cửa sổ. Bấm thông báo để mở Odoo.</span>
+          </div>
+
+          <div class="modal-footer">
+            <button id="odoo-disconnect" type="button" class="btn btn-danger-outline" data-i18n="odoo.disconnect">
+              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                <line x1="12" y1="2" x2="12" y2="12"></line>
+              </svg>
+              <span>Ngắt kết nối Odoo</span>
+            </button>
+            <div class="footer-right">
+              <button id="btn-cancel-odoo-settings" type="button" class="btn btn-secondary" data-i18n="settings.close">Close</button>
+              <button id="odoo-save" type="submit" class="btn btn-primary" data-i18n="odoo.save">Lưu &amp; Kết nối</button>
             </div>
           </div>
         </form>

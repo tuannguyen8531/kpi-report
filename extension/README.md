@@ -65,6 +65,16 @@ Leave and notes are separated by GitLab account and server. Leave backups contai
 
 Back up leave before removing the extension or changing browser profiles. Uninstalling removes local data; original timelogs remain on GitLab.
 
+## Odoo attendance (version 17)
+
+The **Odoo · Attendance today** card reads attendance using your existing Odoo login in the same browser profile. Open **Settings** and select the **Odoo Attendance** tab (or click the settings icon on the Odoo card), enter your Odoo server URL (for example, `https://odoo.example.com`), then click **Save & Connect** and allow access to that server. The URL is saved only in your local extension settings; no company address is bundled in the source. No password, API key, or cookie value is stored by the extension. It only calls `/hr_attendance/attendance_user_data`; it does not check in or out.
+
+The card displays today's attendance hours reported by Odoo as hours and minutes, rounded to the nearest minute (for example, `4.75` hours displays as `4h 45m`), including the ongoing check-in session up to the last refresh. The number updates on sync rather than ticking live; missing hours or failed requests display `—`. Odoo determines the day using the employee's timezone.
+
+Reminders use Vietnam time, Monday–Friday: **08:30 check-in, 12:00 check-out, 13:30 check-in, 18:00 check-out**. Times are editable and reminders can be disabled. Attendance syncs every **30 minutes** and when the dashboard opens. Each milestone also has a **30-minute reminder window**, with checks at its start, +10 minutes and +20 minutes (for example, 08:30, 08:40 and 08:50; no reminder at or after 09:00). Missing attendance triggers a notification on each check, at most once per 10-minute interval. Once attendance is complete, that milestone's reminders stop for the day. Click a notification to open Odoo. After sleep, expired windows are skipped and only the current interval can notify; earlier checks are not replayed. Afternoon check-in must be a new check-in after the lunch check-out reminder time.
+
+Expired sessions, missing permissions and connection failures show an unknown/error state and do not generate attendance reminders. Browser cookie settings or company customizations may prevent session access; the connection must be verified in your logged-in browser. Attendance is independent of GitLab timelogs, notes, leave entries and report exports. **Disconnect Odoo** stops its checks and reminders.
+
 ## Development
 
 Source files are in `src/`; the Excel template and bundled ExcelJS library are included in the extension.

@@ -1,8 +1,11 @@
 import {SYNC_MINUTES, TIMELOG_QUERY, today, addDays, parseDay, periods, validateConfig, normalizeLogs, validateLeave, makeSnapshot, exportCsv} from './core.js';
 import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel_generator.js';
+import {validateOdooConfig, readAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder} from './odoo.js';
 
 const ALARM = 'gitlab-sync';
 const NOTE_ALARM = 'daily-note';
+const ODOO_ALARM = 'odoo-attendance';
+const ODOO_REMINDER_ALARM = 'odoo-reminder';
 let pending = Promise.resolve();
 // ponytail: serialize one user's storage mutations; use per-profile queues if this becomes a shared app.
 function serial(action) {
@@ -43,6 +46,60 @@ async function initialize() {
     await chrome.alarms.create(ALARM, {delayInMinutes: SYNC_MINUTES, periodInMinutes: SYNC_MINUTES});
   }
   await remindDailyNote();
+  const {odooConfig} = await chrome.storage.local.get('odooConfig');
+  if (odooConfig?.enabled) {
+    const odooAlarm = await chrome.alarms.get(ODOO_ALARM);
+    if (!odooAlarm || odooAlarm.periodInMinutes !== SYNC_MINUTES) {
+      await chrome.alarms.create(ODOO_ALARM, {periodInMinutes: SYNC_MINUTES});
+    }
+    await refreshOdoo();
+  }
+}
+
+export async function refreshOdoo(now = new Date()) {
+  const {odooConfig, odooNotified, language} = await chrome.storage.local.get(['odooConfig', 'odooNotified', 'language']);
+  if (!odooConfig?.enabled) return {config: odooConfig || null, data: null};
+  let data;
+  try {
+    if (!await chrome.permissions.contains({origins: [`${odooConfig.url}/*`]})) throw new Error('permission_required');
+    data = await readAttendance(odooConfig, now);
+  } catch (error) {
+    const code = ['login_required', 'no_employee', 'permission_required'].includes(error.message) ? error.message : 'unavailable';
+    data = {state: 'unknown', error: code, checkedAt: now.toISOString()};
+  }
+  await chrome.storage.local.set({odooData: data});
+  const day = today(now);
+  const notified = odooNotified?.day === day ? odooNotified : {day, keys: []};
+  notified.completed ||= [];
+  const keyFor = (slot) => `${odooConfig.url}|${data.employeeId}|${slot}|${odooConfig.times[slot]}`;
+  const slot = attendanceReminder(odooConfig, data, now);
+  const window = attendanceWindow(odooConfig, now);
+  if (window !== null && !data.error && data.employeeId && slot === null && !notified.completed.includes(keyFor(window))) {
+    notified.completed.push(keyFor(window));
+    await chrome.storage.local.set({odooNotified: notified});
+  }
+  if (slot !== null && !notified.completed.includes(keyFor(slot)) && await chrome.notifications.getPermissionLevel() === 'granted') {
+    const start = Date.parse(`${day}T${odooConfig.times[slot]}:00+07:00`);
+    const tick = Math.floor((now.getTime() - start) / (10 * 60000));
+    const key = `${keyFor(slot)}|${tick}`;
+    if (!notified.keys.includes(key)) {
+      const checkIn = slot % 2 === 0;
+      await chrome.notifications.create(`odoo-attendance:${slot}:${tick}`, {
+        type: 'basic', iconUrl: chrome.runtime.getURL('assets/icon.png'),
+        title: `Odoo · ${checkIn ? 'Check-in' : 'Check-out'} · ${odooConfig.times[slot]}`,
+        message: language === 'en'
+          ? checkIn ? 'No check-in recorded for this shift. Open Odoo to review your attendance.' : 'You are still checked in. Open Odoo to review your check-out.'
+          : checkIn ? 'Chưa có check-in cho ca này. Mở Odoo để kiểm tra chấm công.' : 'Bạn vẫn đang check-in. Mở Odoo để kiểm tra check-out.',
+      });
+      notified.keys.push(key);
+      await chrome.storage.local.set({odooNotified: notified});
+    }
+  }
+  const completedSlots = odooConfig.times.map((_, i) => i).filter((i) => notified.completed.includes(keyFor(i)));
+  const nextReminder = nextAttendanceReminder(odooConfig, now, completedSlots);
+  if (nextReminder !== null) await chrome.alarms.create(ODOO_REMINDER_ALARM, {when: nextReminder});
+  else await chrome.alarms.clear(ODOO_REMINDER_ALARM);
+  return {config: odooConfig, data};
 }
 
 async function request(config, token, query, variables = {}) {
@@ -114,6 +171,24 @@ async function synchronize(day, force = false) {
 
 export async function handleMessage(message) {
   switch (message.type) {
+    case 'odoo.settings': {
+      const {odooConfig, odooData} = await chrome.storage.local.get(['odooConfig', 'odooData']);
+      return {config: odooConfig || null, data: odooData || null};
+    }
+    case 'odoo.connect': {
+      const config = validateOdooConfig(message.config);
+      if (!await chrome.permissions.contains({origins: [`${config.url}/*`]})) throw new Error('Allow access to your Odoo server first.');
+      await chrome.storage.local.set({odooConfig: config});
+      await chrome.alarms.create(ODOO_ALARM, {periodInMinutes: SYNC_MINUTES});
+      return refreshOdoo();
+    }
+    case 'odoo.refresh': return refreshOdoo();
+    case 'odoo.disconnect': {
+      await chrome.storage.local.remove(['odooConfig', 'odooData']);
+      await chrome.alarms.clear(ODOO_ALARM);
+      await chrome.alarms.clear(ODOO_REMINDER_ALARM);
+      return {config: null, data: null};
+    }
     case 'settings': {
       const {config} = await chrome.storage.local.get('config');
       return {config: config ? {url: config.url, projects: config.projects, username: config.username, rememberToken: config.rememberToken, excelPattern: config.excelPattern || 'report_MM_YYYY.xlsx', reminderEnabled: config.reminderEnabled !== false, reminderTime: config.reminderTime || '10:00'} : null, hasToken: Boolean(await getToken())};
@@ -249,6 +324,10 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   return true;
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === ODOO_ALARM || alarm.name === ODOO_REMINDER_ALARM) {
+    void serial(() => refreshOdoo()).catch(console.error);
+    return;
+  }
   if (alarm.name === NOTE_ALARM || alarm.name === ALARM) {
     void serial(async () => {
       await remindDailyNote();
@@ -258,6 +337,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 chrome.notifications.onClicked.addListener((id) => {
   void serial(async () => {
+    if (/^odoo-attendance:[0-3](?::[0-2])?$/.test(id)) {
+      const {odooConfig} = await chrome.storage.local.get('odooConfig');
+      if (odooConfig?.enabled) await chrome.tabs.create({url: `${odooConfig.url}/web`});
+      await chrome.notifications.clear(id);
+      return;
+    }
     const match = /^daily-note:(.+):(\d{4}-\d{2}-\d{2})$/.exec(id);
     if (!match) return;
     const {config} = await chrome.storage.local.get('config');

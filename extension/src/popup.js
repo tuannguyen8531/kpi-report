@@ -1,6 +1,7 @@
 import {today, parseDay, addDays, validateConfig} from './core.js';
 import {generateExcelWorkbook} from './excel_generator.js';
 import {getLanguage, setLanguage, t} from './i18n.js';
+import {ODOO_TIMES, validateOdooConfig, formatHoursMinutes} from './odoo.js';
 
 // DOM selector helper
 const $ = (id) => document.getElementById(id);
@@ -71,6 +72,7 @@ function applyI18n(lang = currentLang) {
   if (snapshot) {
     render(snapshot);
   }
+  renderOdoo();
 
   // Refresh active breakdown modal if open
   if (currentBreakdownScope && $('modal-breakdown') && !$('modal-breakdown').hidden) {
@@ -116,6 +118,8 @@ const noteDrafts = new Map();
 let noteDay = null;
 let currentBreakdownScope = null;
 let currentBreakdownDate = null;
+let odooSnapshot = {config: null, data: null};
+const odooControls = ['odoo-save', 'odoo-disconnect', 'odoo-url', 'odoo-reminders', ...ODOO_TIMES.map((_, i) => `odoo-time-${i}`)];
 
 // Initialize default date
 const requestedNote = new URLSearchParams(location.search).get('note');
@@ -167,7 +171,7 @@ async function act(action) {
   const interactiveElements = [
     'anchor', 'btn-today', 'btn-prev-day', 'btn-next-day',
     'btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'connect',
-    'leave-save', 'btn-onboarding-submit', 'day-note-save', 'day-note', 'day-note-clear'
+    'leave-save', 'btn-onboarding-submit', 'day-note-save', 'day-note', 'day-note-clear', ...odooControls
   ];
   for (const id of interactiveElements) {
     const el = $(id);
@@ -182,7 +186,7 @@ async function act(action) {
     busy = false;
     if (syncBtn) syncBtn.classList.remove('is-syncing');
 
-    const restoreElements = ['anchor', 'btn-today', 'btn-prev-day', 'btn-next-day', 'connect', 'btn-onboarding-submit'];
+    const restoreElements = ['anchor', 'btn-today', 'btn-prev-day', 'btn-next-day', 'connect', 'btn-onboarding-submit', ...odooControls];
     for (const id of restoreElements) {
       const el = $(id);
       if (el) el.disabled = false;
@@ -857,8 +861,21 @@ $('btn-next-day').addEventListener('click', () => {
 
 // 2. Refresh / Sync
 $('btn-sync').addEventListener('click', () => act(async () => {
-  await reload(true);
-  if (!snapshot.error) {
+  const syncTasks = [reload(true)];
+  if (odooSnapshot?.config?.enabled) {
+    syncTasks.push(
+      send({type: 'odoo.refresh'})
+        .then((data) => {
+          odooSnapshot = data;
+          renderOdoo();
+        })
+        .catch((err) => {
+          console.error('Odoo sync error:', err);
+        })
+    );
+  }
+  await Promise.all(syncTasks);
+  if (!snapshot?.error) {
     showToast(t('toast.synced'), 'success');
   }
 }));
@@ -1132,7 +1149,17 @@ function updateModalState() {
   document.documentElement.classList.toggle('modal-open', isAnyModalOpen);
 }
 
-function openSettingsModal() {
+function switchSettingsTab(tabName) {
+  const targetTab = tabName === 'odoo' ? 'odoo' : 'gitlab';
+  document.querySelectorAll('.settings-tab-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.settingsTab === targetTab);
+  });
+  document.querySelectorAll('.settings-panel-tab').forEach((panel) => {
+    panel.classList.toggle('active', panel.id === (targetTab === 'odoo' ? 'odoo-form' : 'settings-form'));
+  });
+}
+
+function openSettingsModal(tabName = 'gitlab') {
   if (currentConfig) {
     $('gitlab-url').value = currentConfig.url || '';
     $('remember-token').checked = Boolean(currentConfig.rememberToken);
@@ -1143,6 +1170,7 @@ function openSettingsModal() {
     if ($('excel-pattern')) $('excel-pattern').value = currentConfig.excelPattern || 'report_MM_YYYY.xlsx';
   }
   $('gitlab-token').value = '';
+  switchSettingsTab(typeof tabName === 'string' ? tabName : 'gitlab');
   $('modal-settings').hidden = false;
   updateModalState();
 }
@@ -1156,9 +1184,13 @@ $('reminder-enabled')?.addEventListener('change', () => {
   $('reminder-time').disabled = !$('reminder-enabled').checked;
 });
 
-$('btn-settings').addEventListener('click', openSettingsModal);
+$('btn-settings').addEventListener('click', () => openSettingsModal('gitlab'));
+$('tab-btn-settings-gitlab')?.addEventListener('click', () => switchSettingsTab('gitlab'));
+$('tab-btn-settings-odoo')?.addEventListener('click', () => switchSettingsTab('odoo'));
 $('btn-close-settings').addEventListener('click', closeSettingsModal);
 $('btn-cancel-settings').addEventListener('click', closeSettingsModal);
+$('btn-cancel-odoo-settings')?.addEventListener('click', closeSettingsModal);
+$('odoo-connect-prompt-btn')?.addEventListener('click', () => openSettingsModal('odoo'));
 $('modal-settings').addEventListener('click', (e) => {
   if (e.target.id === 'modal-settings') closeSettingsModal();
 });
@@ -1495,6 +1527,12 @@ void act(async () => {
   const settings = await send({type: 'settings'});
   const initialLang = storedLang.language || settings.config?.language || 'vi';
   applyI18n(initialLang);
+  odooSnapshot = await send({type: 'odoo.settings'});
+  const odooConfig = odooSnapshot.config;
+  $('odoo-url').value = odooConfig?.url || '';
+  $('odoo-reminders').checked = odooConfig?.reminders ?? true;
+  (odooConfig?.times || ODOO_TIMES).forEach((time, i) => {$(`odoo-time-${i}`).value = time;});
+  renderOdoo();
 
   if (settings.config) {
     currentConfig = settings.config;
@@ -1512,6 +1550,67 @@ void act(async () => {
   }
 
   await reload();
+  if (odooConfig?.enabled) {
+    odooSnapshot = await send({type: 'odoo.refresh'});
+    renderOdoo();
+  }
   setLeaveModalView('list');
   if (requestedNote && snapshot?.configured) openBreakdownModal('day', initialToday);
+});
+
+function renderOdoo() {
+  const {config, data} = odooSnapshot;
+  const status = !config?.enabled ? 'disconnected' : data?.error || data?.state || 'unknown';
+  const statusText = t(`odoo.${status}`);
+  if ($('odoo-status')) {
+    $('odoo-status').textContent = statusText;
+    $('odoo-status').className = `odoo-status-pill status-${status}`;
+  }
+  if ($('odoo-hours')) {
+    $('odoo-hours').textContent = formatHoursMinutes(config?.enabled && !data?.error ? data?.hoursToday : null);
+  }
+  const timeLabel = (value) => new Date(value).toLocaleTimeString(currentLang === 'en' ? 'en-GB' : 'vi-VN', {timeZone: 'Asia/Ho_Chi_Minh', hour12: false});
+  if ($('odoo-updated')) {
+    $('odoo-updated').textContent = data?.checkedAt
+      ? `${t('odoo.updated')}: ${timeLabel(data.checkedAt)}${data.lastCheckIn ? ` · Check-in: ${timeLabel(data.lastCheckIn)}` : ''}` : '';
+  }
+  if ($('odoo-open')) {
+    $('odoo-open').hidden = !config?.enabled;
+    if (config?.enabled) $('odoo-open').href = `${config.url}/web`;
+    else $('odoo-open').removeAttribute('href');
+  }
+
+  const card = document.querySelector('.odoo-card');
+  if (card) {
+    card.classList.toggle('is-connected', Boolean(config?.enabled));
+    card.classList.toggle('is-disconnected', !config?.enabled);
+  }
+  if ($('odoo-connect-prompt')) {
+    $('odoo-connect-prompt').hidden = Boolean(config?.enabled);
+  }
+  if ($('odoo-disconnect')) {
+    $('odoo-disconnect').hidden = !config?.enabled;
+  }
+}
+
+$('odoo-form')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  void act(async () => {
+    const config = validateOdooConfig({url: $('odoo-url').value, reminders: $('odoo-reminders').checked,
+      times: ODOO_TIMES.map((_, i) => $(`odoo-time-${i}`).value)});
+    if (!await chrome.permissions.request({origins: [`${config.url}/*`]})) throw new Error(t('odoo.permission_required'));
+    odooSnapshot = await send({type: 'odoo.connect', config});
+    renderOdoo();
+    showToast(t('toast.odoo_connected'), 'success');
+  });
+});
+$('odoo-disconnect')?.addEventListener('click', () => void act(async () => {
+  odooSnapshot = await send({type: 'odoo.disconnect'});
+  renderOdoo();
+  showToast(t('toast.odoo_disconnected'), 'info');
+}));
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && (changes.odooData || changes.odooConfig)) {
+    void send({type: 'odoo.settings'}).then((data) => {odooSnapshot = data; renderOdoo();}).catch(console.error);
+  }
 });

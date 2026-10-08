@@ -1051,6 +1051,329 @@ select.select-input:focus {
 }
 
 /* Calendar Styles */
+/* ============================================================
+   ODOO ATTENDANCE CARD WIDGET
+   ============================================================ */
+.odoo-card {
+  margin: 10px 16px 0;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.odoo-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.odoo-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.odoo-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
+}
+
+.odoo-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: #fdf4ff;
+  color: #a21caf;
+  border: 1px solid #f5d0fe;
+  flex-shrink: 0;
+}
+
+.odoo-clock-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.odoo-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.odoo-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.odoo-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+/* Dynamic status pill with dot */
+.odoo-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1.5px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 1.25;
+  user-select: none;
+}
+
+.odoo-status-pill::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.odoo-status-pill.status-checked_in {
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid var(--success-border);
+}
+.odoo-status-pill.status-checked_in::before {
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+  animation: pulse 1.2s infinite alternate;
+}
+
+.odoo-status-pill.status-checked_out {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
+}
+
+.odoo-status-pill.status-not_today {
+  background: var(--amber-soft);
+  color: #b45309;
+  border: 1px solid var(--amber-border);
+}
+
+.odoo-status-pill.status-disconnected {
+  background: #f1f5f9;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.odoo-status-pill.status-login_required,
+.odoo-status-pill.status-unavailable,
+.odoo-status-pill.status-error,
+.odoo-status-pill.status-permission_required,
+.odoo-status-pill.status-no_employee {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+.odoo-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.odoo-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  height: 26px;
+}
+
+.odoo-action-btn.is-refreshing .btn-mini-icon {
+  animation: spin 0.8s linear infinite;
+}
+
+.odoo-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 7px;
+  border-top: 1px dashed var(--border);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.odoo-stat-box {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.odoo-stat-label {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.odoo-hours-val {
+  font-size: 15px;
+  font-weight: 750;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.odoo-meta-hint {
+  font-size: 10.5px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.odoo-connect-prompt {
+  display: flex;
+  align-items: center;
+}
+
+.btn-link-subtle {
+  background: transparent;
+  border: 1px dashed var(--primary-border);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-link-subtle:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+
+/* ============================================================
+   SETTINGS MODAL TABS & ODOO CONFIG
+   ============================================================ */
+.settings-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 18px 0;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.settings-tab-btn:hover {
+  color: var(--ink);
+}
+
+.settings-tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: #ffffff;
+  border-top-left-radius: var(--radius-sm);
+  border-top-right-radius: var(--radius-sm);
+}
+
+.settings-panel-tab {
+  display: none;
+}
+
+.settings-panel-tab.active {
+  display: block;
+}
+
+.odoo-settings-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #fdf4ff;
+  border: 1px solid #f5d0fe;
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+}
+
+.odoo-hero-icon-box {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: #a21caf;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-xs);
+}
+
+.odoo-hero-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.odoo-hero-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  display: block;
+}
+
+.odoo-times-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.odoo-time-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.odoo-time-item label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.odoo-time-item input[type="time"] {
+  padding: 6px 10px;
+  font-size: 12.5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: var(--ink);
+}
+
 .calendar-legend {
   display: flex;
   align-items: center;
@@ -2637,6 +2960,10 @@ a.breakdown-item-link:hover strong {
   }
   .toolbar-section {
     padding: 14px 28px;
+  }
+  .odoo-card {
+    margin: 14px 28px 0;
+    padding: 14px 20px;
   }
 
   /* Large KPI cards on desktop */

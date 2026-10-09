@@ -83,7 +83,6 @@ Run the tests with Node.js 20+:
 
 ```bash
 cd extension
-npm ci
 npm test
 ```
 

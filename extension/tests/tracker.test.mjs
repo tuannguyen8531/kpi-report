@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {test, beforeEach} from 'node:test';
-import ExcelJS from 'exceljs';
+import '../src/vendor/exceljs.min.js';
 import {SYNC_MINUTES, today, periods, parseDay, normalizeLogs, makeSnapshot, validateConfig, validateLeave, exportCsv} from '../src/core.js';
 import {verifyAttendanceCode, ODOO_TIMES, validateOdooConfig, parseAttendance, readAttendance, attendanceReminder, nextAttendanceReminder, formatHoursMinutes} from '../src/odoo.js';
 
+const ExcelJS = globalThis.ExcelJS;
 const ODOO_URL = 'https://odoo.example.com';
 import {t, getLanguage, setLanguage} from '../src/i18n.js';
 import {

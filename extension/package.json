@@ -4,8 +4,5 @@
   "type": "module",
   "scripts": {
     "test": "node tests/tracker.test.mjs"
-  },
-  "dependencies": {
-    "exceljs": "^4.4.0"
   }
 }

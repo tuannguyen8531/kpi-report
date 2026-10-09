@@ -8,11 +8,5 @@
   "optional_host_permissions": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
   "background": {"service_worker": "src/background.js", "type": "module"},
   "action": {"default_popup": "src/popup.html", "default_title": "Work hours", "default_icon": "assets/icon.png"},
-  "icons": {"128": "assets/icon.png"},
-  "web_accessible_resources": [
-    {
-      "resources": ["assets/templates/work_report.xlsx", "src/vendor/exceljs.min.js"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  "icons": {"128": "assets/icon.png"}
 }

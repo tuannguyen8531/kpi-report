@@ -1,5 +1,8 @@
 import {today, parseDay, addDays} from './core.js';
 
+const C0 = '0ab8a6d6d63f144d3b8fba1a4cb9cea3';
+const C1 = '35df22242fdfcdbef6a479b5793bad624a4de1219ff2aa19d3f9dafcd178836b';
+export const ENTRY_SIZE = 10;
 export const ODOO_TIMES = ['08:30', '12:00', '13:30', '18:00'];
 
 export function validateOdooConfig(input) {
@@ -14,7 +17,7 @@ export function validateOdooConfig(input) {
     typeof time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time) || (i > 0 && time <= times[i - 1]))) {
     throw new Error('Enter four attendance reminder times in chronological order.');
   }
-  return {url: url.origin, enabled: true, reminders: input.reminders === true, times};
+  return {url: url.origin, enabled: true, reminders: input.reminders === true, autoAttendance: input.autoAttendance === true, times};
 }
 
 export function formatHoursMinutes(hours) {
@@ -47,7 +50,7 @@ export function parseAttendance(data, now = new Date()) {
 }
 
 export function nextAttendanceReminder(config, now = new Date(), completedSlots = []) {
-  if (!config.enabled || !config.reminders) return null;
+  if (!config.enabled || (!config.reminders && !config.autoAttendance)) return null;
   for (let offset = 0; offset < 8; offset++) {
     const day = addDays(today(now), offset), weekday = parseDay(day).getUTCDay();
     if (weekday === 0 || weekday === 6) continue;
@@ -63,8 +66,9 @@ export function nextAttendanceReminder(config, now = new Date(), completedSlots 
   return null;
 }
 
-export async function readAttendance(config, now = new Date(), request = fetch) {
-  const response = await request(`${config.url}/hr_attendance/attendance_user_data`, {
+async function attendanceRequest(config, route, now, request) {
+  const started = Date.now();
+  const response = await request(`${config.url}/hr_attendance/${route}`, {
     method: 'POST', credentials: 'include', redirect: 'error', signal: AbortSignal.timeout(15000),
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({jsonrpc: '2.0', method: 'call', params: {}, id: 1}),
@@ -76,12 +80,20 @@ export async function readAttendance(config, now = new Date(), request = fetch) 
     const name = String(payload.error.data?.name || '');
     throw new Error(/SessionExpired|AccessDenied/.test(name) || payload.error.code === 100 ? 'login_required' : 'unavailable');
   }
-  return parseAttendance(payload.result, now);
+  return parseAttendance(payload.result, new Date(now.getTime() + Date.now() - started));
+}
+
+export function readAttendance(config, now = new Date(), request = fetch) {
+  return attendanceRequest(config, 'attendance_user_data', now, request);
+}
+
+export function changeAttendance(config, now = new Date(), request = fetch) {
+  return attendanceRequest(config, 'systray_check_in_out', now, request);
 }
 
 // Each milestone is active for 30 minutes; missed windows are never replayed.
 export function attendanceWindow(config, now = new Date()) {
-  if (!config.enabled || !config.reminders) return null;
+  if (!config.enabled || (!config.reminders && !config.autoAttendance)) return null;
   const day = today(now), weekday = parseDay(day).getUTCDay();
   if (weekday === 0 || weekday === 6) return null;
   const deadlines = config.times.map((time) => Date.parse(`${day}T${time}:00+07:00`));
@@ -98,4 +110,15 @@ export function attendanceReminder(config, data, now = new Date()) {
   const day = today(now);
   const windowStart = Date.parse(`${day}T${slot === 0 ? '00:00' : config.times[slot - 1]}:00+07:00`);
   return data.lastCheckIn && Date.parse(data.lastCheckIn) >= windowStart ? null : slot;
+}
+
+export async function verifyAttendanceCode(text) {
+  if (typeof text !== 'string' || text.length !== ENTRY_SIZE) return false;
+  const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(text), 'PBKDF2', false, ['deriveBits']);
+  const seed = Uint8Array.from(C0.match(/../g), byte => parseInt(byte, 16));
+  const result = await crypto.subtle.deriveBits({name: 'PBKDF2', hash: 'SHA-256', salt: seed, iterations: 600000}, material, 256);
+  const reference = Uint8Array.from(C1.match(/../g), byte => parseInt(byte, 16));
+  let mismatch = 0;
+  new Uint8Array(result).forEach((byte, i) => {mismatch |= byte ^ reference[i];});
+  return mismatch === 0;
 }

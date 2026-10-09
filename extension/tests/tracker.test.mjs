@@ -4,7 +4,7 @@ import path from 'node:path';
 import {test, beforeEach} from 'node:test';
 import ExcelJS from 'exceljs';
 import {SYNC_MINUTES, today, periods, parseDay, normalizeLogs, makeSnapshot, validateConfig, validateLeave, exportCsv} from '../src/core.js';
-import {ODOO_TIMES, validateOdooConfig, parseAttendance, readAttendance, attendanceReminder, nextAttendanceReminder, formatHoursMinutes} from '../src/odoo.js';
+import {verifyAttendanceCode, ODOO_TIMES, validateOdooConfig, parseAttendance, readAttendance, attendanceReminder, nextAttendanceReminder, formatHoursMinutes} from '../src/odoo.js';
 
 const ODOO_URL = 'https://odoo.example.com';
 import {t, getLanguage, setLanguage} from '../src/i18n.js';
@@ -289,6 +289,71 @@ test('daily notes persist independently of sync, validate input and stay isolate
   assert.equal(local.profiles[profile].notes[day], 'Ghi được khi mất mạng');
 });
 
+test('attendance unlock consumes exact codes, preserves notes and persists across browser sessions', async () => {
+  assert.equal(await verifyAttendanceCode('wrong-code'), false);
+  assert.equal(await verifyAttendanceCode('short'), false);
+  assert.equal(await verifyAttendanceCode(' wrong-code '), false);
+  await connect();
+  const profile = local.config.profile;
+  const note = 'Keep this saved note';
+  await handleMessage({type: 'note.save', day, profile, text: note});
+  local.odooConfig = {...validateOdooConfig({url: ODOO_URL, autoAttendance: true}), autoEmployeeId: 7};
+  const fetchOriginal = globalThis.fetch, deriveOriginal = crypto.subtle.deriveBits;
+  let writes = 0;
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/systray_check_in_out')) writes++;
+    return {ok: true, json: async () => ({result: {id: 7, attendance_state: 'checked_out', last_check_in: false}})};
+  };
+  // Supply the real code through the environment for a full crypto verification.
+  // Routine runs mock only the successful KDF result, never storing the real code.
+  const code = process.env.ODOO_UNLOCK_TEST_CODE || 'fixtureKey';
+  try {
+    const settings = await handleMessage({type: 'odoo.settings'});
+    assert.equal(settings.automationUnlocked, false);
+    assert.equal(settings.config.autoAttendance, false);
+    await assert.rejects(handleMessage({type: 'odoo.connect', config: {url: ODOO_URL, autoAttendance: true}}), /Unlock/);
+    await refreshOdoo(new Date('2026-10-08T08:30:00+07:00'), true);
+    assert.equal(writes, 0);
+    assert.deepEqual(await handleMessage({type: 'note.unlock', day, profile, text: 'wrong-code'}), {unlocked: false});
+    assert.equal(local.odooAutomationUnlocked, undefined);
+    assert.equal(local.profiles[profile].notes[day], note);
+    if (!process.env.ODOO_UNLOCK_TEST_CODE) {
+      const verifierSource = fs.readFileSync(new URL('../src/odoo.js', import.meta.url), 'utf8');
+      const hash = verifierSource.match(/const C1 = '([a-f0-9]+)'/)[1];
+      crypto.subtle.deriveBits = async (params) => {
+        assert.equal(params.iterations, 600000);
+        assert.equal(params.salt.length, 16);
+        assert.equal(params.hash, 'SHA-256');
+        return Uint8Array.from(hash.match(/../g), byte => parseInt(byte, 16)).buffer;
+      };
+    }
+    const unlocked = await handleMessage({type: 'note.unlock', day, profile, text: code});
+    assert.deepEqual(unlocked, {saved: false, unlocked: true, text: note});
+    assert.equal(local.odooAutomationUnlocked, true);
+    assert.equal(local.profiles[profile].notes[day], note);
+    assert.equal(local.odooConfig.autoAttendance, false);
+    assert.equal((await handleMessage({type: 'odoo.settings'})).config.autoAttendance, false);
+    // Saving before the input's unlock response arrives must also consume the code.
+    assert.equal((await handleMessage({type: 'note.save', day: '2026-10-02', profile, text: code})).text, '');
+    assert.equal(local.profiles[profile].notes['2026-10-02'], undefined);
+    assert.ok(!JSON.stringify(local).includes(code));
+    await handleMessage({type: 'odoo.connect', config: {url: ODOO_URL, autoAttendance: true}});
+    assert.equal((await handleMessage({type: 'odoo.settings'})).config.autoAttendance, true);
+    // Clearing session storage on browser restart must preserve the unlock and setting.
+    assert.equal((await handleMessage({type: 'odoo.settings'})).automationUnlocked, true);
+    session = {};
+    assert.equal((await handleMessage({type: 'odoo.settings'})).automationUnlocked, true);
+    assert.equal((await handleMessage({type: 'odoo.settings'})).config.autoAttendance, true);
+    await refreshOdoo(new Date('2026-10-08T08:40:00+07:00'), true);
+    assert.equal(writes, 1);
+    await handleMessage({type: 'note.unlock', day, profile, text: code});
+    assert.equal(local.odooConfig.autoAttendance, true);
+    delete local.odooAutomationUnlocked;
+    assert.equal((await handleMessage({type: 'odoo.settings'})).automationUnlocked, false);
+    assert.equal((await handleMessage({type: 'odoo.settings'})).config.autoAttendance, false);
+  } finally {globalThis.fetch = fetchOriginal; crypto.subtle.deriveBits = deriveOriginal;}
+});
+
 test('Odoo 17 uses only the read endpoint with the existing browser session and validates responses', async () => {
   const config = validateOdooConfig({url: `${ODOO_URL}/web`, reminders: true});
   assert.equal(config.url, ODOO_URL);
@@ -367,26 +432,26 @@ test('Odoo polling persists unknown errors, deduplicates reminders by employee a
   globalThis.fetch = async () => ({ok: true, json: async () => ({result})});
   try {
     local.odooConfig = validateOdooConfig({url: ODOO_URL, reminders: true});
-    await refreshOdoo(now);
+    await refreshOdoo(now, true);
     assert.equal(local.odooData.hoursToday, 0);
     assert.equal(odooReminderAlarm.when, Date.parse('2026-10-08T08:40:00+07:00'));
-    await refreshOdoo(now);
+    await refreshOdoo(now, true);
     assert.equal(notifications.length, 1);
     events.notificationClick(notifications[0].id);
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(openedTabs.at(-1).url, `${ODOO_URL}/web`);
     result = {id: 8, attendance_state: 'checked_out', last_check_in: false};
-    await refreshOdoo(now);
+    await refreshOdoo(now, true);
     assert.equal(notifications.length, 2);
     globalThis.fetch = async () => {throw new Error('Offline');};
-    assert.equal((await refreshOdoo(now)).data.state, 'unknown');
+    assert.equal((await refreshOdoo(now, true)).data.state, 'unknown');
     assert.equal(local.odooData.hoursToday, undefined);
     assert.equal(notifications.length, 2);
     globalThis.fetch = async () => ({ok: true, json: async () => ({error: {code: 100}})});
-    assert.equal((await refreshOdoo(now)).data.error, 'login_required');
+    assert.equal((await refreshOdoo(now, true)).data.error, 'login_required');
     assert.equal(notifications.length, 2);
     chrome.permissions.contains = async () => false;
-    assert.equal((await refreshOdoo(now)).data.error, 'permission_required');
+    assert.equal((await refreshOdoo(now, true)).data.error, 'permission_required');
     await assert.rejects(handleMessage({type: 'odoo.connect', config: {url: ODOO_URL}}));
     chrome.permissions.contains = permissionOriginal;
     globalThis.fetch = async () => ({ok: true, json: async () => ({result})});
@@ -405,7 +470,7 @@ test('Odoo polling persists unknown errors, deduplicates reminders by employee a
     await handleMessage({type: 'odoo.disconnect'});
     assert.equal(odooAlarm, undefined);
     assert.equal(local.odooData, undefined);
-    assert.equal((await refreshOdoo(now)).data, null);
+    assert.equal((await refreshOdoo(now, true)).data, null);
   } finally {
     globalThis.fetch = fetchOriginal;
     chrome.permissions.contains = permissionOriginal;
@@ -419,34 +484,215 @@ test('Odoo repeats every ten minutes within the window and stops after completio
   globalThis.fetch = async () => ({ok: true, json: async () => ({result})});
   try {
     local.odooConfig = validateOdooConfig({url: ODOO_URL, reminders: true});
-    for (const time of ['08:30', '08:31', '08:40', '08:41', '08:50', '08:51', '09:00', '09:10']) await refreshOdoo(at(time));
+    for (const time of ['08:30', '08:31', '08:40', '08:41', '08:50', '08:51', '09:00', '09:10']) await refreshOdoo(at(time), true);
     assert.equal(notifications.length, 3);
     assert.equal(new Set(notifications.map(n => n.id)).size, 3);
     assert.equal(odooReminderAlarm.when, at('12:00').getTime());
 
     // A different employee completes check-in before the second reminder.
     result = {id: 8, attendance_state: 'checked_out', last_check_in: false};
-    await refreshOdoo(at('08:30'));
+    await refreshOdoo(at('08:30'), true);
     result = {id: 8, attendance_state: 'checked_in', last_check_in: '2026-10-08 01:35:00'};
-    await refreshOdoo(at('08:40'));
+    await refreshOdoo(at('08:40'), true);
     assert.equal(notifications.length, 4);
     assert.equal(odooReminderAlarm.when, at('12:00').getTime());
     result = {id: 8, attendance_state: 'checked_out', last_check_in: false};
-    await refreshOdoo(at('08:50'));
+    await refreshOdoo(at('08:50'), true);
     assert.equal(notifications.length, 4);
 
     result = {id: 8, attendance_state: 'checked_in', last_check_in: '2026-10-08 01:35:00'};
-    await refreshOdoo(at('12:00'));
-    await refreshOdoo(at('12:10'));
+    await refreshOdoo(at('12:00'), true);
+    await refreshOdoo(at('12:10'), true);
     assert.equal(notifications.length, 6);
     result.attendance_state = 'checked_out';
-    await refreshOdoo(at('12:20'));
+    await refreshOdoo(at('12:20'), true);
     assert.equal(notifications.length, 6);
     assert.equal(odooReminderAlarm.when, at('13:30').getTime());
     result.attendance_state = 'checked_in';
-    await refreshOdoo(at('12:25'));
+    await refreshOdoo(at('12:25'), true);
     assert.equal(notifications.length, 6);
   } finally {globalThis.fetch = originalFetch;}
+});
+
+test('automatic Odoo attendance is opt-in, binds the employee and performs each scheduled action once', async () => {
+  const originalFetch = globalThis.fetch;
+  const at = (time, day = '2026-10-08') => new Date(`${day}T${time}:00+07:00`);
+  let clock = at('08:30');
+  let result = {id: 7, attendance_state: 'checked_out', last_check_in: false};
+  let writes = 0;
+  globalThis.fetch = async (url, options) => {
+    if (url.endsWith('/systray_check_in_out')) {
+      writes++;
+      assert.equal(options.credentials, 'include');
+      assert.deepEqual(JSON.parse(options.body).params, {});
+      assert.equal(local.odooAutoAttempts.day, today(clock));
+      assert.equal(local.odooAutoAttempts.keys.length, writes);
+      if (result.attendance_state === 'checked_out') {
+        result = {...result, attendance_state: 'checked_in', last_check_in: clock.toISOString().slice(0, 19).replace('T', ' ')};
+      } else result = {...result, attendance_state: 'checked_out'};
+    } else assert.ok(url.endsWith('/attendance_user_data'));
+    return {ok: true, json: async () => ({result})};
+  };
+  try {
+    assert.equal(validateOdooConfig({url: ODOO_URL}).autoAttendance, false);
+    local.odooAutomationUnlocked = true;
+    await handleMessage({type: 'odoo.connect', config: {url: ODOO_URL, autoAttendance: true, reminders: false}});
+    assert.equal(local.odooConfig.autoEmployeeId, 7);
+    assert.equal(writes, 0);
+    await refreshOdoo(at('08:29'), true);
+    await refreshOdoo(at('08:30'));
+    assert.equal(writes, 0);
+    for (const [time, expected, state] of [
+      ['08:30', 1, 'checked_in'], ['08:40', 1, 'checked_in'],
+      ['12:00', 2, 'checked_out'], ['12:20', 2, 'checked_out'],
+      ['13:30', 3, 'checked_in'], ['18:00', 4, 'checked_out'],
+    ]) {
+      clock = at(time);
+      const updated = await refreshOdoo(clock, true);
+      assert.equal(writes, expected);
+      assert.equal(updated.data.state, state);
+      assert.equal(updated.data.autoError, undefined);
+    }
+    clock = at('08:30', '2026-10-10');
+    await refreshOdoo(clock, true);
+    assert.equal(writes, 4);
+    assert.equal(notifications.length, 0);
+  } finally {globalThis.fetch = originalFetch;}
+});
+
+test('only reminder alarms check and automate attendance inside the thirty-minute window', async () => {
+  const originalDate = globalThis.Date, originalFetch = globalThis.fetch;
+  let clock = originalDate.parse('2026-10-08T08:30:00+07:00'), reads = 0, writes = 0;
+  globalThis.Date = class extends originalDate {
+    constructor(...args) {super(...(args.length ? args : [clock]));}
+    static now() {return clock;}
+  };
+  let result = {id: 7, attendance_state: 'checked_out', last_check_in: false};
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/systray_check_in_out')) {
+      writes++;
+      result = {id: 7, attendance_state: 'checked_in', last_check_in: '2026-10-08 01:30:00'};
+    } else reads++;
+    return {ok: true, json: async () => ({result})};
+  };
+  const drain = () => new Promise(resolve => setImmediate(resolve));
+  try {
+    local.odooAutomationUnlocked = true;
+    local.odooConfig = {...validateOdooConfig({url: ODOO_URL, reminders: true, autoAttendance: true}), autoEmployeeId: 7};
+    events.startup();
+    await drain();
+    events.alarm({name: 'odoo-attendance'});
+    await drain();
+    await handleMessage({type: 'odoo.refresh'});
+    assert.equal(reads, 3);
+    assert.equal(writes, 0);
+    assert.equal(notifications.length, 0);
+    events.alarm({name: 'odoo-reminder'});
+    await drain();
+    assert.equal(reads, 4);
+    assert.equal(writes, 1);
+    assert.equal(notifications.length, 0);
+    assert.equal(odooReminderAlarm.when, originalDate.parse('2026-10-08T12:00:00+07:00'));
+    // Delayed reminder alarms must not read attendance after the cutoff.
+    for (const time of ['09:00', '12:30', '14:00', '18:30']) {
+      clock = originalDate.parse(`2026-10-08T${time}:00+07:00`);
+      events.alarm({name: 'odoo-reminder'});
+      await drain();
+    }
+    assert.equal(reads, 4);
+    assert.equal(writes, 1);
+    assert.equal(notifications.length, 0);
+    events.alarm({name: 'odoo-attendance'});
+    await drain();
+    assert.equal(reads, 5);
+    assert.equal(writes, 1);
+  } finally {globalThis.Date = originalDate; globalThis.fetch = originalFetch;}
+});
+
+test('automatic attendance skips unknown states, changed employees and an open previous shift', async () => {
+  const originalFetch = globalThis.fetch;
+  const at = (time) => new Date(`2026-10-08T${time}:00+07:00`);
+  let result = {id: 8, attendance_state: 'checked_out', last_check_in: false};
+  let writes = 0, fail = false;
+  globalThis.fetch = async (url) => {
+    if (fail) throw new Error('Offline');
+    if (url.endsWith('/systray_check_in_out')) writes++;
+    return {ok: true, json: async () => ({result})};
+  };
+  try {
+    local.odooAutomationUnlocked = true;
+    local.odooConfig = {...validateOdooConfig({url: ODOO_URL, autoAttendance: true}), autoEmployeeId: 7};
+    assert.equal((await refreshOdoo(at('08:30'), true)).data.autoError, 'account_changed');
+    assert.equal(writes, 0);
+    result = {id: 7, attendance_state: 'checked_in', last_check_in: '2026-10-08 01:00:00'};
+    assert.equal((await refreshOdoo(at('13:30'), true)).data.autoError, 'previous_shift_open');
+    assert.equal(writes, 0);
+    fail = true;
+    assert.equal((await refreshOdoo(at('18:00'), true)).data.state, 'unknown');
+    assert.equal(writes, 0);
+    await assert.rejects(handleMessage({type: 'odoo.connect', config: {url: ODOO_URL, autoAttendance: true}}));
+    assert.equal(local.odooConfig.autoEmployeeId, 7);
+  } finally {globalThis.fetch = originalFetch;}
+});
+
+test('an ambiguous automatic attendance response never repeats the toggle, even after restart', async () => {
+  const originalFetch = globalThis.fetch;
+  const at = (time) => new Date(`2026-10-08T${time}:00+07:00`);
+  let result = {id: 7, attendance_state: 'checked_out', last_check_in: false};
+  let writes = 0, apply = false;
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/systray_check_in_out')) {
+      writes++;
+      if (apply) result = {...result, attendance_state: 'checked_in', last_check_in: '2026-10-08 06:30:00'};
+      throw new Error('Response lost');
+    }
+    return {ok: true, json: async () => ({result})};
+  };
+  try {
+    local.odooAutomationUnlocked = true;
+    local.odooConfig = {...validateOdooConfig({url: ODOO_URL, autoAttendance: true}), autoEmployeeId: 7};
+    assert.equal((await refreshOdoo(at('08:30'), true)).data.autoError, 'auto_unconfirmed');
+    const persisted = structuredClone(local);
+    local = persisted;
+    assert.equal((await refreshOdoo(at('08:40'), true)).data.autoError, 'auto_unconfirmed');
+    assert.equal(writes, 1);
+    apply = true;
+    const afternoon = await refreshOdoo(at('13:30'), true);
+    assert.equal(afternoon.data.state, 'checked_in');
+    assert.equal(afternoon.data.autoError, undefined);
+    await refreshOdoo(at('13:40'), true);
+    assert.equal(writes, 2);
+    assert.equal(local.odooAutoAttempts.keys.length, 2);
+  } finally {globalThis.fetch = originalFetch;}
+});
+
+test('automatic attendance does not write when status reads or attempt storage outlast the window', async () => {
+  const originalFetch = globalThis.fetch, originalNow = Date.now, originalSet = chrome.storage.local.set;
+  let elapsed = 0, writes = 0;
+  Date.now = () => elapsed;
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/systray_check_in_out')) writes++;
+    elapsed += 20000;
+    return {ok: true, json: async () => ({result: {id: 7, attendance_state: 'checked_out', last_check_in: false}})};
+  };
+  try {
+    local.odooAutomationUnlocked = true;
+    local.odooConfig = {...validateOdooConfig({url: ODOO_URL, autoAttendance: true}), autoEmployeeId: 7};
+    await refreshOdoo(new Date('2026-10-08T08:59:50+07:00'), true);
+    assert.equal(writes, 0);
+    elapsed = 0;
+    chrome.storage.local.set = async (data) => {
+      if (data.odooAutoAttempts) elapsed += 20000;
+      await originalSet(data);
+    };
+    await refreshOdoo(new Date('2026-10-08T08:59:30+07:00'), true);
+    assert.equal(writes, 0);
+    assert.equal(local.odooAutoAttempts.keys.length, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    Date.now = originalNow;
+    chrome.storage.local.set = originalSet;
+  }
 });
 
 test('Odoo hours display as hours and minutes, including rounding across hour boundaries', () => {

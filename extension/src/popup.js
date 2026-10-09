@@ -1,7 +1,7 @@
 import {today, parseDay, addDays, validateConfig} from './core.js';
 import {generateExcelWorkbook} from './excel_generator.js';
 import {getLanguage, setLanguage, t} from './i18n.js';
-import {ODOO_TIMES, validateOdooConfig, formatHoursMinutes} from './odoo.js';
+import {ENTRY_SIZE, ODOO_TIMES, validateOdooConfig, formatHoursMinutes} from './odoo.js';
 
 // DOM selector helper
 const $ = (id) => document.getElementById(id);
@@ -119,7 +119,7 @@ let noteDay = null;
 let currentBreakdownScope = null;
 let currentBreakdownDate = null;
 let odooSnapshot = {config: null, data: null};
-const odooControls = ['odoo-save', 'odoo-disconnect', 'odoo-url', 'odoo-reminders', ...ODOO_TIMES.map((_, i) => `odoo-time-${i}`)];
+const odooControls = ['odoo-save', 'odoo-disconnect', 'odoo-url', 'odoo-reminders', 'odoo-auto-attendance', ...ODOO_TIMES.map((_, i) => `odoo-time-${i}`)];
 
 // Initialize default date
 const requestedNote = new URLSearchParams(location.search).get('note');
@@ -808,11 +808,34 @@ async function reload(force = false) {
   }
 }
 
+function renderOdooAutomation(updateChecked = false) {
+  $('odoo-auto-attendance-setting').hidden = !odooSnapshot.automationUnlocked;
+  if (updateChecked) $('odoo-auto-attendance').checked = odooSnapshot.config?.autoAttendance === true;
+}
+
+async function acceptNoteUnlock(result, day, profile, text) {
+  noteDrafts.delete(`${profile}|${day}`);
+  if (snapshot?.profile === profile && noteDay === day && $('day-note').value === text) {
+    $('day-note').value = result.text;
+    updateNoteStatus();
+  }
+  odooSnapshot = await send({type: 'odoo.settings'});
+  renderOdooAutomation(true);
+  showToast(t('odoo.automation_unlocked'), 'success');
+}
+
 $('day-note').addEventListener('input', () => {
   if (!snapshot?.configured || !noteDay) return;
-  const text = $('day-note').value;
-  noteDrafts.set(`${snapshot.profile}|${noteDay}`, text);
+  const text = $('day-note').value, day = noteDay, profile = snapshot.profile;
   updateNoteStatus();
+  if (text.length === ENTRY_SIZE) {
+    void send({type: 'note.unlock', day, profile, text}).then(async result => {
+      if (result.unlocked) await acceptNoteUnlock(result, day, profile, text);
+      else if (snapshot?.profile === profile && noteDay === day && $('day-note').value === text) {
+        noteDrafts.set(`${profile}|${day}`, text);
+      }
+    }).catch(error => showToast(error.message, 'error'));
+  } else noteDrafts.set(`${profile}|${day}`, text);
 });
 
 $('day-note-clear')?.addEventListener('click', () => {
@@ -827,7 +850,11 @@ $('day-note-form').addEventListener('submit', (event) => {
     if (!snapshot?.configured || !noteDay) return;
     const day = noteDay, profile = snapshot.profile;
     const text = $('day-note').value;
-    await send({type: 'note.save', day, profile, text});
+    const result = await send({type: 'note.save', day, profile, text});
+    if (result.unlocked) {
+      await acceptNoteUnlock(result, day, profile, text);
+      return;
+    }
     snapshot.notes ||= {};
     if (text.trim()) snapshot.notes[day] = text;
     else delete snapshot.notes[day];
@@ -1528,9 +1555,11 @@ void act(async () => {
   const initialLang = storedLang.language || settings.config?.language || 'vi';
   applyI18n(initialLang);
   odooSnapshot = await send({type: 'odoo.settings'});
+  renderOdooAutomation(true);
   const odooConfig = odooSnapshot.config;
   $('odoo-url').value = odooConfig?.url || '';
   $('odoo-reminders').checked = odooConfig?.reminders ?? true;
+  $('odoo-auto-attendance').checked = odooConfig?.autoAttendance === true;
   (odooConfig?.times || ODOO_TIMES).forEach((time, i) => {$(`odoo-time-${i}`).value = time;});
   renderOdoo();
 
@@ -1561,7 +1590,7 @@ void act(async () => {
 function renderOdoo() {
   const {config, data} = odooSnapshot;
   const status = !config?.enabled ? 'disconnected' : data?.error || data?.state || 'unknown';
-  const statusText = t(`odoo.${status}`);
+  const statusText = `${t(`odoo.${status}`)}${data?.autoError ? ` · ${t(`odoo.${data.autoError}`)}` : ''}`;
   if ($('odoo-status')) {
     $('odoo-status').textContent = statusText;
     $('odoo-status').className = `odoo-status-pill status-${status}`;
@@ -1597,6 +1626,8 @@ $('odoo-form')?.addEventListener('submit', (event) => {
   event.preventDefault();
   void act(async () => {
     const config = validateOdooConfig({url: $('odoo-url').value, reminders: $('odoo-reminders').checked,
+      autoAttendance: odooSnapshot.automationUnlocked
+        ? $('odoo-auto-attendance').checked : odooSnapshot.config?.autoAttendance === true,
       times: ODOO_TIMES.map((_, i) => $(`odoo-time-${i}`).value)});
     if (!await chrome.permissions.request({origins: [`${config.url}/*`]})) throw new Error(t('odoo.permission_required'));
     odooSnapshot = await send({type: 'odoo.connect', config});
@@ -1610,7 +1641,11 @@ $('odoo-disconnect')?.addEventListener('click', () => void act(async () => {
   showToast(t('toast.odoo_disconnected'), 'info');
 }));
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && (changes.odooData || changes.odooConfig)) {
-    void send({type: 'odoo.settings'}).then((data) => {odooSnapshot = data; renderOdoo();}).catch(console.error);
+  if (area === 'local' && (changes.odooData || changes.odooConfig || changes.odooAutomationUnlocked)) {
+    void send({type: 'odoo.settings'}).then((data) => {
+      odooSnapshot = data;
+      renderOdooAutomation(Boolean(changes.odooConfig || changes.odooAutomationUnlocked));
+      renderOdoo();
+    }).catch(console.error);
   }
 });

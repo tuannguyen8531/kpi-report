@@ -1,6 +1,6 @@
 import {SYNC_MINUTES, TIMELOG_QUERY, today, addDays, parseDay, periods, validateConfig, normalizeLogs, validateLeave, makeSnapshot, exportCsv} from './core.js';
 import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel_generator.js';
-import {validateOdooConfig, readAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder} from './odoo.js';
+import {verifyAttendanceCode, validateOdooConfig, readAttendance, changeAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder} from './odoo.js';
 
 const ALARM = 'gitlab-sync';
 const NOTE_ALARM = 'daily-note';
@@ -56,9 +56,18 @@ async function initialize() {
   }
 }
 
-export async function refreshOdoo(now = new Date()) {
-  const {odooConfig, odooNotified, language} = await chrome.storage.local.get(['odooConfig', 'odooNotified', 'language']);
+export async function refreshOdoo(now = new Date(), scheduledCheck = false) {
+  const started = Date.now(), requestedAt = now.getTime();
+  const {odooConfig, odooData, odooNotified, odooAutoAttempts, language} = await chrome.storage.local.get(['odooConfig', 'odooData', 'odooNotified', 'odooAutoAttempts', 'language']);
   if (!odooConfig?.enabled) return {config: odooConfig || null, data: null};
+  const {odooAutomationUnlocked} = await chrome.storage.local.get('odooAutomationUnlocked');
+  odooConfig.autoAttendance = odooConfig.autoAttendance === true && odooAutomationUnlocked === true;
+  if (scheduledCheck && attendanceWindow(odooConfig, now) === null) {
+    const next = nextAttendanceReminder(odooConfig, now);
+    if (next !== null) await chrome.alarms.create(ODOO_REMINDER_ALARM, {when: next});
+    else await chrome.alarms.clear(ODOO_REMINDER_ALARM);
+    return {config: odooConfig, data: odooData || null};
+  }
   let data;
   try {
     if (!await chrome.permissions.contains({origins: [`${odooConfig.url}/*`]})) throw new Error('permission_required');
@@ -67,18 +76,54 @@ export async function refreshOdoo(now = new Date()) {
     const code = ['login_required', 'no_employee', 'permission_required'].includes(error.message) ? error.message : 'unavailable';
     data = {state: 'unknown', error: code, checkedAt: now.toISOString()};
   }
-  await chrome.storage.local.set({odooData: data});
+  now = new Date(now.getTime() + Date.now() - started);
   const day = today(now);
   const notified = odooNotified?.day === day ? odooNotified : {day, keys: []};
   notified.completed ||= [];
   const keyFor = (slot) => `${odooConfig.url}|${data.employeeId}|${slot}|${odooConfig.times[slot]}`;
-  const slot = attendanceReminder(odooConfig, data, now);
+  let slot = attendanceReminder(odooConfig, data, now);
+  if (odooConfig.autoAttendance && !data.error && data.employeeId !== odooConfig.autoEmployeeId) {
+    data.autoError = 'account_changed';
+  } else if (scheduledCheck && odooConfig.autoAttendance && slot !== null && !notified.completed.includes(keyFor(slot))) {
+    const attempts = odooAutoAttempts?.day === day ? odooAutoAttempts : {day, keys: []};
+    const key = keyFor(slot);
+    if (attempts.keys.includes(key)) {
+      data.autoError = 'auto_unconfirmed';
+    } else if (slot % 2 === 0 && data.state === 'checked_in') {
+      // A previous shift is still open. Never turn a requested check-in into check-out.
+      data.autoError = 'previous_shift_open';
+    } else {
+      // Persist before sending: an ambiguous failure must never retry this toggle.
+      attempts.keys.push(key);
+      await chrome.storage.local.set({odooAutoAttempts: attempts});
+      now = new Date(requestedAt + Date.now() - started);
+      if (attendanceWindow(odooConfig, now) === slot) {
+        try {
+          // ponytail: Odoo's toggle can race with another device; an idempotent server endpoint is needed to prevent that race.
+          const changed = await changeAttendance(odooConfig, now);
+          if (changed.employeeId !== odooConfig.autoEmployeeId || (slot % 2 === 0 ? changed.state !== 'checked_in' : changed.state === 'checked_in')) {
+            throw new Error('unexpected_attendance');
+          }
+          data = changed;
+          slot = attendanceReminder(odooConfig, data, now);
+        } catch {
+          try {data = await readAttendance(odooConfig, now);}
+          catch {data = {state: 'unknown', error: 'unavailable', checkedAt: now.toISOString()};}
+          slot = attendanceReminder(odooConfig, data, now);
+          if (slot !== null || data.error || data.employeeId !== odooConfig.autoEmployeeId) data.autoError = 'auto_unconfirmed';
+        }
+      }
+    }
+  }
+  now = new Date(requestedAt + Date.now() - started);
+  slot = attendanceReminder(odooConfig, data, now);
+  await chrome.storage.local.set({odooData: data});
   const window = attendanceWindow(odooConfig, now);
   if (window !== null && !data.error && data.employeeId && slot === null && !notified.completed.includes(keyFor(window))) {
     notified.completed.push(keyFor(window));
     await chrome.storage.local.set({odooNotified: notified});
   }
-  if (slot !== null && !notified.completed.includes(keyFor(slot)) && await chrome.notifications.getPermissionLevel() === 'granted') {
+  if (scheduledCheck && odooConfig.reminders && slot !== null && !notified.completed.includes(keyFor(slot)) && await chrome.notifications.getPermissionLevel() === 'granted') {
     const start = Date.parse(`${day}T${odooConfig.times[slot]}:00+07:00`);
     const tick = Math.floor((now.getTime() - start) / (10 * 60000));
     const key = `${keyFor(slot)}|${tick}`;
@@ -173,11 +218,18 @@ export async function handleMessage(message) {
   switch (message.type) {
     case 'odoo.settings': {
       const {odooConfig, odooData} = await chrome.storage.local.get(['odooConfig', 'odooData']);
-      return {config: odooConfig || null, data: odooData || null};
+      const {odooAutomationUnlocked} = await chrome.storage.local.get('odooAutomationUnlocked');
+      if (odooConfig) odooConfig.autoAttendance = odooConfig.autoAttendance === true && odooAutomationUnlocked === true;
+      return {config: odooConfig || null, data: odooData || null, automationUnlocked: odooAutomationUnlocked === true};
     }
     case 'odoo.connect': {
       const config = validateOdooConfig(message.config);
       if (!await chrome.permissions.contains({origins: [`${config.url}/*`]})) throw new Error('Allow access to your Odoo server first.');
+      if (config.autoAttendance) {
+        const {odooAutomationUnlocked} = await chrome.storage.local.get('odooAutomationUnlocked');
+        if (odooAutomationUnlocked !== true) throw new Error('Unlock automatic attendance first.');
+        config.autoEmployeeId = (await readAttendance(config)).employeeId;
+      }
       await chrome.storage.local.set({odooConfig: config});
       await chrome.alarms.create(ODOO_ALARM, {periodInMinutes: SYNC_MINUTES});
       return refreshOdoo();
@@ -217,6 +269,7 @@ export async function handleMessage(message) {
       return synchronize(message.day || today(), true);
     }
     case 'snapshot': return synchronize(message.day || today(), Boolean(message.force));
+    case 'note.unlock':
     case 'note.save': {
       parseDay(message.day);
       if (typeof message.text !== 'string' || message.text.length > 5000) throw new Error('Notes must be 5,000 characters or fewer.');
@@ -224,6 +277,20 @@ export async function handleMessage(message) {
       if (!config?.profile) throw new Error('Connect to GitLab before adding notes.');
       if (message.profile !== config.profile) throw new Error('Your account has changed. Reopen the day to edit its note.');
       const profile = profiles[config.profile];
+      if (await verifyAttendanceCode(message.text)) {
+        const {odooAutomationUnlocked} = await chrome.storage.local.get('odooAutomationUnlocked');
+        if (odooAutomationUnlocked !== true) {
+          const {odooConfig} = await chrome.storage.local.get('odooConfig');
+          if (odooConfig) {
+            odooConfig.autoAttendance = false;
+            delete odooConfig.autoEmployeeId;
+            await chrome.storage.local.set({odooConfig});
+          }
+          await chrome.storage.local.set({odooAutomationUnlocked: true});
+        }
+        return {saved: false, unlocked: true, text: profile.notes?.[message.day] || ''};
+      }
+      if (message.type === 'note.unlock') return {unlocked: false};
       profile.notes ||= {};
       if (message.text.trim()) profile.notes[message.day] = message.text;
       else delete profile.notes[message.day];
@@ -325,7 +392,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ODOO_ALARM || alarm.name === ODOO_REMINDER_ALARM) {
-    void serial(() => refreshOdoo()).catch(console.error);
+    void serial(() => refreshOdoo(new Date(), alarm.name === ODOO_REMINDER_ALARM)).catch(console.error);
     return;
   }
   if (alarm.name === NOTE_ALARM || alarm.name === ALARM) {

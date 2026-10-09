@@ -67,7 +67,7 @@ Back up leave before removing the extension or changing browser profiles. Uninst
 
 ## Odoo attendance (version 17)
 
-The **Odoo · Attendance today** card reads attendance using your existing Odoo login in the same browser profile. Open **Settings** and select the **Odoo Attendance** tab (or click the settings icon on the Odoo card), enter your Odoo server URL (for example, `https://odoo.example.com`), then click **Save & Connect** and allow access to that server. The URL is saved only in your local extension settings; no company address is bundled in the source. No password, API key, or cookie value is stored by the extension. It only calls `/hr_attendance/attendance_user_data`; it does not check in or out.
+The **Odoo · Attendance today** card reads attendance using your existing Odoo login in the same browser profile. Open **Settings** and select the **Odoo Attendance** tab (or click the settings icon on the Odoo card), enter your Odoo server URL (for example, `https://odoo.example.com`), then click **Save & Connect** and allow access to that server. The URL is saved only in your local extension settings; no company address is bundled in the source. No password, API key, or cookie value is stored by the extension. By default, it only reads `/hr_attendance/attendance_user_data`.
 
 The card displays today's attendance hours reported by Odoo as hours and minutes, rounded to the nearest minute (for example, `4.75` hours displays as `4h 45m`), including the ongoing check-in session up to the last refresh. The number updates on sync rather than ticking live; missing hours or failed requests display `—`. Odoo determines the day using the employee's timezone.
 

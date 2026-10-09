@@ -862,14 +862,22 @@
             </div>
             <div>
               <strong class="odoo-hero-title" data-i18n="odoo.title">Odoo</strong>
-              <p class="field-hint" data-i18n="odoo.session">Dùng tài khoản đã đăng nhập Odoo trong trình duyệt này. Chỉ đọc trạng thái chấm công.</p>
+              <p class="field-hint" data-i18n="odoo.session">Dùng tài khoản đã đăng nhập Odoo trong trình duyệt này.</p>
             </div>
           </div>
 
           <div class="form-group">
             <label for="odoo-url" data-i18n="odoo.url">Địa chỉ Odoo</label>
             <input id="odoo-url" type="url" placeholder="https://odoo.example.com" required>
-            <span class="field-hint" data-i18n="odoo.session">Dùng tài khoản đã đăng nhập Odoo trong trình duyệt này. Chỉ đọc trạng thái chấm công.</span>
+            <span class="field-hint" data-i18n="odoo.session">Dùng tài khoản đã đăng nhập Odoo trong trình duyệt này.</span>
+          </div>
+
+          <div id="odoo-auto-attendance-setting" class="reminder-settings-card mt-3" hidden>
+            <label class="custom-checkbox">
+              <input id="odoo-auto-attendance" type="checkbox">
+              <span class="checkmark"></span>
+              <span class="checkbox-text" data-i18n="odoo.auto_attendance">Tự động check-in/check-out từ thứ Hai đến thứ Sáu</span>
+            </label>
           </div>
 
           <div class="reminder-settings-card mt-3">

@@ -39,6 +39,84 @@ export async function remindDailyNote(now = new Date()) {
   await chrome.storage.local.set({profiles});
 }
 
+export const ODOO_STATUS_COLORS = {
+  checked_in: '#16a34a',
+  checked_out: '#2563eb',
+  not_today: '#d97706',
+  error: '#dc2626',
+};
+
+let actionIconBitmap;
+const actionIconImages = new Map();
+
+export function renderStatusIcon(bitmap, size, color) {
+  const canvas = new OffscreenCanvas(size, size);
+  const context = canvas.getContext('2d');
+  const iconSize = color ? size * 0.92 : size;
+  context.drawImage(bitmap, 0, 0, iconSize, iconSize);
+  if (color) {
+    const radius = size * 0.18;
+    const inset = Math.max(0.75, size * 0.04);
+    const center = size - radius - inset;
+    context.beginPath();
+    context.arc(center, center, radius + inset, 0, Math.PI * 2);
+    context.fillStyle = '#ffffff';
+    context.fill();
+    context.beginPath();
+    context.arc(center, center, radius, 0, Math.PI * 2);
+    context.fillStyle = color;
+    context.fill();
+  }
+  return context.getImageData(0, 0, size, size);
+}
+
+async function updateActionIcon(color) {
+  if (!chrome.action.setIcon || typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') return;
+  try {
+    let images = actionIconImages.get(color);
+    if (!images) {
+      if (!actionIconBitmap) {
+        const response = await fetch(chrome.runtime.getURL('assets/icon.png'));
+        if (!response.ok) throw new Error('Unable to load the toolbar icon.');
+        actionIconBitmap = await createImageBitmap(await response.blob());
+      }
+      images = Object.fromEntries([16, 32, 48].map(size => [size, renderStatusIcon(actionIconBitmap, size, color)]));
+      actionIconImages.set(color, images);
+    }
+    await chrome.action.setIcon({imageData: images});
+  } catch (error) {
+    // A cosmetic icon failure must not interrupt attendance sync or scheduling.
+    console.warn('Unable to update the attendance icon:', error);
+  }
+}
+
+export async function updateActionBadge(config, data, language = 'vi') {
+  if (typeof chrome === 'undefined' || !chrome.action) return;
+  if (chrome.action.setBadgeText) await chrome.action.setBadgeText({text: ''});
+
+  if (!config?.enabled) {
+    await updateActionIcon(null);
+    if (chrome.action.setTitle) await chrome.action.setTitle({title: 'KPI · Work hours'});
+    return;
+  }
+
+  const status = data?.error ? 'error' : data?.state || 'not_today';
+  const color = ODOO_STATUS_COLORS[status] || (data?.error ? ODOO_STATUS_COLORS.error : null);
+
+  await updateActionIcon(color);
+
+  const isEn = language === 'en';
+  const statusTitles = {
+    checked_in: isEn ? 'KPI · Work hours (Checked in)' : 'KPI · Work hours (Đang check-in)',
+    checked_out: isEn ? 'KPI · Work hours (Checked out)' : 'KPI · Work hours (Đã check-out)',
+    not_today: isEn ? 'KPI · Work hours (Not checked in today)' : 'KPI · Work hours (Chưa check-in hôm nay)',
+    error: isEn ? 'KPI · Work hours (Odoo error)' : 'KPI · Work hours (Lỗi Odoo)',
+  };
+  if (chrome.action.setTitle) {
+    await chrome.action.setTitle({title: statusTitles[status] || 'KPI · Work hours'});
+  }
+}
+
 async function initialize() {
   await chrome.storage.local.setAccessLevel({accessLevel: 'TRUSTED_CONTEXTS'});
   const alarm = await chrome.alarms.get(ALARM);
@@ -46,26 +124,32 @@ async function initialize() {
     await chrome.alarms.create(ALARM, {delayInMinutes: SYNC_MINUTES, periodInMinutes: SYNC_MINUTES});
   }
   await remindDailyNote();
-  const {odooConfig} = await chrome.storage.local.get('odooConfig');
+  const {odooConfig, language} = await chrome.storage.local.get(['odooConfig', 'language']);
   if (odooConfig?.enabled) {
     const odooAlarm = await chrome.alarms.get(ODOO_ALARM);
     if (!odooAlarm || odooAlarm.periodInMinutes !== SYNC_MINUTES) {
       await chrome.alarms.create(ODOO_ALARM, {periodInMinutes: SYNC_MINUTES});
     }
     await refreshOdoo();
+  } else {
+    await updateActionBadge(null, null, language);
   }
 }
 
 export async function refreshOdoo(now = new Date(), scheduledCheck = false) {
   const started = Date.now(), requestedAt = now.getTime();
   const {odooConfig, odooData, odooNotified, odooAutoAttempts, language} = await chrome.storage.local.get(['odooConfig', 'odooData', 'odooNotified', 'odooAutoAttempts', 'language']);
-  if (!odooConfig?.enabled) return {config: odooConfig || null, data: null};
+  if (!odooConfig?.enabled) {
+    await updateActionBadge(odooConfig, null, language);
+    return {config: odooConfig || null, data: null};
+  }
   const {odooAutomationUnlocked} = await chrome.storage.local.get('odooAutomationUnlocked');
   odooConfig.autoAttendance = odooConfig.autoAttendance === true && odooAutomationUnlocked === true;
   if (scheduledCheck && attendanceWindow(odooConfig, now) === null) {
     const next = nextAttendanceReminder(odooConfig, now);
     if (next !== null) await chrome.alarms.create(ODOO_REMINDER_ALARM, {when: next});
     else await chrome.alarms.clear(ODOO_REMINDER_ALARM);
+    await updateActionBadge(odooConfig, odooData, language);
     return {config: odooConfig, data: odooData || null};
   }
   let data;
@@ -144,6 +228,7 @@ export async function refreshOdoo(now = new Date(), scheduledCheck = false) {
   const nextReminder = nextAttendanceReminder(odooConfig, now, completedSlots);
   if (nextReminder !== null) await chrome.alarms.create(ODOO_REMINDER_ALARM, {when: nextReminder});
   else await chrome.alarms.clear(ODOO_REMINDER_ALARM);
+  await updateActionBadge(odooConfig, data, language);
   return {config: odooConfig, data};
 }
 
@@ -250,6 +335,7 @@ export async function handleMessage(message) {
       await chrome.storage.local.remove(['odooConfig', 'odooData']);
       await chrome.alarms.clear(ODOO_ALARM);
       await chrome.alarms.clear(ODOO_REMINDER_ALARM);
+      await updateActionBadge(null, null);
       return {config: null, data: null};
     }
     case 'settings.update_general': {
@@ -261,6 +347,8 @@ export async function handleMessage(message) {
         if (message.config?.language !== undefined) config.language = message.config.language;
         await chrome.storage.local.set({config});
         await remindDailyNote();
+        const {odooConfig, odooData} = await chrome.storage.local.get(['odooConfig', 'odooData']);
+        await updateActionBadge(odooConfig, odooData, config.language);
       }
       return {config};
     }

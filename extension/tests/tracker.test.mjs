@@ -82,6 +82,8 @@ test('configuration and leave validation; external task links do not become exec
 
 let local = {}, session = {}, fetches = [], replyPages = [], alarm;
 let noteAlarm, odooAlarm, odooReminderAlarm, notifications = [], openedTabs = [];
+let actionBadge = {text: '', color: '', title: ''};
+let actionIcon = null;
 const events = {};
 function area(getData) {
   return {
@@ -112,6 +114,13 @@ globalThis.chrome = {
       if (name === 'odoo-reminder') odooReminderAlarm = undefined;
     },
     onAlarm: {addListener(fn) {events.alarm = fn;}},
+  },
+  action: {
+    async setBadgeText(options) {actionBadge.text = options.text;},
+    async setBadgeBackgroundColor(options) {actionBadge.color = options.color;},
+    async setBadgeTextColor(options) {actionBadge.textColor = options.color;},
+    async setTitle(options) {actionBadge.title = options.title;},
+    async setIcon(options) {actionIcon = options;},
   },
   notifications: {
     async getPermissionLevel() {return 'granted';},
@@ -170,14 +179,14 @@ globalThis.fetch = async (url, options) => {
   if (!response) throw new Error('Unexpected fetch');
   return {ok: true, async json() {return response;}};
 };
-const {handleMessage, remindDailyNote, refreshOdoo} = await import('../src/background.js');
+const {handleMessage, remindDailyNote, refreshOdoo, updateActionBadge, renderStatusIcon, ODOO_STATUS_COLORS} = await import('../src/background.js');
 const page = (nodes, hasNextPage = false, endCursor = null) => ({data: {timelogs: {nodes, pageInfo: {hasNextPage, endCursor}}}});
 const day = '2026-10-01';
 async function connect() {
   replyPages.push(page([log('one', '2026-10-01T01:00:00Z')]));
   return handleMessage({type: 'connect', config, token: 'test-token', day});
 }
-beforeEach(() => {local = {}; session = {}; fetches = []; replyPages = []; notifications = []; openedTabs = []; noteAlarm = undefined; odooAlarm = undefined; odooReminderAlarm = undefined;});
+beforeEach(() => {local = {}; session = {}; fetches = []; replyPages = []; notifications = []; openedTabs = []; noteAlarm = undefined; odooAlarm = undefined; odooReminderAlarm = undefined; actionBadge = {text: '', color: '', title: ''}; actionIcon = null;});
 
 test('thirty-minute scheduling is recreated; refresh reads every page, caches, and handles deleted logs', async () => {
   await new Promise((resolve) => setImmediate(resolve));
@@ -1081,4 +1090,126 @@ test('i18n dictionary supports English and Vietnamese switching and config prese
   assert.equal(cfgDefault.language, 'vi');
 
   setLanguage('vi');
+});
+
+test('Odoo status updates drawn status dot and title', async () => {
+  assert.equal(ODOO_STATUS_COLORS.checked_in, '#16a34a');
+  assert.equal(ODOO_STATUS_COLORS.checked_out, '#2563eb');
+  assert.equal(ODOO_STATUS_COLORS.not_today, '#d97706');
+  assert.equal(ODOO_STATUS_COLORS.error, '#dc2626');
+
+  // When disabled/disconnected
+  await updateActionBadge({enabled: false}, null);
+  assert.equal(actionBadge.text, '');
+  assert.equal(actionIcon, null);
+  assert.equal(actionBadge.title, 'KPI · Work hours');
+
+  // When checked in (Vietnamese)
+  await updateActionBadge({enabled: true}, {state: 'checked_in'}, 'vi');
+  assert.equal(actionBadge.text, '');
+  assert.equal(actionIcon, null);
+  assert.equal(actionBadge.title, 'KPI · Work hours (Đang check-in)');
+
+  // When checked in (English)
+  await updateActionBadge({enabled: true}, {state: 'checked_in'}, 'en');
+  assert.equal(actionBadge.text, '');
+  assert.equal(actionIcon, null);
+  assert.equal(actionBadge.title, 'KPI · Work hours (Checked in)');
+
+  // When checked out
+  await updateActionBadge({enabled: true}, {state: 'checked_out'}, 'vi');
+  assert.equal(actionBadge.text, '');
+  assert.equal(actionIcon, null);
+  assert.equal(actionBadge.title, 'KPI · Work hours (Đã check-out)');
+
+  // When not today
+  await updateActionBadge({enabled: true}, {state: 'not_today'}, 'vi');
+  assert.equal(actionBadge.text, '');
+  assert.equal(actionIcon, null);
+  assert.equal(actionBadge.title, 'KPI · Work hours (Chưa check-in hôm nay)');
+
+  // When error
+  await updateActionBadge({enabled: true}, {error: 'login_required'}, 'vi');
+  assert.equal(actionBadge.text, '');
+  assert.equal(actionIcon, null);
+  assert.equal(actionBadge.title, 'KPI · Work hours (Lỗi Odoo)');
+  // Unknown and disconnected states clear a previously displayed dot.
+  await updateActionBadge({enabled: true}, {state: 'unknown'});
+  assert.equal(actionBadge.text, '');
+  await updateActionBadge({enabled: true}, {state: 'checked_in'});
+  await updateActionBadge({enabled: false}, null);
+  assert.equal(actionBadge.text, '');
+  assert.equal(actionIcon, null);
+});
+
+
+test('icon image load failures do not interrupt attendance sync or clearing the badge', async () => {
+  const originalSetIcon = chrome.action.setIcon;
+  const originalFetch = globalThis.fetch;
+  const originalCanvas = globalThis.OffscreenCanvas, originalBitmap = globalThis.createImageBitmap;
+  const originalWarn = console.warn;
+  let warnings = 0;
+  globalThis.OffscreenCanvas = class {};
+  globalThis.createImageBitmap = async () => ({});
+  console.warn = () => {warnings++;};
+  chrome.action.setIcon = async () => {throw new Error("Failed to set icon 'assets/icon.png': Failed to fetch");};
+  globalThis.fetch = async (url) => {
+    if (url === chrome.runtime.getURL('assets/icon.png')) throw new Error('Failed to fetch');
+    assert.ok(url.endsWith('/attendance_user_data'));
+    return {ok: true, json: async () => ({result: {id: 7, attendance_state: 'checked_in', last_check_in: '2026-10-08 01:30:00', hours_today: 1}})};
+  };
+  try {
+    local.odooConfig = validateOdooConfig({url: ODOO_URL});
+    const result = await refreshOdoo(new Date('2026-10-08T08:40:00+07:00'));
+    assert.equal(result.data.state, 'checked_in');
+    assert.equal(local.odooData.hoursToday, 1);
+    assert.equal(actionBadge.text, '');
+    await updateActionBadge({enabled: false}, null);
+    assert.equal(actionBadge.text, '');
+    assert.equal(warnings, 2);
+  } finally {
+    chrome.action.setIcon = originalSetIcon; globalThis.fetch = originalFetch;
+    globalThis.OffscreenCanvas = originalCanvas; globalThis.createImageBitmap = originalBitmap;
+    console.warn = originalWarn;
+  }
+});
+
+test('status dots extend past a slightly smaller intact base icon', () => {
+  const originalCanvas = globalThis.OffscreenCanvas;
+  globalThis.OffscreenCanvas = class {
+    constructor(width, height) {this.record = {width, height, circles: []};}
+    getContext() {
+      const record = this.record;
+      return {
+        drawImage(bitmap, x, y, width, height) {record.base = {x, y, width, height};},
+        clearRect(x, y, width, height) {record.cutout = {x, y, width, height};},
+        beginPath() {},
+        arc(x, y, radius) {this.circle = {x, y, radius};},
+        fill() {record.circles.push({...this.circle, color: this.fillStyle});},
+        getImageData() {return record;},
+      };
+    }
+  };
+  try {
+    for (const size of [16, 32, 48]) {
+      for (const color of Object.values(ODOO_STATUS_COLORS)) {
+        const image = renderStatusIcon({}, size, color);
+        assert.deepEqual(image.base, {x: 0, y: 0, width: size * 0.92, height: size * 0.92});
+        assert.equal(image.cutout, undefined);
+        assert.equal(image.circles.length, 2);
+        assert.equal(image.circles[0].color, '#ffffff');
+        assert.equal(image.circles[1].color, color);
+        for (const {x, y, radius} of image.circles) {
+          assert.ok(x > size / 2 && y > size / 2);
+          assert.ok(x + radius > image.base.width && y + radius > image.base.height);
+          assert.ok(x - radius >= 0 && y - radius >= 0);
+          assert.ok(x + radius <= size && y + radius <= size);
+        }
+      }
+      const plain = renderStatusIcon({}, size, null);
+      assert.deepEqual(plain.base, {x: 0, y: 0, width: size, height: size});
+      assert.equal(plain.circles.length, 0);
+      assert.equal(plain.cutout, undefined);
+    }
+  } finally {globalThis.OffscreenCanvas = originalCanvas;}
 });

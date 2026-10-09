@@ -475,7 +475,7 @@ function renderCalendar(data) {
       if (day.hours > 0 && day.leaveHours > 0) {
         const totalChip = document.createElement('span');
         totalChip.className = 'cal-work-chip';
-        totalChip.textContent = formatHours(dayTracked.total);
+        totalChip.textContent = formatHours(day.hours);
         cell.appendChild(totalChip);
 
         const leaveSub = document.createElement('span');

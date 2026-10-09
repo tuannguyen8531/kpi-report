@@ -252,6 +252,18 @@ export async function handleMessage(message) {
       await chrome.alarms.clear(ODOO_REMINDER_ALARM);
       return {config: null, data: null};
     }
+    case 'settings.update_general': {
+      const {config} = await chrome.storage.local.get('config');
+      if (config) {
+        if (message.config?.excelPattern !== undefined) config.excelPattern = message.config.excelPattern;
+        if (message.config?.reminderEnabled !== undefined) config.reminderEnabled = message.config.reminderEnabled;
+        if (message.config?.reminderTime !== undefined) config.reminderTime = message.config.reminderTime;
+        if (message.config?.language !== undefined) config.language = message.config.language;
+        await chrome.storage.local.set({config});
+        await remindDailyNote();
+      }
+      return {config};
+    }
     case 'settings': {
       const {config} = await chrome.storage.local.get('config');
       return {config: config ? {url: config.url, projects: config.projects, username: config.username, rememberToken: config.rememberToken, excelPattern: config.excelPattern || 'report_MM_YYYY.xlsx', reminderEnabled: config.reminderEnabled !== false, reminderTime: config.reminderTime || '10:00'} : null, hasToken: Boolean(await getToken())};

@@ -171,7 +171,8 @@ async function act(action) {
   const interactiveElements = [
     'anchor', 'btn-today', 'btn-prev-day', 'btn-next-day',
     'btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'connect',
-    'leave-save', 'btn-onboarding-submit', 'day-note-save', 'day-note', 'day-note-clear', ...odooControls
+    'leave-save', 'btn-onboarding-submit', 'day-note-save', 'day-note', 'day-note-clear',
+    'btn-save-general', 'btn-test-notification', ...odooControls
   ];
   for (const id of interactiveElements) {
     const el = $(id);
@@ -186,7 +187,7 @@ async function act(action) {
     busy = false;
     if (syncBtn) syncBtn.classList.remove('is-syncing');
 
-    const restoreElements = ['anchor', 'btn-today', 'btn-prev-day', 'btn-next-day', 'connect', 'btn-onboarding-submit', ...odooControls];
+    const restoreElements = ['anchor', 'btn-today', 'btn-prev-day', 'btn-next-day', 'connect', 'btn-onboarding-submit', 'btn-save-general', 'btn-test-notification', ...odooControls];
     for (const id of restoreElements) {
       const el = $(id);
       if (el) el.disabled = false;
@@ -1177,16 +1178,17 @@ function updateModalState() {
 }
 
 function switchSettingsTab(tabName) {
-  const targetTab = tabName === 'odoo' ? 'odoo' : 'gitlab';
+  const validTabs = ['general', 'gitlab', 'odoo'];
+  const targetTab = validTabs.includes(tabName) ? tabName : 'general';
   document.querySelectorAll('.settings-tab-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.settingsTab === targetTab);
   });
   document.querySelectorAll('.settings-panel-tab').forEach((panel) => {
-    panel.classList.toggle('active', panel.id === (targetTab === 'odoo' ? 'odoo-form' : 'settings-form'));
+    panel.classList.toggle('active', panel.dataset.settingsPanel === targetTab);
   });
 }
 
-function openSettingsModal(tabName = 'gitlab') {
+function openSettingsModal(tabName = 'general') {
   if (currentConfig) {
     $('gitlab-url').value = currentConfig.url || '';
     $('remember-token').checked = Boolean(currentConfig.rememberToken);
@@ -1196,8 +1198,9 @@ function openSettingsModal(tabName = 'gitlab') {
     $('projects').value = currentConfig.projects ? JSON.stringify(currentConfig.projects, null, 2) : '';
     if ($('excel-pattern')) $('excel-pattern').value = currentConfig.excelPattern || 'report_MM_YYYY.xlsx';
   }
+  if ($('settings-language')) $('settings-language').value = currentLang;
   $('gitlab-token').value = '';
-  switchSettingsTab(typeof tabName === 'string' ? tabName : 'gitlab');
+  switchSettingsTab(typeof tabName === 'string' ? tabName : 'general');
   $('modal-settings').hidden = false;
   updateModalState();
 }
@@ -1211,15 +1214,64 @@ $('reminder-enabled')?.addEventListener('change', () => {
   $('reminder-time').disabled = !$('reminder-enabled').checked;
 });
 
-$('btn-settings').addEventListener('click', () => openSettingsModal('gitlab'));
+$('btn-settings').addEventListener('click', () => openSettingsModal('general'));
+$('tab-btn-settings-general')?.addEventListener('click', () => switchSettingsTab('general'));
 $('tab-btn-settings-gitlab')?.addEventListener('click', () => switchSettingsTab('gitlab'));
 $('tab-btn-settings-odoo')?.addEventListener('click', () => switchSettingsTab('odoo'));
 $('btn-close-settings').addEventListener('click', closeSettingsModal);
+$('btn-cancel-general-settings')?.addEventListener('click', closeSettingsModal);
 $('btn-cancel-settings').addEventListener('click', closeSettingsModal);
 $('btn-cancel-odoo-settings')?.addEventListener('click', closeSettingsModal);
 $('odoo-connect-prompt-btn')?.addEventListener('click', () => openSettingsModal('odoo'));
 $('modal-settings').addEventListener('click', (e) => {
   if (e.target.id === 'modal-settings') closeSettingsModal();
+});
+
+// Test desktop notification
+$('btn-test-notification')?.addEventListener('click', () => void act(async () => {
+  if (typeof chrome !== 'undefined' && chrome.notifications) {
+    const perm = await chrome.notifications.getPermissionLevel?.();
+    if (perm === 'denied') {
+      showToast(t('settings.notification_denied'), 'error', 4500);
+      return;
+    }
+    await chrome.notifications.create(`test-notification-${Date.now()}`, {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('assets/icon.png'),
+      title: 'KPI Tracker',
+      message: t('settings.notification_test_message'),
+    });
+    showToast(t('settings.notification_test_sent'), 'success');
+  } else {
+    showToast(t('settings.notification_test_sent'), 'info');
+  }
+}));
+
+// Save general settings
+$('general-form')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  void act(async () => {
+    const excelPattern = $('excel-pattern')?.value?.trim() || 'report_MM_YYYY.xlsx';
+    const reminderEnabled = $('reminder-enabled')?.checked !== false;
+    const reminderTime = $('reminder-time')?.value || '10:00';
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)) {
+      throw new Error('Choose a valid reminder time.');
+    }
+
+    if (currentConfig) {
+      const config = {
+        ...currentConfig,
+        excelPattern,
+        reminderEnabled,
+        reminderTime,
+        language: currentLang
+      };
+      await send({type: 'settings.update_general', config});
+      currentConfig = config;
+    }
+    closeSettingsModal();
+    showToast(t('settings.general_saved'), 'success');
+  });
 });
 
 // Toggle password in settings
@@ -1631,6 +1683,7 @@ $('odoo-form')?.addEventListener('submit', (event) => {
       times: ODOO_TIMES.map((_, i) => $(`odoo-time-${i}`).value)});
     if (!await chrome.permissions.request({origins: [`${config.url}/*`]})) throw new Error(t('odoo.permission_required'));
     odooSnapshot = await send({type: 'odoo.connect', config});
+    closeSettingsModal();
     renderOdoo();
     showToast(t('toast.odoo_connected'), 'success');
   });

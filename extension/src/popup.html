@@ -634,7 +634,6 @@
           </div>
           <label class="filter-switch">
             <input id="day-only" type="checkbox">
-            <span class="switch-ui"></span>
             <span class="switch-label" data-i18n="logs.day_only">Selected day only</span>
           </label>
         </div>
@@ -747,7 +746,21 @@
 
       <!-- Segmented Tabs at top of Settings Modal -->
       <div class="settings-tabs-bar" role="tablist">
-        <button type="button" id="tab-btn-settings-gitlab" class="settings-tab-btn active" data-settings-tab="gitlab">
+        <button type="button" id="tab-btn-settings-general" class="settings-tab-btn active" data-settings-tab="general">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon">
+            <line x1="4" y1="21" x2="4" y2="14"></line>
+            <line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line>
+            <line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line>
+            <line x1="9" y1="8" x2="15" y2="8"></line>
+            <line x1="17" y1="16" x2="23" y2="16"></line>
+          </svg>
+          <span data-i18n="settings.tab_general">Chung</span>
+        </button>
+        <button type="button" id="tab-btn-settings-gitlab" class="settings-tab-btn" data-settings-tab="gitlab">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon">
             <path d="M12 2L2 9.5l3.5 11.5h13L22 9.5 12 2z"></path>
           </svg>
@@ -763,7 +776,70 @@
       </div>
 
       <div class="modal-body">
-        <form id="settings-form" class="flow-form settings-panel-tab active">
+        <!-- General Settings Tab -->
+        <form id="general-form" class="flow-form settings-panel-tab active" data-settings-panel="general">
+          <div class="form-group">
+            <div class="label-row">
+              <label for="settings-language" data-i18n="settings.lang_label">Ngôn ngữ hiển thị</label>
+            </div>
+            <select id="settings-language" class="select-input">
+              <option value="vi">Tiếng Việt (VI)</option>
+              <option value="en">English (EN)</option>
+            </select>
+            <span class="field-hint" data-i18n="settings.lang_hint">Chọn ngôn ngữ cho giao diện tiện ích.</span>
+          </div>
+
+          <div class="reminder-settings-card mt-3">
+            <div class="reminder-toggle-row">
+              <label class="custom-checkbox">
+                <input id="reminder-enabled" type="checkbox" checked>
+                <span class="checkmark"></span>
+                <span class="checkbox-text" data-i18n="settings.reminder_title">Daily note reminders</span>
+              </label>
+              <div class="reminder-time-box">
+                <label for="reminder-time" class="time-label" data-i18n="settings.reminder_time">Time (UTC+7)</label>
+                <input id="reminder-time" type="time" value="10:00" required>
+              </div>
+            </div>
+            <span class="field-hint" data-i18n="settings.reminder_hint">Receive today’s note once a day at the chosen time. Missed reminders catch up when the browser resumes that day.</span>
+          </div>
+
+          <div class="reminder-settings-card mt-3">
+            <div class="reminder-toggle-row">
+              <div>
+                <strong class="setting-item-title" data-i18n="settings.notification_title">Thông báo hệ thống</strong>
+                <p class="field-hint" data-i18n="settings.notification_hint">Kiểm tra thông báo màn hình của tiện ích trên trình duyệt và thiết bị này.</p>
+              </div>
+              <button id="btn-test-notification" type="button" class="btn btn-outline btn-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                <span data-i18n="settings.btn_test_notification">Test thông báo</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group mt-3">
+            <div class="label-row">
+              <label for="excel-pattern" data-i18n="settings.excel_pattern">Excel filename pattern</label>
+              <span class="field-badge">MM, YYYY</span>
+            </div>
+            <input id="excel-pattern" type="text" spellcheck="false" placeholder="report_MM_YYYY.xlsx">
+            <span class="field-hint" data-i18n="settings.excel_pattern_hint">Use <code>MM</code> for the month (01–12) and <code>YYYY</code> for the year (e.g. 2026). Default: <code>report_MM_YYYY.xlsx</code></span>
+          </div>
+
+          <div class="modal-footer">
+            <div></div>
+            <div class="footer-right">
+              <button id="btn-cancel-general-settings" type="button" class="btn btn-secondary" data-i18n="settings.close">Close</button>
+              <button id="btn-save-general" type="submit" class="btn btn-primary" data-i18n="settings.save">Save changes</button>
+            </div>
+          </div>
+        </form>
+
+        <!-- GitLab Settings Tab -->
+        <form id="settings-form" class="flow-form settings-panel-tab" data-settings-panel="gitlab">
           <div class="form-group">
             <label for="gitlab-url" data-i18n="settings.url_label">GitLab server URL</label>
             <input id="gitlab-url" type="url" placeholder="https://gitlab.example.com" required>
@@ -801,40 +877,6 @@
             <span class="field-hint">Leave empty or enter [] to detect all projects from GitLab timelogs. A project list limits tracking and sets custom report names.</span>
           </div>
 
-          <div class="form-group mt-3">
-            <div class="label-row">
-              <label for="excel-pattern" data-i18n="settings.excel_pattern">Excel filename pattern</label>
-              <span class="field-badge">MM, YYYY</span>
-            </div>
-            <input id="excel-pattern" type="text" spellcheck="false" placeholder="report_MM_YYYY.xlsx">
-            <span class="field-hint" data-i18n="settings.excel_pattern_hint">Use <code>MM</code> for the month (01–12) and <code>YYYY</code> for the year (e.g. 2026). Default: <code>report_MM_YYYY.xlsx</code></span>
-          </div>
-
-          <div class="reminder-settings-card mt-3">
-            <div class="reminder-toggle-row">
-              <label class="custom-checkbox">
-                <input id="reminder-enabled" type="checkbox" checked>
-                <span class="checkmark"></span>
-                <span class="checkbox-text" data-i18n="settings.reminder_title">Daily note reminders</span>
-              </label>
-              <div class="reminder-time-box">
-                <label for="reminder-time" class="time-label" data-i18n="settings.reminder_time">Time (UTC+7)</label>
-                <input id="reminder-time" type="time" value="10:00" required>
-              </div>
-            </div>
-            <span class="field-hint" data-i18n="settings.reminder_hint">Receive today’s note once a day at the chosen time. Missed reminders catch up when the browser resumes that day.</span>
-          </div>
-
-          <div class="form-group mt-3">
-            <div class="label-row">
-              <label for="settings-language" data-i18n="settings.lang_label">Ngôn ngữ hiển thị</label>
-            </div>
-            <select id="settings-language" class="select-input">
-              <option value="vi">Tiếng Việt (VI)</option>
-              <option value="en">English (EN)</option>
-            </select>
-          </div>
-
           <div class="modal-footer">
             <button id="btn-disconnect" type="button" class="btn btn-danger-outline">
               <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -852,7 +894,7 @@
         </form>
 
         <!-- Odoo Settings Tab -->
-        <form id="odoo-form" class="flow-form settings-panel-tab">
+        <form id="odoo-form" class="flow-form settings-panel-tab" data-settings-panel="odoo">
           <div class="odoo-settings-hero">
             <div class="odoo-hero-icon-box" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="odoo-hero-icon">

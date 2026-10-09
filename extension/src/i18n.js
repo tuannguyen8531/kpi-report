@@ -183,8 +183,16 @@ export const TRANSLATIONS = {
     'confirm.delete_leave': 'Bạn có chắc chắn muốn xóa lịch nghỉ ngày {date} không?',
 
     // Settings Tabs & Odoo
+    'settings.tab_general': 'Chung',
     'settings.tab_gitlab': 'GitLab',
     'settings.tab_odoo': 'Odoo',
+    'settings.notification_title': 'Thông báo hệ thống',
+    'settings.notification_hint': 'Kiểm tra thông báo màn hình của tiện ích trên trình duyệt và thiết bị này.',
+    'settings.btn_test_notification': 'Test thông báo',
+    'settings.notification_test_sent': 'Đã gửi thông báo kiểm tra.',
+    'settings.notification_denied': 'Thông báo đang bị chặn. Vui lòng cấp quyền thông báo trong trình duyệt hoặc hệ điều hành.',
+    'settings.notification_test_message': 'Thông báo hệ thống hoạt động bình thường.',
+    'settings.general_saved': 'Đã lưu cài đặt chung thành công.',
     'odoo.title': 'Odoo',
     'odoo.refresh': 'Kiểm tra',
     'odoo.open': 'Mở Odoo',
@@ -401,8 +409,16 @@ export const TRANSLATIONS = {
     'confirm.delete_leave': 'Are you sure you want to delete leave on {date}?',
 
     // Settings Tabs & Odoo
+    'settings.tab_general': 'General',
     'settings.tab_gitlab': 'GitLab',
     'settings.tab_odoo': 'Odoo',
+    'settings.notification_title': 'System notifications',
+    'settings.notification_hint': 'Test extension desktop notifications on this browser and device.',
+    'settings.btn_test_notification': 'Test notification',
+    'settings.notification_test_sent': 'Test notification sent.',
+    'settings.notification_denied': 'Notifications are blocked. Please enable notifications in your browser or OS settings.',
+    'settings.notification_test_message': 'System notifications are working properly.',
+    'settings.general_saved': 'General settings saved successfully.',
     'odoo.title': 'Odoo',
     'odoo.refresh': 'Refresh',
     'odoo.open': 'Open Odoo',

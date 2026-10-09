@@ -336,8 +336,7 @@ function render(data) {
   // 2. Week Card (Calculated strictly within current month)
   const weekStartStr = data.week?.start || data.range.weekStart;
   const weekEndStr = data.week?.end || data.range.weekEnd;
-  const isClamped = weekStartStr !== data.range.weekStart || weekEndStr !== data.range.weekEnd;
-  $('week-range').textContent = `${shortDay(weekStartStr)} – ${shortDay(addDays(weekEndStr, -1))}${isClamped ? t('card.in_month') : ''}`;
+  $('week-range').textContent = `${shortDay(weekStartStr)} – ${shortDay(addDays(weekEndStr, -1))}`;
   const weekStats = getTracked(data.week);
   $('week-hours').textContent = formatHours(weekStats.total);
   $('week-split-work').textContent = t('card.work', {hours: formatHours(weekStats.work)});

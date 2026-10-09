@@ -119,7 +119,7 @@ let noteDay = null;
 let currentBreakdownScope = null;
 let currentBreakdownDate = null;
 let odooSnapshot = {config: null, data: null};
-const odooControls = ['odoo-save', 'odoo-disconnect', 'odoo-url', 'odoo-reminders', 'odoo-auto-attendance', ...ODOO_TIMES.map((_, i) => `odoo-time-${i}`)];
+const odooControls = ['odoo-save', 'odoo-disconnect', 'odoo-lock', 'odoo-url', 'odoo-reminders', 'odoo-auto-attendance', ...ODOO_TIMES.map((_, i) => `odoo-time-${i}`)];
 
 // Initialize default date
 const requestedNote = new URLSearchParams(location.search).get('note');
@@ -1635,6 +1635,12 @@ $('odoo-form')?.addEventListener('submit', (event) => {
     showToast(t('toast.odoo_connected'), 'success');
   });
 });
+$('odoo-lock').addEventListener('click', () => void act(async () => {
+  odooSnapshot = await send({type: 'odoo.lock'});
+  renderOdooAutomation(true);
+  renderOdoo();
+  showToast(t('odoo.automation_locked'), 'success');
+}));
 $('odoo-disconnect')?.addEventListener('click', () => void act(async () => {
   odooSnapshot = await send({type: 'odoo.disconnect'});
   renderOdoo();

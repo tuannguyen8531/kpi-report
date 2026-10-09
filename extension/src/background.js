@@ -234,6 +234,17 @@ export async function handleMessage(message) {
       await chrome.alarms.create(ODOO_ALARM, {periodInMinutes: SYNC_MINUTES});
       return refreshOdoo();
     }
+    case 'odoo.lock': {
+      await chrome.storage.local.remove('odooAutomationUnlocked');
+      const {odooConfig} = await chrome.storage.local.get('odooConfig');
+      if (odooConfig) {
+        odooConfig.autoAttendance = false;
+        delete odooConfig.autoEmployeeId;
+        await chrome.storage.local.set({odooConfig});
+      }
+      if (!odooConfig?.reminders) await chrome.alarms.clear(ODOO_REMINDER_ALARM);
+      return handleMessage({type: 'odoo.settings'});
+    }
     case 'odoo.refresh': return refreshOdoo();
     case 'odoo.disconnect': {
       await chrome.storage.local.remove(['odooConfig', 'odooData']);

@@ -348,9 +348,21 @@ test('attendance unlock consumes exact codes, preserves notes and persists acros
     assert.equal(writes, 1);
     await handleMessage({type: 'note.unlock', day, profile, text: code});
     assert.equal(local.odooConfig.autoAttendance, true);
-    delete local.odooAutomationUnlocked;
+    const locked = await handleMessage({type: 'odoo.lock'});
+    assert.equal(locked.automationUnlocked, false);
+    assert.equal(locked.config.autoAttendance, false);
+    assert.equal(local.odooAutomationUnlocked, undefined);
+    assert.equal(local.odooConfig.autoEmployeeId, undefined);
+    assert.equal(writes, 1);
+    session = {};
     assert.equal((await handleMessage({type: 'odoo.settings'})).automationUnlocked, false);
-    assert.equal((await handleMessage({type: 'odoo.settings'})).config.autoAttendance, false);
+    await refreshOdoo(new Date('2026-10-09T08:30:00+07:00'), true);
+    assert.equal(writes, 1);
+    await assert.rejects(handleMessage({type: 'odoo.connect', config: {url: ODOO_URL, autoAttendance: true}}), /Unlock/);
+    await handleMessage({type: 'note.unlock', day, profile, text: code});
+    assert.equal((await handleMessage({type: 'odoo.settings'})).automationUnlocked, true);
+    assert.equal(local.odooConfig.autoAttendance, false);
+    assert.equal(local.profiles[profile].notes[day], note);
   } finally {globalThis.fetch = fetchOriginal; crypto.subtle.deriveBits = deriveOriginal;}
 });
 

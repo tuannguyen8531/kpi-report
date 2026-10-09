@@ -187,7 +187,8 @@ button, input, textarea, select {
 .btn-block {
   width: 100%;
 }
-.btn:disabled {
+.btn:disabled,
+.btn-icon:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   pointer-events: none;
@@ -1345,6 +1346,31 @@ select.select-input:focus {
   font-weight: 700;
   color: var(--ink);
   display: block;
+}
+
+.odoo-auto-attendance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.odoo-lock-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.odoo-lock-btn:hover {
+  color: var(--ink);
+  background-color: #f1f5f9;
+  border-color: var(--border-strong);
+}
+
+.odoo-lock-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .odoo-times-grid {

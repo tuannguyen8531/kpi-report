@@ -48,6 +48,12 @@ Only the token owner's timelogs are counted, across all detected projects unless
 
 Sync may be delayed while the browser is closed or the device is asleep. A failed sync preserves cached data and displays an error; exports require a successful sync.
 
+## Work outside GitLab
+
+In **Timelog**, expand **Add work outside GitLab** and enter a date, work name, and hours (greater than 0, up to 24 per entry). Entries have no project, category, estimate, or GitLab status. Use **Edit** / **Delete** on each manual entry to maintain it. They are stored locally per GitLab account/server and can be edited without a token or network connection after setup.
+
+Manual hours count as work in the daily/weekly/monthly totals and Spent/192h. Monthly reports and direct Excel exports combine entries with the same name into one row under **Công việc ngoài GitLab**, summing only that month's hours. Names are trimmed and Unicode-normalized; letter case is preserved. Estimates stay blank. In Excel, these rows count as planned work and are separate from OFF. Manual entries are included in the existing JSON backup/restore alongside leave; old leave-only backups still work. Refresh the monthly task summary after edits.
+
 ## Note reminders
 
 In **Settings**, enable **Daily note reminders** and choose a **Reminder time** (Vietnam, UTC+7). Reminders are enabled by default at 10:00. Only saved, nonempty notes for today and the connected account trigger a notification, once per day per account. Click the notification to open that day's note.
@@ -60,9 +66,9 @@ After updating an unpacked installation, reload the extension at `chrome://exten
 
 ## Data and privacy
 
-Settings, cached timelogs, leave, and notes stay in local extension storage. Tokens are session-only by default; **Remember token** stores the token locally across browser sessions, without encryption or Chrome account sync.
+Settings, cached timelogs, manual work, leave, and notes stay in local extension storage. Tokens are session-only by default; **Remember token** stores the token locally across browser sessions, without encryption or Chrome account sync.
 
-Leave and notes are separated by GitLab account and server. Leave backups contain no token and can only be restored to the matching account and server; conflicting entries reject the restore. Notes are excluded from backups and reports.
+Manual work, leave and notes are separated by GitLab account and server. Leave backups contain no token and can only be restored to the matching account and server; conflicting entries reject the restore. Notes are excluded from backups and reports.
 
 Back up leave before removing the extension or changing browser profiles. Uninstalling removes local data; original timelogs remain on GitLab.
 

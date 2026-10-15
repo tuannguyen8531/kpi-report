@@ -630,13 +630,97 @@
         <div class="panel-header">
           <div>
             <h2 id="heading-logs" class="panel-title" data-i18n="logs.title">Timelog details</h2>
-            <span class="panel-subtitle" data-i18n="logs.subtitle">Timelogs from GitLab</span>
+            <span class="panel-subtitle" data-i18n="logs.subtitle">GitLab work, work outside GitLab and leave</span>
           </div>
           <label class="filter-switch">
             <input id="day-only" type="checkbox">
             <span class="switch-label" data-i18n="logs.day_only">Selected day only</span>
           </label>
         </div>
+
+        <details id="manual-editor" class="manual-editor-card">
+          <summary class="manual-summary">
+            <div class="manual-summary-left">
+              <span class="manual-summary-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="summary-svg">
+                  <path d="M12 5v14M5 12h14"></path>
+                </svg>
+              </span>
+              <strong id="manual-summary-title" class="manual-summary-text" data-i18n="manual.add">Add work outside GitLab</strong>
+            </div>
+            <span class="manual-summary-chevron">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron-svg">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </span>
+          </summary>
+
+          <form id="manual-form" class="manual-form-body">
+            <div class="form-group">
+              <label for="manual-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                <span data-i18n="manual.title">Work name</span>
+              </label>
+              <input id="manual-title" type="text" maxlength="500" required class="input-field" data-i18n-placeholder="manual.title_placeholder" placeholder="Client meeting, research, internal tasks…">
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="manual-day">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <span data-i18n="manual.day">Date</span>
+                </label>
+                <input id="manual-day" type="date" required class="input-field">
+              </div>
+
+              <div class="form-group">
+                <label for="manual-hours">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="label-icon">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  <span data-i18n="manual.hours">Hours</span>
+                </label>
+                <input id="manual-hours" type="number" min="0.01" max="24" step="any" required class="input-field" placeholder="1.0">
+              </div>
+            </div>
+
+            <div class="manual-preset-row">
+              <span class="manual-preset-label" data-i18n="manual.quick_hours">Quick hours:</span>
+              <div class="manual-preset-chips">
+                <button type="button" class="preset-chip-sm" data-hours="1">1h</button>
+                <button type="button" class="preset-chip-sm" data-hours="2">2h</button>
+                <button type="button" class="preset-chip-sm" data-hours="4">4h</button>
+                <button type="button" class="preset-chip-sm" data-hours="8">8h</button>
+              </div>
+            </div>
+
+            <div class="manual-form-actions">
+              <button id="manual-save" type="submit" class="btn btn-primary btn-sm btn-icon-text">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-mini-icon">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span id="manual-save-text" data-i18n="manual.save">Save</span>
+              </button>
+              <button id="manual-delete" type="button" class="btn btn-secondary btn-sm btn-icon-text btn-action-danger" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span data-i18n="manual.delete">Delete</span>
+              </button>
+              <button id="manual-cancel" type="button" class="btn btn-secondary btn-sm" data-i18n="manual.cancel">Cancel</button>
+            </div>
+          </form>
+        </details>
 
         <div class="logs-filter-bar">
           <div class="search-input-wrap">
@@ -679,7 +763,7 @@
               <strong id="report-month-title" class="meta-value">—</strong>
             </div>
             <div class="report-meta-item">
-              <span class="meta-label" data-i18n="report.work_hours">GitLab hours</span>
+              <span class="meta-label" data-i18n="report.work_hours">Work hours</span>
               <strong id="report-work-hours" class="meta-value color-blue">—</strong>
             </div>
             <div class="report-meta-item">
@@ -769,7 +853,7 @@
           <div id="report-tasks-empty-box" class="report-tasks-empty-card" hidden>
             <div class="empty-icon">📭</div>
             <div class="empty-title" data-i18n="report.tasks_empty">No tasks in the selected month.</div>
-            <div class="empty-desc" data-i18n="report.tasks_empty_sub">No GitLab work timelogs found in this month.</div>
+            <div class="empty-desc" data-i18n="report.tasks_empty_sub">No work timelogs found in this month.</div>
           </div>
 
           <!-- Mini KPI Stats Banner -->
@@ -1177,7 +1261,7 @@
             <div class="breakdown-col-header">
               <span class="col-icon">💼</span>
               <div>
-                <strong data-i18n="breakdown.work_card">Work hours (GitLab)</strong>
+                <strong data-i18n="breakdown.work_card">Work hours</strong>
                 <span class="col-sub" data-i18n="breakdown.work_sub">Logged on issues/MRs</span>
               </div>
             </div>

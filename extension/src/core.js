@@ -1,5 +1,6 @@
 // Pure date, timelog and export operations, shared by the worker and tests.
 export const SYNC_MINUTES = 30;
+export const MANUAL_PROJECT = 'Công việc ngoài GitLab';
 export const TIMELOG_QUERY = `query($username: String!, $start: Time!, $end: Time!, $after: String) {
   timelogs(username: $username, startTime: $start, endTime: $end, first: 100, after: $after) {
     nodes {
@@ -127,10 +128,26 @@ export function validateLeave(input) {
   return {day: input.day, hours, reason};
 }
 
-export function makeSnapshot(day, cache, leaves) {
-  const range = periods(day), rows = cache?.logs || [];
+export function validateManualEntry(input) {
+  parseDay(input?.day);
+  const title = typeof input.title === 'string' ? input.title.trim().normalize('NFC') : '';
+  const hours = Number(input.hours);
+  if (!title || title.length > 500) throw new Error('Work name must contain 1–500 characters.');
+  if (!Number.isFinite(hours) || hours <= 0 || hours > 24) throw new Error('Work hours must be greater than 0 and no more than 24.');
+  return {day: input.day, title, hours};
+}
+
+export function makeSnapshot(day, cache, leaves, manualEntries = []) {
+  const range = periods(day);
+  const manualLogs = manualEntries.map(entry => ({
+    id: `manual-${entry.id}`, manualId: entry.id, date: entry.day,
+    project: MANUAL_PROJECT, projectPath: null, task: entry.title, title: entry.title,
+    type: 'MANUAL', hours: entry.hours, url: null, state: null, estimateHours: null, summary: '',
+  }));
+  const rows = [...(cache?.logs || []), ...manualLogs].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
   const total = (start, end) => ({
-    hours: cache ? rows.filter((row) => row.date >= start && row.date < end).reduce((sum, row) => sum + row.hours, 0) : null,
+    hours: cache || manualLogs.some(row => row.date >= start && row.date < end)
+      ? rows.filter((row) => row.date >= start && row.date < end).reduce((sum, row) => sum + row.hours, 0) : null,
     leaveHours: leaves.filter((row) => row.day >= start && row.day < end).reduce((sum, row) => sum + row.hours, 0),
   });
   const days = [];

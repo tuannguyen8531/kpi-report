@@ -1898,6 +1898,270 @@ select.select-input:focus {
   flex: 1;
   min-width: 0;
 }
+/* Manual Work Outside GitLab Editor Card */
+.manual-editor-card {
+  margin-bottom: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.manual-editor-card:hover {
+  border-color: var(--border-strong);
+}
+
+.manual-editor-card[open] {
+  border-color: var(--primary-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.manual-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  background: #ffffff;
+  transition: background 0.15s ease;
+  list-style: none;
+}
+
+.manual-summary::-webkit-details-marker {
+  display: none;
+}
+
+.manual-summary:hover {
+  background: #f8fafc;
+}
+
+.manual-editor-card[open] .manual-summary {
+  border-bottom: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.manual-summary-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.manual-summary-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  background: #f5f3ff;
+  color: #7c3aed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.manual-summary-icon .summary-svg {
+  width: 14px;
+  height: 14px;
+}
+
+.manual-summary-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.manual-summary-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.manual-summary-chevron .chevron-svg {
+  width: 16px;
+  height: 16px;
+}
+
+.manual-editor-card[open] .manual-summary-chevron {
+  transform: rotate(180deg);
+  color: #7c3aed;
+}
+
+.manual-form-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #ffffff;
+}
+
+.manual-preset-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: -2px;
+}
+
+.manual-preset-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.manual-preset-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preset-chip-sm {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+.preset-chip-sm:hover {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+
+.preset-chip-sm.active {
+  background: #7c3aed;
+  color: #ffffff;
+  border-color: #7c3aed;
+  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.3);
+}
+
+.manual-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Log Card Left Border Accents by Source Type */
+.log-card.log-card-gitlab {
+  border-left: 3.5px solid var(--primary);
+}
+
+.log-card.log-card-leave {
+  border-left: 3.5px solid var(--amber);
+  background: #fffdf9;
+}
+
+.log-card.log-card-leave:hover {
+  background: #fffbeb;
+}
+
+/* Log Card Manual Variant (Clean background, Purple Accent) */
+.log-card.log-card-manual {
+  border-left: 3.5px solid #7c3aed;
+  background: #fdfdfd;
+}
+
+.log-card.log-card-manual:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.log-card.log-card-manual.is-editing {
+  background: #faf5ff !important;
+  border-color: #c4b5fd !important;
+  border-left-color: #7c3aed !important;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.tag-project-manual {
+  background: #f5f3ff;
+  color: #7c3aed;
+  font-weight: 600;
+  border: 1px solid #ddd6fe;
+}
+
+.tag-manual {
+  background: #f5f3ff;
+  color: #6d28d9;
+  font-weight: 700;
+  border: 1px solid #ddd6fe;
+}
+
+.log-hours-manual {
+  color: #6d28d9;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
+.manual-editing-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #7c3aed;
+  background: #f5f3ff;
+  border: 1px dashed #c4b5fd;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  animation: pulseEdit 2s infinite ease-in-out;
+}
+
+@keyframes pulseEdit {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.manual-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.log-card:hover .manual-edit-btn,
+.manual-edit-btn:hover,
+.manual-edit-btn:focus-visible {
+  opacity: 1;
+}
+
+.manual-edit-btn:hover {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+
+.manual-edit-btn .btn-mini-icon {
+  width: 12.5px;
+  height: 12.5px;
+}
+
+.btn-action-danger:hover {
+  color: var(--danger) !important;
+  border-color: var(--danger-border) !important;
+  background-color: var(--danger-soft) !important;
+}
 .log-tags {
   display: flex;
   align-items: center;
@@ -1929,13 +2193,6 @@ select.select-input:focus {
 .tag-date {
   font-size: 10.5px;
   color: var(--muted);
-}
-.log-card.log-card-leave {
-  border-left: 3px solid var(--amber);
-  background: #fffdf9;
-}
-.log-card.log-card-leave:hover {
-  background: #fffbeb;
 }
 .log-title-row {
   display: flex;

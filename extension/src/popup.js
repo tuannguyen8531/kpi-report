@@ -114,6 +114,8 @@ let currentConfig = null;
 let monthlyReport = null;
 let monthlyReportKey = null;
 let editingLeaveId = null;
+let editingManualId = null;
+let manualProfile = null;
 let busy = false;
 let activeTab = 'calendar';
 const noteDrafts = new Map();
@@ -128,6 +130,7 @@ const requestedNote = new URLSearchParams(location.search).get('note');
 const initialToday = requestedNote && /^\d{4}-\d{2}-\d{2}$/.test(requestedNote) ? requestedNote : today();
 $('anchor').value = initialToday;
 $('leave-day').value = initialToday;
+$('manual-day').value = initialToday;
 
 /**
  * Toast Notification system
@@ -174,7 +177,7 @@ async function act(action) {
     'anchor', 'btn-today', 'btn-prev-day', 'btn-next-day',
     'btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'connect',
     'leave-save', 'btn-onboarding-submit', 'day-note-save', 'day-note', 'day-note-clear',
-    'btn-save-general', 'btn-test-notification', ...odooControls
+    'btn-save-general', 'btn-test-notification', 'manual-save', 'manual-delete', ...odooControls
   ];
   for (const id of interactiveElements) {
     const el = $(id);
@@ -189,7 +192,7 @@ async function act(action) {
     busy = false;
     if (syncBtn) syncBtn.classList.remove('is-syncing');
 
-    const restoreElements = ['anchor', 'btn-today', 'btn-prev-day', 'btn-next-day', 'connect', 'btn-onboarding-submit', 'btn-save-general', 'btn-test-notification', ...odooControls];
+    const restoreElements = ['anchor', 'btn-today', 'btn-prev-day', 'btn-next-day', 'connect', 'btn-onboarding-submit', 'btn-save-general', 'btn-test-notification', 'manual-save', 'manual-delete', ...odooControls];
     for (const id of restoreElements) {
       const el = $(id);
       if (el) el.disabled = false;
@@ -227,6 +230,9 @@ function selectDay(dayStr) {
   $('anchor').value = dayStr;
   if (!editingLeaveId) {
     $('leave-day').value = dayStr;
+  }
+  if (!editingManualId && $('manual-day')) {
+    $('manual-day').value = dayStr;
   }
   void act(() => reload());
 }
@@ -269,7 +275,8 @@ async function restoreMonthlyReportCache(expectedKey) {
   try {
     if (typeof chrome === 'undefined' || !chrome.storage?.session) return;
     const res = await chrome.storage.session.get('monthlyReportCache');
-    if (res.monthlyReportCache?.key === expectedKey && res.monthlyReportCache.data) {
+    const currentKey = `${snapshot?.profile}|${snapshot?.date?.slice(0, 7)}|${snapshot?.syncedAt}|${snapshot?.manualRevision || ''}`;
+    if (expectedKey === currentKey && res.monthlyReportCache?.key === expectedKey && res.monthlyReportCache.data) {
       monthlyReport = res.monthlyReportCache.data;
       monthlyReportKey = expectedKey;
       renderMonthlyReport();
@@ -280,8 +287,9 @@ async function restoreMonthlyReportCache(expectedKey) {
 }
 
 function render(data) {
+  if (snapshot?.profile !== data.profile) resetManualForm();
   snapshot = data;
-  const expectedKey = `${data.profile}|${data.date?.slice(0, 7)}|${data.syncedAt}`;
+  const expectedKey = `${data.profile}|${data.date?.slice(0, 7)}|${data.syncedAt}|${data.manualRevision || ''}`;
   if (monthlyReportKey !== expectedKey) {
     monthlyReport = null;
     monthlyReportKey = null;
@@ -561,6 +569,75 @@ function renderCalendar(data) {
 /**
  * Render Timelog list (includes both GitLab work logs and OFF leave records)
  */
+function resetManualForm() {
+  editingManualId = null;
+  manualProfile = null;
+  $('manual-form')?.reset();
+  if ($('manual-day')) $('manual-day').value = $('anchor')?.value || today();
+  const summaryTitle = $('manual-summary-title');
+  if (summaryTitle) summaryTitle.textContent = t('manual.add');
+  const saveText = $('manual-save-text');
+  if (saveText) saveText.textContent = t('manual.save');
+  const deleteBtn = $('manual-delete');
+  if (deleteBtn) deleteBtn.hidden = true;
+  const editor = $('manual-editor');
+  if (editor) editor.open = false;
+  document.querySelectorAll('.preset-chip-sm').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.log-card-manual.is-editing').forEach(c => c.classList.remove('is-editing'));
+}
+
+$('manual-editor')?.addEventListener('toggle', () => {
+  if ($('manual-editor').open && !editingManualId) {
+    manualProfile = snapshot?.profile;
+    $('manual-day').value = $('anchor').value;
+  }
+});
+
+$('manual-cancel')?.addEventListener('click', resetManualForm);
+
+$('manual-delete')?.addEventListener('click', () => {
+  if (!editingManualId || busy) return;
+  if (typeof confirm === 'function' && !confirm(t('manual.confirm_delete'))) return;
+  const idToDelete = editingManualId;
+  const profile = manualProfile || snapshot?.profile;
+  void act(async () => {
+    await send({type: 'manual.delete', id: idToDelete, profile});
+    resetManualForm();
+    await reload();
+    showToast(t('manual.delete_success'), 'success');
+  });
+});
+
+document.querySelectorAll('.preset-chip-sm').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const hoursInput = $('manual-hours');
+    if (hoursInput) {
+      hoursInput.value = btn.dataset.hours;
+      hoursInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    document.querySelectorAll('.preset-chip-sm').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+$('manual-hours')?.addEventListener('input', () => {
+  const val = $('manual-hours').value;
+  document.querySelectorAll('.preset-chip-sm').forEach(b => {
+    b.classList.toggle('active', b.dataset.hours === val);
+  });
+});
+
+$('manual-form')?.addEventListener('submit', event => {
+  event.preventDefault();
+  void act(async () => {
+    const entry = {day: $('manual-day').value, title: $('manual-title').value, hours: $('manual-hours').value};
+    await send({type: 'manual.save', id: editingManualId, profile: manualProfile, entry});
+    resetManualForm();
+    await reload();
+    showToast(t('manual.saved'), 'success');
+  });
+});
+
 function renderLogs() {
   const listEl = $('logs-list');
   const emptyEl = $('logs-empty');
@@ -613,8 +690,10 @@ function renderLogs() {
   emptyEl.hidden = true;
 
   for (const log of filtered) {
+    const isEditingThis = editingManualId === log.manualId;
     const card = document.createElement('div');
-    card.className = `log-card ${log.isLeave ? 'log-card-leave' : ''}`;
+    const sourceClass = log.isLeave ? 'log-card-leave' : (log.type === 'MANUAL' ? 'log-card-manual' : 'log-card-gitlab');
+    card.className = `log-card ${sourceClass} ${isEditingThis ? 'is-editing' : ''}`;
 
     const main = document.createElement('div');
     main.className = 'log-main';
@@ -623,13 +702,16 @@ function renderLogs() {
     tagsRow.className = 'log-tags';
 
     const projectTag = document.createElement('span');
-    projectTag.className = `tag-project ${log.isLeave ? 'tag-project-off' : ''}`;
-    projectTag.textContent = log.project;
+    projectTag.className = `tag-project ${log.isLeave ? 'tag-project-off' : ''} ${log.type === 'MANUAL' ? 'tag-project-manual' : ''}`;
+    projectTag.textContent = log.type === 'MANUAL' ? t('manual.project') : log.project;
 
     const typeTag = document.createElement('span');
     let typeClass = 'tag-task';
     let typeText = `#${log.task}`;
-    if (log.type === 'MR') {
+    if (log.type === 'MANUAL') {
+      typeClass = 'tag-manual';
+      typeText = t('manual.badge');
+    } else if (log.type === 'MR') {
       typeClass = 'tag-mr';
       typeText = `MR !${log.task}`;
     } else if (log.type === 'OFF') {
@@ -647,10 +729,17 @@ function renderLogs() {
 
     tagsRow.append(projectTag, typeTag, dateTag);
 
+    if (isEditingThis) {
+      const editTag = document.createElement('span');
+      editTag.className = 'manual-editing-tag';
+      editTag.textContent = `✎ ${t('manual.editing_title')}`;
+      tagsRow.appendChild(editTag);
+    }
+
     const titleRow = document.createElement('div');
     titleRow.className = 'log-title-row';
 
-    if (!log.isLeave) {
+    if (!log.isLeave && log.type !== 'MANUAL') {
       const stateTag = document.createElement('span');
       const state = ['opened', 'closed', 'merged', 'locked'].includes(log.state) ? log.state : 'unknown';
       stateTag.className = `tag-type tag-state-${state}`;
@@ -669,6 +758,44 @@ function renderLogs() {
     }
 
     titleRow.prepend(titleEl);
+
+    if (log.type === 'MANUAL') {
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'manual-edit-btn';
+      editBtn.title = t('manual.edit');
+      editBtn.setAttribute('aria-label', t('manual.edit'));
+      editBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (busy) return;
+        editingManualId = log.manualId;
+        manualProfile = snapshot?.profile;
+        if ($('manual-day')) $('manual-day').value = log.date;
+        if ($('manual-title')) $('manual-title').value = log.title;
+        if ($('manual-hours')) $('manual-hours').value = log.hours;
+        const val = String(log.hours);
+        document.querySelectorAll('.preset-chip-sm').forEach(b => {
+          b.classList.toggle('active', b.dataset.hours === val);
+        });
+        const summaryTitle = $('manual-summary-title');
+        if (summaryTitle) summaryTitle.textContent = `${t('manual.editing_title')}: ${log.title}`;
+        const saveText = $('manual-save-text');
+        if (saveText) saveText.textContent = t('manual.update');
+        const deleteBtn = $('manual-delete');
+        if (deleteBtn) deleteBtn.hidden = false;
+        const editor = $('manual-editor');
+        if (editor) {
+          editor.open = true;
+          editor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        $('manual-title')?.focus();
+        document.querySelectorAll('.log-card-manual').forEach(c => c.classList.remove('is-editing'));
+        card.classList.add('is-editing');
+      });
+      titleRow.appendChild(editBtn);
+    }
+
     main.append(tagsRow, titleRow);
 
     if (log.summary && !log.isLeave) {
@@ -682,6 +809,8 @@ function renderLogs() {
     let hoursClass = 'log-hours-pill';
     if (log.isLeave) {
       hoursClass += ' log-hours-off';
+    } else if (log.type === 'MANUAL') {
+      hoursClass += ' log-hours-manual';
     } else if (log.hours < 0) {
       hoursClass += ' log-hours-negative';
     }
@@ -817,7 +946,7 @@ function updateProjectFilterOptions() {
   for (const p of [...projects].sort()) {
     const opt = document.createElement('option');
     opt.value = p;
-    opt.textContent = p;
+    opt.textContent = (snapshot?.logs || []).some(log => log.project === p && log.type === 'MANUAL') ? t('manual.project') : p;
     select.appendChild(opt);
   }
 
@@ -1152,7 +1281,8 @@ function renderMonthlyReport() {
       const ratio = estimate > 0 ? task.Spent / estimate : null;
       if (ratio > 1) row.dataset.over = 'true';
 
-      const values = [projectName(block.project), `${task.Type === 'MR' ? 'MR !' : '#'}${task.Task} · ${task.Title}`,
+      const values = [task.Type === 'MANUAL' ? t('manual.project') : projectName(block.project),
+        task.Type === 'MANUAL' ? task.Title : `${task.Type === 'MR' ? 'MR !' : '#'}${task.Task} · ${task.Title}`,
         formatHours(task.Spent), estimate > 0 ? formatHours(estimate) : '—',
         ratio === null ? '—' : `${new Intl.NumberFormat(currentLang, {maximumFractionDigits: 1}).format(ratio * 100)}%`];
       values.forEach((value, index) => {
@@ -1254,7 +1384,7 @@ $('report-load-tasks').addEventListener('click', () => void act(async () => {
     await reload();
     if (snapshot?.profile === profile && snapshot.date.slice(0, 7) === day.slice(0, 7)) {
       monthlyReport = report;
-      monthlyReportKey = `${profile}|${day.slice(0, 7)}|${snapshot.syncedAt}`;
+      monthlyReportKey = `${profile}|${day.slice(0, 7)}|${snapshot.syncedAt}|${snapshot.manualRevision || ''}`;
       try {
         if (typeof chrome !== 'undefined' && chrome.storage?.session) {
           await chrome.storage.session.set({
@@ -1634,7 +1764,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
     noteText = t('breakdown.note_day', {day: shortDay(activeDate)});
 
     workItems = (snapshot.logs || []).filter((log) => log.date === activeDate).map((log) => ({
-      title: `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
+      title: log.type === 'MANUAL' ? log.title : `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
       meta: log.project,
       hours: log.hours,
       url: log.url || null,
@@ -1655,7 +1785,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
     noteText = t('breakdown.note_week', {month: snapshot.date.slice(5, 7), year: snapshot.date.slice(0, 4)});
 
     workItems = (snapshot.logs || []).filter((log) => log.date >= startStr && log.date < endStr).map((log) => ({
-      title: `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
+      title: log.type === 'MANUAL' ? log.title : `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
       meta: `${shortDay(log.date)} · ${log.project}`,
       hours: log.hours,
       url: log.url || null,
@@ -1674,7 +1804,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
     noteText = t('breakdown.note_month', {month: snapshot.date.slice(5, 7), year: snapshot.date.slice(0, 4)});
 
     workItems = (snapshot.logs || []).map((log) => ({
-      title: `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
+      title: log.type === 'MANUAL' ? log.title : `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
       meta: `${shortDay(log.date)} · ${log.project}`,
       hours: log.hours,
       url: log.url || null,

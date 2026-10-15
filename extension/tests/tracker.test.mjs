@@ -1272,3 +1272,93 @@ test('monthly report renders Excel task totals, ratios and missing estimates saf
   assert.equal(ids['report-tasks-table'].hidden, true);
   assert.equal(ids['report-tasks-body'].children.length, 0);
 });
+
+test('manual work persists locally, groups equal names in monthly Excel and counts as work rather than OFF', async () => {
+  await connect();
+  const profile = local.config.profile;
+  const save = entry => handleMessage({type: 'manual.save', profile, entry});
+  await save({day, title: '  Giao tiếp khách hàng  ', hours: 2});
+  await save({day: '2026-10-02', title: 'Giao tiếp khách hàng'.normalize('NFD'), hours: 3});
+  await save({day: '2026-09-30', title: 'Giao tiếp khách hàng', hours: 7});
+  await save({day, title: 'Nhân sự', hours: 1.5});
+  const snapshot = await handleMessage({type: 'snapshot', day});
+  assert.equal(snapshot.day.hours, 4.5); // 1 GitLab + 2 client work + 1.5 HR
+  assert.equal(snapshot.month.hours, 7.5);
+  assert.equal(snapshot.day.leaveHours, 0);
+  assert.equal(snapshot.logs.filter(log => log.type === 'MANUAL').length, 3);
+  const revision = snapshot.manualRevision;
+  const csv = exportCsv(snapshot);
+  assert.ok(csv.includes('"Công việc ngoài GitLab","Giao tiếp khách hàng","MANUAL","2"'));
+
+  replyPages.push(page([log('one', '2026-10-01T01:00:00Z')]));
+  const report = await handleMessage({type: 'export_excel_data', day});
+  const manualBlock = report.projectBlocks.find(block => block.project === 'Công việc ngoài GitLab');
+  assert.equal(manualBlock.tasks.length, 2);
+  const client = manualBlock.tasks.find(task => task.Title === 'Giao tiếp khách hàng');
+  assert.equal(client.Spent, 5);
+  assert.equal(client.Estimate, '');
+  assert.equal(client.Url, '');
+  assert.equal(report.stats.totalTasks, 3);
+  assert.equal(report.stats.totalSpent, 7.5);
+  assert.deepEqual(report.offEntries, []);
+  assert.ok(fetches.filter(request => request.query.includes('workItems')).every(request => request.variables.fullPath === 'group/a'));
+
+  const template = fs.readFileSync(new URL('../assets/templates/work_report.xlsx', import.meta.url));
+  const bytes = await generateExcelWorkbook(template, report, ExcelJS);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(bytes);
+  const sheet = workbook.getWorksheet('Báo cáo công việc');
+  const clientRows = [];
+  sheet.eachRow(row => {if (row.getCell(2).value === 'Giao tiếp khách hàng') clientRows.push(row);});
+  assert.equal(clientRows.length, 1);
+  const clientRow = clientRows[0];
+  assert.equal(clientRow.getCell(6).value, null); // Estimate
+  assert.equal(clientRow.getCell(7).value, 5); // Spent
+  assert.equal(clientRow.getCell(9).value, 'Kế hoạch');
+  assert.ok(Number(sheet.getCell('M10').value.formula.match(/G(\d+)\)$/)[1]) >= clientRow.number);
+
+  const entry = local.profiles[profile].manualEntries[0];
+  const before = fetches.length;
+  session = {}; // Expired token must not prevent local edits.
+  await handleMessage({type: 'manual.save', profile, id: entry.id, entry: {day, title: 'Khách hàng', hours: 4}});
+  assert.equal(fetches.length, before);
+  const updated = await handleMessage({type: 'snapshot', day});
+  assert.equal(updated.month.hours, 9.5);
+  assert.notEqual(updated.manualRevision, revision);
+  await handleMessage({type: 'manual.delete', profile, id: entry.id});
+  assert.equal((await handleMessage({type: 'snapshot', day})).month.hours, 5.5);
+  await connect();
+  assert.equal((await handleMessage({type: 'snapshot', day})).month.hours, 5.5);
+});
+
+test('manual work rejects invalid input and stale accounts; backups restore atomically without duplicates', async () => {
+  await connect();
+  const profile = local.config.profile;
+  const save = entry => handleMessage({type: 'manual.save', profile, entry});
+  for (const entry of [null, {day: 'bad', title: 'Work', hours: 1}, {day, title: ' ', hours: 1},
+    {day, title: 'x'.repeat(501), hours: 1}, ...[0, -1, 25, NaN, Infinity].map(hours => ({day, title: 'Work', hours}))]) {
+    await assert.rejects(save(entry));
+  }
+  await assert.rejects(handleMessage({type: 'manual.save', profile: 'other', entry: {day, title: 'Work', hours: 1}}));
+  await assert.rejects(handleMessage({type: 'manual.delete', profile, id: 'missing'}));
+  await save({day, title: 'Work', hours: 1});
+  const backup = await handleMessage({type: 'backup'});
+  assert.equal(backup.manualEntries.length, 1);
+  assert.equal(JSON.stringify(backup).includes('test-token'), false);
+  const entry = backup.manualEntries[0];
+  await handleMessage({type: 'manual.delete', profile, id: entry.id});
+  assert.equal((await handleMessage({type: 'restore', backup})).added, 1);
+  assert.equal((await handleMessage({type: 'restore', backup})).added, 0);
+  await assert.rejects(handleMessage({type: 'restore', backup: {...backup, profile: 'other'}}));
+  await assert.rejects(handleMessage({type: 'restore', backup: {...backup,
+    leaves: [{day, reason: 'Leave', hours: 8}], manualEntries: [{...entry, hours: 2}]}}));
+  assert.equal((await handleMessage({type: 'backup'})).leaves.length, 0);
+  assert.equal((await handleMessage({type: 'backup'})).manualEntries[0].hours, 1);
+  await handleMessage({type: 'restore', backup: {version: 1, profile, leaves: []}}); // Old backups remain valid.
+  assert.equal((await handleMessage({type: 'backup'})).manualEntries.length, 1);
+  local.config.profile = 'other';
+  local.profiles.other = {leaves: [], caches: {}};
+  replyPages.push(page([]));
+  assert.equal((await handleMessage({type: 'snapshot', day})).logs.length, 0);
+  await assert.rejects(handleMessage({type: 'manual.delete', profile, id: entry.id}));
+});

@@ -1,4 +1,4 @@
-import {SYNC_MINUTES, TIMELOG_QUERY, today, addDays, parseDay, periods, validateConfig, normalizeLogs, validateLeave, makeSnapshot, exportCsv} from './core.js';
+import {SYNC_MINUTES, TIMELOG_QUERY, today, addDays, parseDay, periods, validateConfig, normalizeLogs, validateLeave, validateManualEntry, makeSnapshot, exportCsv} from './core.js';
 import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel_generator.js';
 import {verifyAttendanceCode, validateOdooConfig, readAttendance, changeAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder} from './odoo.js';
 
@@ -293,10 +293,10 @@ async function synchronize(day, force = false) {
     await chrome.storage.local.set({profiles});
   }
   // A failed first fetch is unknown, not zero hours.
-  const snapshot = makeSnapshot(day, cache?.syncedAt ? cache : null, profile.leaves);
+  const snapshot = makeSnapshot(day, cache?.syncedAt ? cache : null, profile.leaves, profile.manualEntries);
   snapshot.error = cache?.error || null;
   const notes = Object.fromEntries(Object.entries(profile.notes || {}).filter(([date]) => date >= range.monthStart && date < range.monthEnd));
-  return {...snapshot, notes, profile: config.profile, configured: true, username: config.username, needsToken: !token};
+  return {...snapshot, notes, manualRevision: profile.manualRevision || '', profile: config.profile, configured: true, username: config.username, needsToken: !token};
 }
 
 export async function handleMessage(message) {
@@ -409,6 +409,25 @@ export async function handleMessage(message) {
       await remindDailyNote();
       return {saved: true};
     }
+    case 'manual.save':
+    case 'manual.delete': {
+      const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
+      if (!config?.profile || message.profile !== config.profile) throw new Error('Your account has changed. Reopen Timelog to edit work.');
+      const profile = profiles[config.profile];
+      const entries = profile.manualEntries || [];
+      if (message.id && !entries.some(entry => entry.id === message.id)) throw new Error('The work entry was not found.');
+      if (message.type === 'manual.delete') {
+        if (!message.id) throw new Error('Choose a work entry to delete.');
+        profile.manualEntries = entries.filter(entry => entry.id !== message.id);
+      } else {
+        const entry = {...validateManualEntry(message.entry), id: message.id || crypto.randomUUID()};
+        profile.manualEntries = [...entries.filter(row => row.id !== entry.id), entry];
+      }
+      profile.manualRevision = crypto.randomUUID();
+      profiles[config.profile] = profile;
+      await chrome.storage.local.set({profiles});
+      return {saved: true};
+    }
     case 'leave.save': {
       const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
       if (!config?.profile) throw new Error('Connect to GitLab before adding leave.');
@@ -430,7 +449,8 @@ export async function handleMessage(message) {
     case 'backup': {
       const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
       if (!config?.profile) throw new Error('Connect an account before creating a backup.');
-      return {version: 1, profile: config.profile, leaves: profiles[config.profile].leaves};
+      return {version: 1, profile: config.profile, leaves: profiles[config.profile].leaves,
+        manualEntries: profiles[config.profile].manualEntries || []};
     }
     case 'restore': {
       const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
@@ -445,7 +465,18 @@ export async function handleMessage(message) {
         if (old && (old.hours !== entry.hours || old.reason !== entry.reason)) throw new Error(`A different leave entry already exists for ${entry.day}. No data was overwritten.`);
         if (!old) {byDay.set(entry.day, {...entry, id: crypto.randomUUID()}); added++;}
       }
+      if (backup.manualEntries !== undefined && !Array.isArray(backup.manualEntries)) throw new Error('Invalid work entries in backup.');
+      const manualEntries = new Map((profiles[config.profile].manualEntries || []).map(entry => [entry.id, entry]));
+      for (const input of backup.manualEntries || []) {
+        const entry = validateManualEntry(input);
+        if (typeof input.id !== 'string' || !input.id) throw new Error('Invalid work entry ID in backup.');
+        const old = manualEntries.get(input.id);
+        if (old && (old.day !== entry.day || old.title !== entry.title || old.hours !== entry.hours)) throw new Error('A different work entry already exists. No data was overwritten.');
+        if (!old) {manualEntries.set(input.id, {...entry, id: input.id}); added++;}
+      }
       profiles[config.profile].leaves = [...byDay.values()];
+      profiles[config.profile].manualEntries = [...manualEntries.values()];
+      profiles[config.profile].manualRevision = crypto.randomUUID();
       await chrome.storage.local.set({profiles});
       return {added};
     }
@@ -467,7 +498,7 @@ export async function handleMessage(message) {
 
       // Reuse the report generator's project mapping, discovered from this month's logs.
       const reportConfig = {...config, projects: config.projects?.length ? config.projects :
-        [...new Map(snapshot.logs.map((log) => [log.projectPath, {project: log.project, url: log.projectPath}])).values()]
+        [...new Map(snapshot.logs.filter(log => log.type !== 'MANUAL').map((log) => [log.projectPath, {project: log.project, url: log.projectPath}])).values()]
           .sort((a, b) => a.url.localeCompare(b.url))};
       const enrichmentMap = await enrichTasks(request, reportConfig, token, groupedTasks);
       const { projectBlocks, stats } = buildProjectData(groupedTasks, enrichmentMap, reportConfig);

@@ -1,3 +1,5 @@
+import {MANUAL_PROJECT} from './core.js';
+
 // Pure JavaScript implementation of KPI Excel report generation.
 // Equivalent to Python's kpi_report (processor.py, gitlab.py, report.py).
 
@@ -252,7 +254,7 @@ export async function enrichTasks(requestFn, config, token, tasks, onProgress = 
       const key = `${item.Project}:::${item.Task}:::${item.Type}`;
       const projectPath = urlMap.get(item.Project);
 
-      if (!projectPath || item.Project === 'OFF') {
+      if (!projectPath || item.Project === 'OFF' || item.Type === 'MANUAL') {
         enrichmentMap.set(key, { start_date: '', due_date: '', closed_date: '', estimate: '' });
         return;
       }
@@ -312,6 +314,7 @@ export async function enrichTasks(requestFn, config, token, tasks, onProgress = 
 export function buildProjectData(groupedProjects, enrichmentMap, config) {
   const urlMap = new Map((config.projects || []).map((p) => [p.project, p.url]));
   const projectOrder = (config.projects || []).map((p) => p.project).filter((p) => p !== 'OFF');
+  if (groupedProjects.some(row => row.Type === 'MANUAL') && !projectOrder.includes(MANUAL_PROJECT)) projectOrder.push(MANUAL_PROJECT);
 
   let totalTasks = 0;
   let totalSpent = 0.0;
@@ -453,7 +456,7 @@ export async function generateExcelWorkbook(templateBuffer, reportData, ExcelJS)
 
   let nextRow = 4;
 
-  function writeRow(values, styleRow) {
+  function writeRow(values, styleRow, hyperlink = true) {
     const row = sheet.getRow(nextRow);
     if (rowHeights[styleRow]) {
       row.height = rowHeights[styleRow];
@@ -468,7 +471,7 @@ export async function generateExcelWorkbook(templateBuffer, reportData, ExcelJS)
         if ((col === 3 || col === 4 || col === 5) && val instanceof Date) {
           cell.value = val;
           cell.numFmt = 'dd/mm/yyyy';
-        } else if (col === 2 && typeof val === 'string' && (val.startsWith('https://') || val.startsWith('http://'))) {
+        } else if (hyperlink && col === 2 && typeof val === 'string' && (val.startsWith('https://') || val.startsWith('http://'))) {
           cell.value = { text: val, hyperlink: val };
         } else {
           cell.value = val !== undefined ? val : null;
@@ -486,7 +489,7 @@ export async function generateExcelWorkbook(templateBuffer, reportData, ExcelJS)
       const parseNum = (n) => (n !== '' && n !== null && n !== undefined && !Number.isNaN(Number(n)) ? Number(n) : null);
 
       const values = [
-        item.Url || null,
+        item.Type === 'MANUAL' ? item.Title : item.Url || null,
         parseDate(item['Start date']),
         parseDate(item['Due date']),
         parseDate(item['Closed date']),
@@ -496,7 +499,7 @@ export async function generateExcelWorkbook(templateBuffer, reportData, ExcelJS)
         item['Task Type'] || DEFAULT_TASK_TYPE,
         item.Progress || DEFAULT_PROGRESS,
       ];
-      writeRow(values, 6);
+      writeRow(values, 6, item.Type !== 'MANUAL');
     }
   }
 

@@ -30,6 +30,31 @@ const log = (id, spentAt, seconds = 3600, extra = {}) => ({
   mergeRequest: null, summary: '', ...extra,
 });
 
+test('timelogs preserve current issue/MR states and whole-task estimates in hours', () => {
+  const issue = {iid: 12, title: 'Work', webUrl: 'https://gitlab.example.com/group/a/-/issues/12'};
+  const inputs = [
+    log('open', '2026-10-01T01:00:00Z', 1800, {issue: {...issue, state: 'opened', timeEstimate: 9000}}),
+    log('closed', '2026-10-01T01:00:00Z', 3600, {issue: {...issue, state: 'closed', timeEstimate: 0}}),
+    log('merged', '2026-10-01T01:00:00Z', 3600, {issue: null, mergeRequest: {...issue, state: 'merged', timeEstimate: 7200}}),
+    log('legacy', '2026-10-01T01:00:00Z'),
+    log('invalid', '2026-10-01T01:00:00Z', 3600, {issue: {...issue, timeEstimate: -1}}),
+  ];
+  const rows = normalizeLogs(inputs, config, 'me', '2026-10-01', '2026-11-01');
+  const byId = Object.fromEntries(rows.map(row => [row.id, row]));
+  assert.equal(byId.open.state, 'opened');
+  assert.equal(byId.open.estimateHours, 2.5);
+  assert.equal(byId.open.hours, 0.5);
+  assert.equal(byId.closed.state, 'closed');
+  assert.equal(byId.closed.estimateHours, 0);
+  assert.equal(byId.merged.state, 'merged');
+  assert.equal(byId.merged.estimateHours, 2);
+  assert.equal(byId.merged.type, 'MR');
+  assert.equal(byId.legacy.state, null);
+  assert.equal(byId.legacy.estimateHours, null);
+  assert.equal(byId.invalid.estimateHours, null);
+  assert.equal(makeSnapshot('2026-10-01', {logs: rows}, []).day.hours, 4.5);
+});
+
 test('Vietnam dates, Monday weeks, leap month and exclusive date boundaries', () => {
   assert.equal(today(new Date('2026-09-30T17:00:00Z')), '2026-10-01');
   assert.deepEqual(periods('2024-02-01'), {
@@ -882,6 +907,9 @@ test('handleMessage export_excel_data integrates background enrichment and retur
   assert.equal(data.projectBlocks[0].project, 'Project A');
   assert.equal(data.projectBlocks[0].tasks.length, 1);
   assert.equal(data.projectBlocks[0].tasks[0].Estimate, '4.50');
+  assert.equal(data.projectBlocks[0].tasks[0].Task, '12');
+  assert.equal(data.projectBlocks[0].tasks[0].Title, 'Work item');
+  assert.equal(data.projectBlocks[0].tasks[0].Type, 'TASK');
   assert.equal(data.projectBlocks[0].tasks[0]['Due date'], '10/10/2026');
 });
 
@@ -1212,4 +1240,35 @@ test('status dots extend past a slightly smaller intact base icon', () => {
       assert.equal(plain.cutout, undefined);
     }
   } finally {globalThis.OffscreenCanvas = originalCanvas;}
+});
+
+test('monthly report renders Excel task totals, ratios and missing estimates safely', () => {
+  const source = fs.readFileSync(new URL('../src/popup.js', import.meta.url), 'utf8');
+  const renderSource = source.slice(source.indexOf('function renderMonthlyReport()'), source.indexOf("$('report-load-tasks').addEventListener"));
+  const element = () => ({children: [], textContent: '', appendChild(child) {this.children.push(child);}, replaceChildren() {this.children = [];}});
+  const ids = Object.fromEntries(['report-tasks-body', 'report-tasks-table', 'report-tasks-status', 'report-stat-company-ratio'].map(id => [id, element()]));
+  const render = new Function('$', 'document', 'monthlyReport', 't', 'formatHours', 'currentLang', `${renderSource}; renderMonthlyReport();`);
+  const grouped = processProjectData([
+    {project: 'Project A', task: '12', type: 'TASK', title: '<Work>', date: '2026-10-01', hours: 2},
+    {project: 'Project A', task: '12', type: 'TASK', title: '<Work>', date: '2026-10-02', hours: 4},
+    {project: 'Project A', task: '13', type: 'MR', title: 'Review', date: '2026-10-02', hours: 1},
+  ]);
+  const report = buildProjectData(grouped, new Map([['Project A:::12:::TASK', {estimate: '4.50'}]]), config);
+  report.projectBlocks[0].project = 'Project A (group/a)';
+  render(id => ids[id], {createElement: element}, report, key => key, hours => `${hours}h`, 'en');
+  const rows = ids['report-tasks-body'].children;
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].children[0].textContent, 'Project A');
+  assert.equal(rows[0].dataset.project, 'Project A (group/a)');
+  assert.equal(ids['report-stat-company-ratio'].textContent, '3.6%');
+  assert.equal(rows[0].children[1].children[0].textContent, '#12 · <Work>');
+  assert.equal(rows[0].children[2].textContent, '6h');
+  assert.equal(rows[0].children[3].textContent, '4.5h');
+  assert.equal(rows[0].children[4].textContent, '133.3%');
+  assert.equal(rows[0].children[4].className, 'report-over-estimate');
+  assert.equal(rows[1].children[3].textContent, '—');
+  assert.equal(rows[1].children[4].textContent, '—');
+  render(id => ids[id], {createElement: element}, null, key => key, hours => `${hours}h`, 'en');
+  assert.equal(ids['report-tasks-table'].hidden, true);
+  assert.equal(ids['report-tasks-body'].children.length, 0);
 });

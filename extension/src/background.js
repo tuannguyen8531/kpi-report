@@ -457,6 +457,7 @@ export async function handleMessage(message) {
     case 'export_excel_data': {
       const snapshot = await synchronize(message.day || today(), true);
       if (!snapshot.configured) throw new Error('Connect to GitLab before exporting data.');
+      if (snapshot.error) throw new Error(snapshot.error);
       const {config} = await chrome.storage.local.get('config');
       const token = await getToken();
       if (!token) throw new Error('A GitLab token is required to fetch task details.');

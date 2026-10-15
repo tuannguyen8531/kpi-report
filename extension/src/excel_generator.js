@@ -115,6 +115,8 @@ export function processProjectData(logs) {
         Project: log.project,
         Task: String(log.task),
         Type: log.type,
+        Title: log.title || '',
+        State: log.state || null,
         minDate: log.date,
         Spent: Number(log.hours) || 0,
       });
@@ -122,6 +124,9 @@ export function processProjectData(logs) {
       existing.Spent += Number(log.hours) || 0;
       if (log.date < existing.minDate) {
         existing.minDate = log.date;
+      }
+      if (!existing.State && log.state) {
+        existing.State = log.state;
       }
     }
   }
@@ -132,6 +137,8 @@ export function processProjectData(logs) {
       Project: item.Project,
       Task: item.Task,
       Type: item.Type,
+      Title: item.Title,
+      State: item.State || null,
       Start_date: formatMonthDayYear(item.minDate),
       Spent: Number(item.Spent.toFixed(4)),
     });
@@ -366,6 +373,9 @@ export function buildProjectData(groupedProjects, enrichmentMap, config) {
       }
 
       taskRows.push({
+        Task: row.Task,
+        Type: row.Type,
+        Title: row.Title || '',
         Url: url,
         'Start date': finalStart,
         'Due date': finalDue,
@@ -375,6 +385,7 @@ export function buildProjectData(groupedProjects, enrichmentMap, config) {
         'Reopen count': 0,
         'Task Type': row.Type === 'TASK' ? enriched.task_type || DEFAULT_TASK_TYPE : DEFAULT_TASK_TYPE,
         Progress: DEFAULT_PROGRESS,
+        State: row.State || null,
       });
     }
 

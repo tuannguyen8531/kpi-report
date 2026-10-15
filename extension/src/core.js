@@ -5,8 +5,8 @@ export const TIMELOG_QUERY = `query($username: String!, $start: Time!, $end: Tim
     nodes {
       id spentAt timeSpent summary user { username }
       project { name fullPath }
-      issue { iid title webUrl }
-      mergeRequest { iid title webUrl }
+      issue { iid title webUrl state timeEstimate }
+      mergeRequest { iid title webUrl state timeEstimate }
     }
     pageInfo { hasNextPage endCursor }
   }
@@ -112,6 +112,8 @@ export function normalizeLogs(logs, config, username, start, end) {
     result.set(log.id, {
       id: log.id, date, project, projectPath, task: String(item.iid), type: log.issue ? 'TASK' : 'MR',
       hours: log.timeSpent / 3600, title: String(item.title), url: safeUrl, summary: String(log.summary || ''),
+      state: typeof item.state === 'string' ? item.state.toLowerCase() : null,
+      estimateHours: Number.isFinite(item.timeEstimate) && item.timeEstimate >= 0 ? item.timeEstimate / 3600 : null,
     });
   }
   return [...result.values()].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));

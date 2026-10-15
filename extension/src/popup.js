@@ -111,6 +111,8 @@ function getTracked(item) {
 // Application State
 let snapshot = null;
 let currentConfig = null;
+let monthlyReport = null;
+let monthlyReportKey = null;
 let editingLeaveId = null;
 let busy = false;
 let activeTab = 'calendar';
@@ -263,8 +265,29 @@ function downloadFile(filename, content, mimeType) {
 /**
  * Render the main Dashboard
  */
+async function restoreMonthlyReportCache(expectedKey) {
+  try {
+    if (typeof chrome === 'undefined' || !chrome.storage?.session) return;
+    const res = await chrome.storage.session.get('monthlyReportCache');
+    if (res.monthlyReportCache?.key === expectedKey && res.monthlyReportCache.data) {
+      monthlyReport = res.monthlyReportCache.data;
+      monthlyReportKey = expectedKey;
+      renderMonthlyReport();
+    }
+  } catch {
+    // Session storage unavailable
+  }
+}
+
 function render(data) {
   snapshot = data;
+  const expectedKey = `${data.profile}|${data.date?.slice(0, 7)}|${data.syncedAt}`;
+  if (monthlyReportKey !== expectedKey) {
+    monthlyReport = null;
+    monthlyReportKey = null;
+    void restoreMonthlyReportCache(expectedKey);
+  }
+  renderMonthlyReport();
 
   // View state: Unconfigured vs Configured
   if (!data.configured) {
@@ -624,6 +647,18 @@ function renderLogs() {
 
     tagsRow.append(projectTag, typeTag, dateTag);
 
+    const titleRow = document.createElement('div');
+    titleRow.className = 'log-title-row';
+
+    if (!log.isLeave) {
+      const stateTag = document.createElement('span');
+      const state = ['opened', 'closed', 'merged', 'locked'].includes(log.state) ? log.state : 'unknown';
+      stateTag.className = `tag-type tag-state-${state}`;
+      stateTag.textContent = t(`logs.state_${state}`);
+      stateTag.title = t('logs.state');
+      titleRow.appendChild(stateTag);
+    }
+
     const titleEl = document.createElement(log.url ? 'a' : 'div');
     titleEl.className = `log-title-link ${log.isLeave ? 'log-title-leave' : ''}`;
     titleEl.textContent = log.title || 'Untitled';
@@ -633,7 +668,8 @@ function renderLogs() {
       titleEl.rel = 'noopener noreferrer';
     }
 
-    main.append(tagsRow, titleEl);
+    titleRow.prepend(titleEl);
+    main.append(tagsRow, titleRow);
 
     if (log.summary && !log.isLeave) {
       const summaryEl = document.createElement('div');
@@ -1011,6 +1047,235 @@ $('restore').addEventListener('change', (e) => act(async () => {
 }));
 
 // 9. Export Excel (.xlsx) & CSV Backup
+function renderMonthlyReport() {
+  const projectName = (name) => name.replace(/\s+\([^()]*\/[^()]*\)$/, '');
+  const body = $('report-tasks-body');
+  if (body) body.replaceChildren();
+  const table = $('report-tasks-table');
+  if (table) table.hidden = !monthlyReport?.stats.totalTasks;
+  const tableWrap = $('report-tasks-table-wrap');
+  if (tableWrap) tableWrap.hidden = !monthlyReport?.stats.totalTasks;
+
+  const statusEl = $('report-tasks-status');
+  if (statusEl) {
+    statusEl.textContent = !monthlyReport ? t('report.tasks_pending')
+      : monthlyReport.stats.totalTasks ? t('report.tasks_count', {count: monthlyReport.stats.totalTasks}) : t('report.tasks_empty');
+  }
+
+  const pendingBox = $('report-tasks-pending-box');
+  if (pendingBox) pendingBox.hidden = !!monthlyReport;
+
+  const emptyBox = $('report-tasks-empty-box');
+  if (emptyBox) emptyBox.hidden = !monthlyReport || !!monthlyReport.stats.totalTasks;
+
+  const statsBanner = $('report-tasks-stats-banner');
+  if (statsBanner) statsBanner.hidden = !monthlyReport?.stats.totalTasks;
+
+  const filterBar = $('report-tasks-filter-bar');
+  if (filterBar) filterBar.hidden = !monthlyReport?.stats.totalTasks;
+
+  const footer = $('report-tasks-footer');
+  if (footer) footer.hidden = !monthlyReport?.stats.totalTasks;
+
+  const badge = $('report-tasks-badge');
+  if (badge) {
+    badge.hidden = !monthlyReport?.stats.totalTasks;
+    badge.textContent = monthlyReport?.stats.totalTasks || '0';
+  }
+
+  const loadBtnText = $('report-load-tasks-text');
+  if (loadBtnText) {
+    loadBtnText.textContent = monthlyReport ? t('report.reload_tasks') : t('report.load_tasks');
+  }
+
+  if (monthlyReport?.stats.totalTasks) {
+    const statTasks = $('report-stat-tasks');
+    if (statTasks) statTasks.textContent = monthlyReport.stats.totalTasks;
+
+    const statSpent = $('report-stat-spent');
+    if (statSpent) statSpent.textContent = formatHours(monthlyReport.stats.totalSpent);
+
+    const companyRatio = $('report-stat-company-ratio');
+    if (companyRatio) companyRatio.textContent = `${new Intl.NumberFormat(currentLang, {maximumFractionDigits: 1}).format(monthlyReport.stats.totalSpent / 192 * 100)}%`;
+
+    const statEstimate = $('report-stat-estimate');
+    if (statEstimate) statEstimate.textContent = monthlyReport.stats.totalEstimate > 0 ? formatHours(monthlyReport.stats.totalEstimate) : '—';
+
+    const statRatio = $('report-stat-ratio');
+    if (statRatio) {
+      if (monthlyReport.stats.totalEstimate > 0) {
+        const totalRatio = monthlyReport.stats.totalSpent / monthlyReport.stats.totalEstimate;
+        statRatio.textContent = `${new Intl.NumberFormat(currentLang, {maximumFractionDigits: 1}).format(totalRatio * 100)}%`;
+        statRatio.className = `report-task-stat-value ${totalRatio > 1 ? 'report-over-estimate' : 'color-blue'}`;
+      } else {
+        statRatio.textContent = '—';
+        statRatio.className = 'report-task-stat-value';
+      }
+    }
+
+    const projSelect = $('report-tasks-project-filter');
+    if (projSelect) {
+      const cur = projSelect.value;
+      projSelect.replaceChildren();
+      const allOpt = document.createElement('option');
+      allOpt.value = '';
+      allOpt.textContent = t('report.all_projects');
+      projSelect.appendChild(allOpt);
+      const projects = [...new Set((monthlyReport.projectBlocks || []).map((b) => b.project).filter(Boolean))];
+      for (const p of projects) {
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = projectName(p);
+        if (p === cur) opt.selected = true;
+        projSelect.appendChild(opt);
+      }
+    }
+  }
+
+  if (!body) return;
+
+  const logStateMap = new Map((typeof snapshot !== 'undefined' && snapshot?.logs
+    ? snapshot.logs.map((l) => [`${l.project}:::${l.task}:::${l.type}`, l.state])
+    : []));
+
+  for (const block of monthlyReport?.projectBlocks || []) {
+    for (const task of block.tasks) {
+      const row = document.createElement('tr');
+      if (!row.dataset) row.dataset = {};
+      row.dataset.project = block.project || '';
+      row.dataset.task = String(task.Task || '');
+      row.dataset.title = String(task.Title || '').toLowerCase();
+      const rawState = task.State || logStateMap.get(`${block.project}:::${task.Task}:::${task.Type}`) || null;
+      if (rawState) row.dataset.state = String(rawState).toLowerCase();
+
+      const estimate = Number(task.Estimate);
+      const ratio = estimate > 0 ? task.Spent / estimate : null;
+      if (ratio > 1) row.dataset.over = 'true';
+
+      const values = [projectName(block.project), `${task.Type === 'MR' ? 'MR !' : '#'}${task.Task} · ${task.Title}`,
+        formatHours(task.Spent), estimate > 0 ? formatHours(estimate) : '—',
+        ratio === null ? '—' : `${new Intl.NumberFormat(currentLang, {maximumFractionDigits: 1}).format(ratio * 100)}%`];
+      values.forEach((value, index) => {
+        const cell = document.createElement('td');
+        if (index === 1) {
+          if (task.Url) {
+            const link = document.createElement('a');
+            link.href = task.Url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = value;
+            link.title = value;
+            cell.appendChild(link);
+          } else {
+            cell.textContent = value;
+            cell.title = value;
+          }
+          if (rawState) {
+            const state = ['opened', 'closed', 'merged', 'locked'].includes(String(rawState).toLowerCase())
+              ? String(rawState).toLowerCase() : 'unknown';
+            const stateTag = document.createElement('span');
+            stateTag.className = `tag-type tag-state-${state} report-task-state-tag`;
+            stateTag.textContent = t(`logs.state_${state}`) || rawState;
+            stateTag.title = t('logs.state');
+            cell.appendChild(stateTag);
+          }
+        } else {
+          cell.textContent = value;
+          cell.title = value;
+        }
+        if (index === 4 && ratio > 1) cell.className = 'report-over-estimate';
+        row.appendChild(cell);
+      });
+      body.appendChild(row);
+    }
+  }
+
+  if (typeof applyMonthlyTasksFilter === 'function') applyMonthlyTasksFilter();
+}
+
+function applyMonthlyTasksFilter() {
+  const search = ($('report-tasks-search')?.value || '').trim().toLowerCase();
+  const proj = $('report-tasks-project-filter')?.value || '';
+  const stateFilter = $('report-tasks-state-filter')?.value || '';
+  const onlyOver = $('report-tasks-over-filter')?.checked || false;
+  const rows = $('report-tasks-body')?.children || [];
+  let visible = 0;
+  for (const row of rows) {
+    const p = (row.dataset?.project || '').toLowerCase();
+    const tk = (row.dataset?.task || '').toLowerCase();
+    const tt = (row.dataset?.title || '').toLowerCase();
+    const st = (row.dataset?.state || '').toLowerCase();
+    const isOver = row.dataset?.over === 'true';
+
+    const matchSearch = !search || p.includes(search) || tk.includes(search) || tt.includes(search) || st.includes(search);
+    const matchProj = !proj || row.dataset?.project === proj;
+    const matchState = !stateFilter || st === stateFilter;
+    const matchOver = !onlyOver || isOver;
+
+    const show = matchSearch && matchProj && matchState && matchOver;
+    row.hidden = !show;
+    if (show) visible++;
+  }
+  const footerText = $('report-tasks-filter-count');
+  if (footerText) {
+    const total = monthlyReport?.stats.totalTasks || 0;
+    footerText.textContent = (search || proj || stateFilter || onlyOver)
+      ? t('report.tasks_filter_count', {visible, total})
+      : t('report.tasks_count', {count: total});
+  }
+}
+
+$('report-tasks-search')?.addEventListener('input', applyMonthlyTasksFilter);
+$('report-tasks-project-filter')?.addEventListener('change', applyMonthlyTasksFilter);
+$('report-tasks-state-filter')?.addEventListener('change', applyMonthlyTasksFilter);
+$('report-tasks-over-filter')?.addEventListener('change', applyMonthlyTasksFilter);
+$('report-tasks-pending-btn')?.addEventListener('click', () => $('report-load-tasks')?.click());
+
+$('report-load-tasks').addEventListener('click', () => void act(async () => {
+  const button = $('report-load-tasks');
+  button.disabled = true;
+  button.classList.add('is-syncing');
+  const pendingBox = $('report-tasks-pending-box');
+  if (pendingBox) pendingBox.hidden = true;
+  const loadingBox = $('report-tasks-loading-box');
+  if (loadingBox) loadingBox.hidden = false;
+  const tableWrap = $('report-tasks-table-wrap');
+  if (tableWrap) tableWrap.hidden = true;
+  const statsBanner = $('report-tasks-stats-banner');
+  if (statsBanner) statsBanner.hidden = true;
+  const filterBar = $('report-tasks-filter-bar');
+  if (filterBar) filterBar.hidden = true;
+
+  $('report-tasks-status').textContent = t('report.tasks_loading');
+  try {
+    const day = $('anchor').value;
+    const profile = snapshot?.profile;
+    const report = await send({type: 'export_excel_data', day});
+    await reload();
+    if (snapshot?.profile === profile && snapshot.date.slice(0, 7) === day.slice(0, 7)) {
+      monthlyReport = report;
+      monthlyReportKey = `${profile}|${day.slice(0, 7)}|${snapshot.syncedAt}`;
+      try {
+        if (typeof chrome !== 'undefined' && chrome.storage?.session) {
+          await chrome.storage.session.set({
+            monthlyReportCache: {
+              key: monthlyReportKey,
+              data: report,
+            }
+          });
+        }
+      } catch {
+        // ignore session storage error
+      }
+    }
+  } finally {
+    button.disabled = false;
+    button.classList.remove('is-syncing');
+    if (loadingBox) loadingBox.hidden = true;
+    renderMonthlyReport();
+  }
+}));
+
 const handleExportExcel = () => act(async () => {
   const btnExcel = $('btn-export-excel');
   const btnQuickExcel = $('btn-quick-export-excel');

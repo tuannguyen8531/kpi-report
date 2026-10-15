@@ -719,6 +719,128 @@
             <pre class="code-snippet sr-only" id="report-command-example" hidden></pre>
           </div>
         </div>
+
+        <!-- Monthly Tasks Section Card -->
+        <div class="report-tasks-card">
+          <!-- Card Header -->
+          <div class="report-tasks-header">
+            <div class="report-tasks-header-left">
+              <div class="report-tasks-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="report-card-icon">
+                  <path d="M9 11l3 3L22 4"></path>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="report-tasks-title-row">
+                  <h3 class="report-tasks-title" data-i18n="report.tasks_title">Monthly tasks</h3>
+                  <span id="report-tasks-badge" class="report-badge-count" hidden>0</span>
+                </div>
+                <p class="report-tasks-hint" data-i18n="report.tasks_hint">Monthly hours worked versus task estimates.</p>
+              </div>
+            </div>
+            <div class="report-tasks-header-right">
+              <button id="report-load-tasks" class="btn-icon report-reload-btn" type="button" data-i18n-title="report.reload_tasks" title="Làm mới">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="report-reload-icon">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"></path>
+                </svg>
+                <span id="report-load-tasks-text" class="sr-only" data-i18n="report.reload_tasks">Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          <p id="report-tasks-status" role="status" class="report-tasks-status sr-only"></p>
+
+          <!-- Pending State Box -->
+          <div id="report-tasks-pending-box" class="report-tasks-empty-card">
+            <div class="empty-icon">📊</div>
+            <div class="empty-title" data-i18n="report.tasks_pending_title">Task summary not loaded</div>
+            <div class="empty-desc" data-i18n="report.tasks_pending_desc">Review monthly tasks and Merge Requests with Spent vs Estimate hours.</div>
+            <button id="report-tasks-pending-btn" class="btn btn-primary btn-sm mt-2" type="button" data-i18n="report.load_tasks">Load task summary</button>
+          </div>
+
+          <!-- Loading State Box -->
+          <div id="report-tasks-loading-box" class="report-tasks-loading-card" hidden>
+            <div class="spinner"></div>
+            <span data-i18n="report.tasks_loading">Loading GitLab data…</span>
+          </div>
+
+          <!-- Empty State Box -->
+          <div id="report-tasks-empty-box" class="report-tasks-empty-card" hidden>
+            <div class="empty-icon">📭</div>
+            <div class="empty-title" data-i18n="report.tasks_empty">No tasks in the selected month.</div>
+            <div class="empty-desc" data-i18n="report.tasks_empty_sub">No GitLab work timelogs found in this month.</div>
+          </div>
+
+          <!-- Mini KPI Stats Banner -->
+          <div id="report-tasks-stats-banner" class="report-tasks-stats-banner" hidden>
+            <div class="report-task-stat-item">
+              <span class="report-task-stat-label" data-i18n="report.stat_tasks">Total tasks</span>
+              <strong id="report-stat-tasks" class="report-task-stat-value">0</strong>
+            </div>
+            <div class="report-task-stat-item">
+              <span class="report-task-stat-label" data-i18n="report.stat_spent">Total spent</span>
+              <strong id="report-stat-spent" class="report-task-stat-value color-blue">0h</strong>
+            </div>
+            <div class="report-task-stat-item">
+              <span class="report-task-stat-label" data-i18n="report.stat_estimate">Total estimate</span>
+              <strong id="report-stat-estimate" class="report-task-stat-value">0h</strong>
+            </div>
+            <div class="report-task-stat-item">
+              <span class="report-task-stat-label" data-i18n="report.stat_ratio">Spent/Est</span>
+              <strong id="report-stat-ratio" class="report-task-stat-value">—</strong>
+            </div>
+            <div class="report-task-stat-item">
+              <span class="report-task-stat-label" data-i18n="report.company_ratio">Spent/Giờ công ty (192h)</span>
+              <strong id="report-stat-company-ratio" class="report-task-stat-value color-blue">—</strong>
+            </div>
+          </div>
+
+          <!-- Filter & Search Controls -->
+          <div id="report-tasks-filter-bar" class="report-tasks-filter-bar" hidden>
+            <div class="search-input-wrap">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input id="report-tasks-search" type="search" data-i18n-placeholder="report.search_tasks" placeholder="Search tasks, MRs, projects…">
+            </div>
+            <select id="report-tasks-project-filter" class="project-select">
+              <option value="" data-i18n="report.all_projects">All projects</option>
+            </select>
+            <select id="report-tasks-state-filter" class="project-select">
+              <option value="" data-i18n="report.all_states">All states</option>
+              <option value="opened" data-i18n="logs.state_opened">Open</option>
+              <option value="closed" data-i18n="logs.state_closed">Closed</option>
+              <option value="merged" data-i18n="logs.state_merged">Merged</option>
+            </select>
+            <label class="report-filter-pill-label" title="Only show tasks exceeding estimate">
+              <input id="report-tasks-over-filter" type="checkbox">
+              <span data-i18n="report.filter_over">>100% Estimate</span>
+            </label>
+          </div>
+
+          <!-- Table Container -->
+          <div id="report-tasks-table-wrap" class="report-table-scroll" hidden>
+            <table id="report-tasks-table" class="report-tasks-table" hidden>
+              <thead>
+                <tr>
+                  <th class="th-project" data-i18n="report.project">Project</th>
+                  <th class="th-task" data-i18n="report.task">Task</th>
+                  <th class="th-num" data-i18n="report.spent">Spent</th>
+                  <th class="th-num" data-i18n="report.estimate">Estimate</th>
+                  <th class="th-num" data-i18n="report.ratio">Spent/Est</th>
+                </tr>
+              </thead>
+              <tbody id="report-tasks-body"></tbody>
+            </table>
+          </div>
+
+          <!-- Footer Count -->
+          <div id="report-tasks-footer" class="report-tasks-footer" hidden>
+            <span id="report-tasks-filter-count" class="report-tasks-footer-text"></span>
+          </div>
+        </div>
       </section>
     </main>
 

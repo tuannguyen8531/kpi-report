@@ -283,6 +283,71 @@ test('leave create/edit/delete, atomic restore, account isolation and token-free
   assert.ok(exported.csv.includes('"OFF","Vacation, ""AM""","OFF","4"'));
 });
 
+test('backup restores notes and settings, rejects conflicts atomically and accepts legacy files', async () => {
+  await connect();
+  const profile = local.config.profile;
+  local.profiles[profile].notes = {[day]: 'First note', '2026-11-01': 'Next month'};
+  Object.assign(local.config, {excelPattern: 'Work_MM_YYYY', reminderTime: '09:45', reminderEnabled: false, rememberToken: true});
+  local.language = 'en';
+  local.odooConfig = {...validateOdooConfig({url: ODOO_URL, reminders: true, autoAttendance: true}), autoEmployeeId: 7};
+  local.odooAutomationUnlocked = true;
+  const backup = await handleMessage({type: 'backup'});
+  assert.equal(backup.version, 2);
+  assert.deepEqual(backup.notes, local.profiles[profile].notes);
+  assert.equal(backup.settings.language, 'en');
+  assert.equal(backup.settings.odooConfig.autoAttendance, false);
+  assert.equal(backup.settings.odooConfig.autoEmployeeId, undefined);
+  assert.equal(JSON.stringify(backup).includes('test-token'), false);
+  assert.equal(JSON.stringify(backup).includes('odooAutomationUnlocked'), false);
+
+  local.profiles[profile].notes = {};
+  local.config.excelPattern = 'Changed';
+  local.odooData = {state: 'checked_in'};
+  const result = await handleMessage({type: 'restore', backup});
+  assert.equal(result.added, 2);
+  assert.deepEqual(local.profiles[profile].notes, backup.notes);
+  assert.equal(local.config.excelPattern, 'Work_MM_YYYY');
+  assert.equal(local.config.reminderTime, '09:45');
+  assert.equal(local.language, 'en');
+  assert.equal(local.token, 'test-token');
+  assert.equal(session.token, undefined);
+  assert.equal(local.odooConfig.autoAttendance, false);
+  assert.equal(local.odooConfig.autoEmployeeId, undefined);
+  assert.equal(local.odooData, undefined);
+  assert.equal(odooAlarm.periodInMinutes, 30);
+  assert.equal(noteAlarm, undefined);
+  assert.equal((await handleMessage({type: 'settings'})).config.language, 'en');
+  assert.equal((await handleMessage({type: 'restore', backup})).added, 0);
+
+  for (const bad of [
+    {...backup, notes: {[day]: 'Conflicting note'}},
+    {...backup, notes: {'2026-02-30': 'Invalid date'}},
+    {...backup, notes: {[day]: 'x'.repeat(5001)}},
+    {...backup, notes: []},
+    {...backup, settings: {...backup.settings, reminderTime: '25:00'}},
+    {...backup, settings: {...backup.settings, url: 'https://other.example.com'}},
+    {...backup, settings: {...backup.settings, odooConfig: {url: 'http://unsafe.example.com'}}},
+  ]) {
+    const before = structuredClone(local);
+    await assert.rejects(handleMessage({type: 'restore', backup: {...bad, leaves: [{day, hours: 8, reason: 'Must not be saved'}]}}));
+    assert.deepEqual(local, before);
+  }
+  const legacy = {version: 1, profile, leaves: []};
+  assert.equal((await handleMessage({type: 'restore', backup: legacy})).added, 0);
+  assert.deepEqual(local.profiles[profile].notes, backup.notes);
+  const sessionBackup = {...backup, settings: {...backup.settings, rememberToken: false, token: 'injected', odooConfig: {...backup.settings.odooConfig, autoAttendance: true, autoEmployeeId: 99}}};
+  await handleMessage({type: 'restore', backup: sessionBackup});
+  assert.equal(session.token, 'test-token');
+  assert.equal(local.token, undefined);
+  assert.equal(local.config.token, undefined);
+  assert.equal(local.odooConfig.autoAttendance, false);
+  assert.equal(local.odooConfig.autoEmployeeId, undefined);
+  await handleMessage({type: 'restore', backup: {...backup, settings: {...backup.settings, odooConfig: null}}});
+  assert.equal(local.odooConfig, null);
+  assert.equal(odooAlarm, undefined);
+  assert.equal(odooReminderAlarm, undefined);
+});
+
 test('daily notes persist independently of sync, validate input and stay isolated by account and month', async () => {
   await assert.rejects(handleMessage({type: 'note.save', day, text: 'No account'}));
   await connect();

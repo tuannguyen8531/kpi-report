@@ -7,7 +7,7 @@ A Chrome and Edge extension for tracking GitLab work hours, managing leave, and 
 - Daily, weekly, and monthly totals with separate work and leave hours.
 - Monthly calendar, searchable timelogs, task links, and daily notes.
 - Daily note notifications at a configurable time (10:00 Vietnam time by default).
-- Local leave tracking with JSON backup and restore.
+- Local leave tracking with JSON backup and restore for leave, manual work, daily notes and settings.
 - Direct Excel export with KPI formulas, plus CSV export for the [Python CLI](../README.md).
 - Compact popup and full-tab dashboard, with automatic sync every 30 minutes and manual refresh.
 
@@ -68,7 +68,9 @@ After updating an unpacked installation, reload the extension at `chrome://exten
 
 Settings, cached timelogs, manual work, leave, and notes stay in local extension storage. Tokens are session-only by default; **Remember token** stores the token locally across browser sessions, without encryption or Chrome account sync.
 
-Manual work, leave and notes are separated by GitLab account and server. Leave backups contain no token and can only be restored to the matching account and server; conflicting entries reject the restore. Notes are excluded from backups and reports.
+Manual work, leave and notes are separated by GitLab account and server. Use **Settings → General → Backup and restore** to export or import JSON backups. JSON backups include all months of leave, manual work and daily notes for the connected account, plus project filters, the Excel filename pattern, language, note reminder settings, the remember-token preference and Odoo connection/reminder settings. Tokens, cached GitLab data and Odoo attendance data are excluded. Notes remain excluded from Excel reports.
+
+Connect to the same GitLab account and server before restoring. Restore merges missing entries, skips identical entries and rejects the entire import if entries conflict or the file is invalid. Settings present in the backup replace current settings. Old leave/work-only backups still work and preserve current notes and settings. On a new browser profile, reconnect Odoo to grant server access. Backups never include a token; restoring the remember-token preference only changes where the current browser's existing token is stored.
 
 Back up leave before removing the extension or changing browser profiles. Uninstalling removes local data; original timelogs remain on GitLab.
 

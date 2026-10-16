@@ -449,25 +449,6 @@
             <h2 id="heading-leave" class="panel-title" data-i18n="leave.title">Manage leave</h2>
             <span class="panel-subtitle" data-i18n="leave.subtitle">Store leave on this device</span>
           </div>
-          <div class="backup-tools-bar">
-            <button id="backup" class="btn btn-outline btn-xs" type="button" data-i18n-title="leave.backup_json" title="Back up leave as JSON (no token included)">
-              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-              <span data-i18n="leave.backup_json">Back up JSON</span>
-            </button>
-            <label class="btn btn-outline btn-xs file-trigger-label" data-i18n-title="leave.restore_json" title="Restore leave from a JSON backup">
-              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-              </svg>
-              <span data-i18n="leave.restore_json">Restore</span>
-              <input id="restore" type="file" accept="application/json,.json" class="sr-only">
-            </label>
-          </div>
         </div>
 
         <!-- Segmented View Toggle for Small/Popup Screens -->
@@ -1032,6 +1013,30 @@
             </div>
             <input id="excel-pattern" type="text" spellcheck="false" placeholder="report_MM_YYYY.xlsx">
             <span class="field-hint" data-i18n="settings.excel_pattern_hint">Use <code>MM</code> for the month (01–12) and <code>YYYY</code> for the year (e.g. 2026). Default: <code>report_MM_YYYY.xlsx</code></span>
+          </div>
+
+          <div class="reminder-settings-card">
+            <strong class="setting-item-title" data-i18n="settings.backup_title">Backup and restore</strong>
+            <p class="field-hint" data-i18n="settings.backup_hint">Back up leave, manual work, daily notes and saved settings as JSON. Restoring merges entries and applies settings from the file.</p>
+            <div class="backup-tools-bar">
+              <button id="backup" class="btn btn-outline btn-xs" type="button" data-i18n-title="leave.backup_json" title="Back up leave, work, notes and settings as JSON">
+                <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span data-i18n="leave.backup_json">Back up JSON</span>
+              </button>
+              <label class="btn btn-outline btn-xs file-trigger-label" data-i18n-title="leave.restore_json" title="Restore data and settings from a JSON backup">
+                <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span data-i18n="leave.restore_json">Restore</span>
+                <input id="restore" type="file" accept="application/json,.json" class="sr-only">
+              </label>
+            </div>
           </div>
 
           <div class="modal-footer">

@@ -5,6 +5,8 @@
 
 export const TRANSLATIONS = {
   vi: {
+    'settings.backup_title': 'Sao lưu và khôi phục',
+    'settings.backup_hint': 'Sao lưu ngày nghỉ, công việc thủ công, ghi chú ngày và cài đặt đã lưu ra JSON. Khi khôi phục, dữ liệu được gộp và cài đặt trong file được áp dụng.',
     'leave.credited_hours': 'Giờ được cộng',
     // App & Header
     'app.title': 'Work Hours Tracker',
@@ -219,7 +221,7 @@ export const TRANSLATIONS = {
     'toast.note_deleted': 'Đã xóa ghi chú.',
     'toast.leave_saved': 'Đã lưu ngày nghỉ.',
     'toast.leave_deleted': 'Đã xóa ngày nghỉ.',
-    'toast.leave_backup': 'Đã tải file sao lưu ngày nghỉ và công việc.',
+    'toast.leave_backup': 'Đã sao lưu ngày nghỉ, công việc, ghi chú và cài đặt.',
     'toast.leave_restored': 'Đã khôi phục {count} bản ghi!',
     'toast.synced': 'Đã đồng bộ dữ liệu mới nhất.',
     'toast.connected': 'Đã cập nhật kết nối tài khoản @{username}!',
@@ -280,6 +282,8 @@ export const TRANSLATIONS = {
   },
 
   en: {
+    'settings.backup_title': 'Backup and restore',
+    'settings.backup_hint': 'Back up leave, manual work, daily notes and saved settings as JSON. Restoring merges entries and applies settings from the file.',
     'leave.credited_hours': 'Credited hours',
     // App & Header
     'app.title': 'Work Hours Tracker',
@@ -494,7 +498,7 @@ export const TRANSLATIONS = {
     'toast.note_deleted': 'Note deleted.',
     'toast.leave_saved': 'Leave entry saved.',
     'toast.leave_deleted': 'Leave entry deleted.',
-    'toast.leave_backup': 'Leave and work backup downloaded.',
+    'toast.leave_backup': 'Leave, work, notes and settings backup downloaded.',
     'toast.leave_restored': 'Successfully restored {count} entries!',
     'toast.synced': 'Synced successfully.',
     'toast.connected': 'Connection updated for @{username}.',

@@ -1160,7 +1160,7 @@ $('leave-form').addEventListener('submit', (e) => {
 // 8. Leave Backup & Restore
 $('backup').addEventListener('click', () => act(async () => {
   const backupData = await send({type: 'backup'});
-  downloadFile(`work-hours-ngay-nghi-${today()}.json`, JSON.stringify(backupData, null, 2), 'application/json');
+  downloadFile(`work-hours-backup-${today()}.json`, JSON.stringify(backupData, null, 2), 'application/json');
   showToast(t('toast.leave_backup'), 'success');
 }));
 $('restore').addEventListener('change', (e) => act(async () => {
@@ -1170,7 +1170,16 @@ $('restore').addEventListener('change', (e) => act(async () => {
     const json = JSON.parse(await file.text());
     const result = await send({type: 'restore', backup: json});
     e.target.value = '';
+    currentConfig = (await send({type: 'settings'})).config;
+    if (json.settings) applyI18n(currentConfig.language);
+    odooSnapshot = await send({type: 'odoo.settings'});
+    $('odoo-url').value = odooSnapshot.config?.url || '';
+    $('odoo-reminders').checked = odooSnapshot.config?.reminders ?? true;
+    (odooSnapshot.config?.times || ODOO_TIMES).forEach((time, i) => {$(`odoo-time-${i}`).value = time;});
+    renderOdooAutomation(true);
+    renderOdoo();
     await reload();
+    if (!$('modal-settings').hidden) openSettingsModal('general');
     showToast(t('toast.leave_restored', {count: result.added}), 'success');
   } catch (err) {
     showToast(`Restore failed: ${err.message}`, 'error', 4500);

@@ -3633,6 +3633,7 @@ a.breakdown-item-link:hover strong {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-top: 12px;
 }
 
 .backup-tools-tag {

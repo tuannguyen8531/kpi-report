@@ -354,7 +354,7 @@ export async function handleMessage(message) {
     }
     case 'settings': {
       const {config} = await chrome.storage.local.get('config');
-      return {config: config ? {url: config.url, projects: config.projects, username: config.username, rememberToken: config.rememberToken, excelPattern: config.excelPattern || 'report_MM_YYYY.xlsx', reminderEnabled: config.reminderEnabled !== false, reminderTime: config.reminderTime || '10:00'} : null, hasToken: Boolean(await getToken())};
+      return {config: config ? {...validateConfig(config), username: config.username} : null, hasToken: Boolean(await getToken())};
     }
     case 'connect': {
       const config = validateConfig(message.config);
@@ -447,15 +447,17 @@ export async function handleMessage(message) {
       return {deleted: true};
     }
     case 'backup': {
-      const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
+      const {config, profiles = {}, language, odooConfig} = await chrome.storage.local.get(['config', 'profiles', 'language', 'odooConfig']);
       if (!config?.profile) throw new Error('Connect an account before creating a backup.');
-      return {version: 1, profile: config.profile, leaves: profiles[config.profile].leaves,
-        manualEntries: profiles[config.profile].manualEntries || []};
+      return {version: 2, profile: config.profile, leaves: profiles[config.profile].leaves,
+        manualEntries: profiles[config.profile].manualEntries || [], notes: profiles[config.profile].notes || {},
+        settings: {...validateConfig({...config, language: language || config.language}),
+          odooConfig: odooConfig ? {...validateOdooConfig(odooConfig), autoAttendance: false} : null}};
     }
     case 'restore': {
       const {config, profiles = {}} = await chrome.storage.local.get(['config', 'profiles']);
       const backup = message.backup;
-      if (!config?.profile || backup?.version !== 1 || backup.profile !== config.profile || !Array.isArray(backup.leaves)) {
+      if (!config?.profile || ![1, 2].includes(backup?.version) || backup.profile !== config.profile || !Array.isArray(backup.leaves)) {
         throw new Error('This backup is invalid or belongs to another GitLab account.');
       }
       const byDay = new Map(profiles[config.profile].leaves.map((row) => [row.day, row]));
@@ -474,10 +476,50 @@ export async function handleMessage(message) {
         if (old && (old.day !== entry.day || old.title !== entry.title || old.hours !== entry.hours)) throw new Error('A different work entry already exists. No data was overwritten.');
         if (!old) {manualEntries.set(input.id, {...entry, id: input.id}); added++;}
       }
+      const notes = {...profiles[config.profile].notes};
+      if (backup.notes !== undefined && (!backup.notes || typeof backup.notes !== 'object' || Array.isArray(backup.notes))) throw new Error('Invalid notes in backup.');
+      for (const [day, text] of Object.entries(backup.notes || {})) {
+        parseDay(day);
+        if (typeof text !== 'string' || text.length > 5000) throw new Error('Notes must be 5,000 characters or fewer.');
+        if (!text.trim()) continue;
+        if (notes[day] !== undefined && notes[day] !== text) throw new Error(`A different note already exists for ${day}. No data was overwritten.`);
+        if (notes[day] === undefined) {notes[day] = text; added++;}
+      }
+      const updates = {};
+      if (backup.settings !== undefined) {
+        if (!backup.settings || typeof backup.settings !== 'object' || Array.isArray(backup.settings)) throw new Error('Invalid settings in backup.');
+        const restored = validateConfig(backup.settings);
+        if (restored.url !== config.url) throw new Error('Backup settings belong to another GitLab server.');
+        updates.config = {...config, ...restored};
+        updates.language = restored.language;
+        if (Object.hasOwn(backup.settings, 'odooConfig')) {
+          updates.odooConfig = backup.settings.odooConfig === null ? null
+            : {...validateOdooConfig(backup.settings.odooConfig), autoAttendance: false};
+        }
+      }
+      const token = updates.config ? await getToken() : null;
+      if (token && updates.config.rememberToken) updates.token = token;
       profiles[config.profile].leaves = [...byDay.values()];
       profiles[config.profile].manualEntries = [...manualEntries.values()];
+      profiles[config.profile].notes = notes;
+      if (updates.config) profiles[config.profile].caches = {};
       profiles[config.profile].manualRevision = crypto.randomUUID();
-      await chrome.storage.local.set({profiles});
+      await chrome.storage.local.set({profiles, ...updates});
+      if (updates.config) {
+        if (token && !updates.config.rememberToken) await chrome.storage.session.set({token});
+        if (updates.config.rememberToken) await chrome.storage.session.remove('token');
+        else await chrome.storage.local.remove('token');
+      }
+      await remindDailyNote();
+      if (Object.hasOwn(updates, 'odooConfig')) {
+        await chrome.storage.local.remove('odooData');
+        if (updates.odooConfig) await chrome.alarms.create(ODOO_ALARM, {periodInMinutes: SYNC_MINUTES});
+        else await chrome.alarms.clear(ODOO_ALARM);
+        const next = updates.odooConfig ? nextAttendanceReminder(updates.odooConfig) : null;
+        if (next !== null) await chrome.alarms.create(ODOO_REMINDER_ALARM, {when: next});
+        else await chrome.alarms.clear(ODOO_REMINDER_ALARM);
+        await updateActionBadge(updates.odooConfig, null, updates.language);
+      }
       return {added};
     }
     case 'export': {

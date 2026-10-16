@@ -1632,7 +1632,7 @@ $('btn-test-notification')?.addEventListener('click', () => void act(async () =>
     await chrome.notifications.create(`test-notification-${Date.now()}`, {
       type: 'basic',
       iconUrl: chrome.runtime.getURL('assets/icon.png'),
-      title: 'KPI Tracker',
+      title: 'Work Hours Tracker',
       message: t('settings.notification_test_message'),
     });
     showToast(t('settings.notification_test_sent'), 'success');

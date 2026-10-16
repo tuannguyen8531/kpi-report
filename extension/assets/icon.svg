@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="35%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="b1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="30%" stop-color="#bae6fd"/>
+      <stop offset="100%" stop-color="#93c5fd"/>
+    </linearGradient>
+    <linearGradient id="b2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0f9ff"/>
+    </linearGradient>
+    <linearGradient id="b3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="25%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path d="M 0 112 C 0 45, 45 0, 112 0 L 400 0 C 467 0, 512 45, 512 112 C 512 135, 380 180, 256 180 C 132 180, 0 135, 0 112 Z" fill="rgba(255,255,255,0.12)"/>
+  <rect x="3" y="3" width="506" height="506" rx="109" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="6"/>
+
+  <!-- Three BOLD Pillars (No thin lines, maximum contrast) -->
+  <rect x="72" y="248" width="96" height="200" rx="48" fill="url(#b1)"/>
+  <rect x="208" y="152" width="96" height="296" rx="48" fill="url(#b2)"/>
+  <rect x="344" y="56" width="96" height="392" rx="48" fill="url(#b3)"/>
+
+  <!-- Peak Goal Badge -->
+  <circle cx="392" cy="104" r="26" fill="#ffffff"/>
+  <circle cx="392" cy="104" r="13" fill="#16a34a"/>
+</svg>

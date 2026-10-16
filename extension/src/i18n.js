@@ -1,12 +1,12 @@
 /**
- * Internationalization (i18n) Module for KPI Tracker
+ * Internationalization (i18n) Module for Work Hours Tracker
  * Supports English (en) and Vietnamese (vi)
  */
 
 export const TRANSLATIONS = {
   vi: {
     // App & Header
-    'app.title': 'KPI Tracker',
+    'app.title': 'Work Hours Tracker',
     'app.subtitle': 'Theo dõi giờ làm việc Realtime',
     'header.sync_tooltip': 'Đồng bộ ngay (30 phút/lần)',
     'header.settings_tooltip': 'Cài đặt kết nối & tài khoản',
@@ -19,7 +19,7 @@ export const TRANSLATIONS = {
 
     // Onboarding
     'onboarding.title': 'Thiết lập kết nối GitLab',
-    'onboarding.subtitle': 'Chào mừng bạn đến với KPI Tracker. Vui lòng cung cấp thông tin kết nối GitLab để bắt đầu theo dõi giờ làm việc thời gian thực.',
+    'onboarding.subtitle': 'Chào mừng bạn đến với Work Hours Tracker. Vui lòng cung cấp thông tin kết nối GitLab để bắt đầu theo dõi giờ làm việc thời gian thực.',
     'onboarding.url_label': 'Địa chỉ GitLab (URL)',
     'onboarding.url_placeholder': 'https://gitlab.example.com',
     'onboarding.token_label': 'Personal Access Token (PAT)',
@@ -280,7 +280,7 @@ export const TRANSLATIONS = {
 
   en: {
     // App & Header
-    'app.title': 'KPI Tracker',
+    'app.title': 'Work Hours Tracker',
     'app.subtitle': 'Realtime Work Hours',
     'header.sync_tooltip': 'Sync now (every 30 mins)',
     'header.settings_tooltip': 'Connection & account settings',
@@ -293,7 +293,7 @@ export const TRANSLATIONS = {
 
     // Onboarding
     'onboarding.title': 'Connect to GitLab',
-    'onboarding.subtitle': 'Welcome to KPI Tracker. Connect your GitLab account to start tracking logged work hours in real-time.',
+    'onboarding.subtitle': 'Welcome to Work Hours Tracker. Connect your GitLab account to start tracking logged work hours in real-time.',
     'onboarding.url_label': 'GitLab Server URL',
     'onboarding.url_placeholder': 'https://gitlab.example.com',
     'onboarding.token_label': 'Personal Access Token (PAT)',

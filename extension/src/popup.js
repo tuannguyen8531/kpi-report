@@ -936,6 +936,7 @@ function updateProjectFilterOptions() {
   const select = $('logs-project-filter');
   const currentVal = select.value;
   const projects = new Set((snapshot?.logs || []).map((l) => l.project).filter(Boolean));
+  const manualProjects = new Set((snapshot?.logs || []).filter(log => log.type === 'MANUAL').map(log => log.project));
 
   select.replaceChildren();
   const defaultOpt = document.createElement('option');
@@ -943,7 +944,8 @@ function updateProjectFilterOptions() {
   defaultOpt.textContent = t('logs.all_projects');
   select.appendChild(defaultOpt);
 
-  for (const p of [...projects].sort()) {
+  for (const p of [...projects].filter(p => p !== 'OFF').sort((a, b) =>
+    Number(manualProjects.has(a)) - Number(manualProjects.has(b)) || a.localeCompare(b))) {
     const opt = document.createElement('option');
     opt.value = p;
     opt.textContent = (snapshot?.logs || []).some(log => log.project === p && log.type === 'MANUAL') ? t('manual.project') : p;

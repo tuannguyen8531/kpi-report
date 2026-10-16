@@ -52,7 +52,7 @@ Sync may be delayed while the browser is closed or the device is asleep. A faile
 
 In **Timelog**, expand **Add work outside GitLab** and enter a date, work name, and hours (greater than 0, up to 24 per entry). Entries have no project, category, estimate, or GitLab status. Use **Edit** / **Delete** on each manual entry to maintain it. They are stored locally per GitLab account/server and can be edited without a token or network connection after setup.
 
-Manual hours count as work in the daily/weekly/monthly totals and Spent/192h. Monthly reports and direct Excel exports combine entries with the same name into one row under **Công việc ngoài GitLab**, summing only that month's hours. Names are trimmed and Unicode-normalized; letter case is preserved. Estimates stay blank. In Excel, these rows count as planned work and are separate from OFF. Manual entries are included in the existing JSON backup/restore alongside leave; old leave-only backups still work. Refresh the monthly task summary after edits.
+Manual hours count as work in the daily/weekly/monthly totals and Spent/192h. Monthly reports and direct Excel exports combine entries with the same name into one row under **Nghiên cứu**, summing only that month's hours. Names are trimmed and Unicode-normalized; letter case is preserved. Estimates stay blank. In Excel, these rows count as planned work and are separate from OFF. Manual entries are included in the existing JSON backup/restore alongside leave; old leave-only backups still work. Refresh the monthly task summary after edits.
 
 ## Note reminders
 

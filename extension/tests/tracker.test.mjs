@@ -1304,6 +1304,27 @@ test('monthly report renders Excel task totals, ratios and missing estimates saf
   assert.equal(ids['report-tasks-body'].children.length, 0);
 });
 
+test('Timelog project filter puts research and OFF after GitLab projects', () => {
+  const source = fs.readFileSync(new URL('../src/popup.js', import.meta.url), 'utf8');
+  const start = source.indexOf('function updateProjectFilterOptions()');
+  const end = source.indexOf('\n/**', start);
+  const select = {
+    value: 'Nghiên cứu', children: [],
+    replaceChildren() {this.children = [];},
+    appendChild(option) {this.children.push(option);},
+  };
+  const update = new Function('$', 'document', 'snapshot', 't', `${source.slice(start, end)}; updateProjectFilterOptions();`);
+  const snapshot = {logs: [
+    {project: 'Z Project', type: 'ISSUE'},
+    {project: 'Nghiên cứu', type: 'MANUAL'},
+    {project: 'A Project', type: 'ISSUE'},
+  ], leaves: [{day}]};
+  update(() => select, {createElement: () => ({})}, snapshot, key => key);
+  assert.deepEqual(select.children.map(option => option.value), ['', 'A Project', 'Z Project', 'Nghiên cứu', 'OFF']);
+  assert.equal(select.value, 'Nghiên cứu');
+  assert.equal(select.children[3].textContent, 'manual.project');
+});
+
 test('manual work persists locally, groups equal names in monthly Excel and counts as work rather than OFF', async () => {
   await connect();
   const profile = local.config.profile;
@@ -1319,11 +1340,11 @@ test('manual work persists locally, groups equal names in monthly Excel and coun
   assert.equal(snapshot.logs.filter(log => log.type === 'MANUAL').length, 3);
   const revision = snapshot.manualRevision;
   const csv = exportCsv(snapshot);
-  assert.ok(csv.includes('"Công việc ngoài GitLab","Giao tiếp khách hàng","MANUAL","2"'));
+  assert.ok(csv.includes('"Nghiên cứu","Giao tiếp khách hàng","MANUAL","2"'));
 
   replyPages.push(page([log('one', '2026-10-01T01:00:00Z')]));
   const report = await handleMessage({type: 'export_excel_data', day});
-  const manualBlock = report.projectBlocks.find(block => block.project === 'Công việc ngoài GitLab');
+  const manualBlock = report.projectBlocks.find(block => block.project === 'Nghiên cứu');
   assert.equal(manualBlock.tasks.length, 2);
   const client = manualBlock.tasks.find(task => task.Title === 'Giao tiếp khách hàng');
   assert.equal(client.Spent, 5);
@@ -1340,6 +1361,7 @@ test('manual work persists locally, groups equal names in monthly Excel and coun
   await workbook.xlsx.load(bytes);
   const sheet = workbook.getWorksheet('Báo cáo công việc');
   const clientRows = [];
+  assert.ok(sheet.getColumn(2).values.includes('Nghiên cứu'));
   sheet.eachRow(row => {if (row.getCell(2).value === 'Giao tiếp khách hàng') clientRows.push(row);});
   assert.equal(clientRows.length, 1);
   const clientRow = clientRows[0];

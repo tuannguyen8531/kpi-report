@@ -3071,6 +3071,11 @@ body.modal-open {
 .col-icon {
   font-size: 15px;
 }
+.breakdown-add {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 22px;
+}
 .breakdown-col-header strong {
   display: block;
   font-size: 11.5px;

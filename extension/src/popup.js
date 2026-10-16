@@ -1743,6 +1743,9 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
   currentBreakdownScope = scope;
   currentBreakdownDate = targetDate;
 
+  $('breakdown-add-work').hidden = scope !== 'day';
+  $('breakdown-add-leave').hidden = scope !== 'day';
+
   noteDay = scope === 'day' ? targetDate || snapshot.date : null;
   $('day-note-form').hidden = !noteDay;
   if (noteDay) renderDayNote(snapshot, noteDay);
@@ -1912,6 +1915,32 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
 
   $('modal-breakdown').hidden = false;
   updateModalState();
+}
+
+for (const kind of ['work', 'leave']) {
+  $(`breakdown-add-${kind}`).addEventListener('click', () => void act(async () => {
+    if (currentBreakdownScope !== 'day') return;
+    const day = currentBreakdownDate || snapshot.date;
+    closeBreakdownModal();
+    $('anchor').value = day;
+    await reload();
+    if (kind === 'work') {
+      resetManualForm();
+      switchTab('logs');
+      manualProfile = snapshot.profile;
+      $('manual-editor').open = true;
+      $('manual-title').focus({preventScroll: true});
+      if (window.matchMedia('(max-width: 819px)').matches) {
+        $('manual-editor').scrollIntoView({block: 'center', behavior: 'instant'});
+      }
+    } else {
+      resetLeaveForm();
+      $('leave-reason').value = '';
+      switchTab('leave');
+      setLeaveModalView('form');
+      $('leave-reason').focus();
+    }
+  }));
 }
 
 function closeBreakdownModal() {

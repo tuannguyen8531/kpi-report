@@ -436,6 +436,37 @@ test('Odoo 17 uses only the read endpoint with the existing browser session and 
   await assert.rejects(readAttendance(config, now, async () => ({ok: true, json: async () => ({error: {code: 100}})})), /login_required/);
 });
 
+test('Odoo checkout uses the actual attendance timestamp and tolerates missing read access', async () => {
+  const config = validateOdooConfig({url: ODOO_URL});
+  const now = new Date('2026-10-08T18:10:00+07:00');
+  const result = {id: 7, attendance_state: 'checked_out', last_check_in: '2026-10-08 06:25:00', hours_today: 8};
+  const checkOut = '2026-10-08 11:00:00';
+  const data = await readAttendance(config, now, async (url, options) => {
+    if (url.endsWith('/attendance_user_data')) return {ok: true, json: async () => ({result})};
+    assert.equal(url, `${ODOO_URL}/web/dataset/call_kw/hr.attendance/search_read`);
+    assert.equal(options.credentials, 'include');
+    assert.deepEqual(JSON.parse(options.body).params.kwargs, {
+      domain: [['employee_id', '=', 7], ['check_in', '=', result.last_check_in]], fields: ['check_out'], limit: 1,
+    });
+    return {ok: true, json: async () => ({result: [{check_out: checkOut}]})};
+  });
+  assert.equal(data.lastCheckOut, '2026-10-08T11:00:00.000Z');
+  assert.equal(data.lastCheckIn, '2026-10-08T06:25:00.000Z');
+  const direct = await readAttendance(config, now, async (url) => {
+    assert.ok(url.endsWith('/attendance_user_data'));
+    return {ok: true, json: async () => ({result: {...result, attendance: {check_out: checkOut}}})};
+  });
+  assert.equal(direct.lastCheckOut, data.lastCheckOut);
+  for (const response of [{ok: false, status: 403}, {ok: true, json: async () => ({error: {code: 200}})}, {ok: true, json: async () => ({result: []})}]) {
+    const unavailable = await readAttendance(config, now, async (url) => url.endsWith('/attendance_user_data')
+      ? {ok: true, json: async () => ({result})} : response);
+    assert.equal(unavailable.state, 'checked_out');
+    assert.equal(unavailable.lastCheckOut, null);
+  }
+  assert.throws(() => parseAttendance({...result, last_check_out: 'bad'}, now), /unavailable/);
+  assert.throws(() => parseAttendance({...result, last_check_out: '2026-10-09 11:00:00'}, now), /unavailable/);
+});
+
 test('Odoo reminders distinguish both shifts, skip weekends and do not replay earlier milestones after sleep', () => {
   const config = validateOdooConfig({url: ODOO_URL, reminders: true});
   const at = (time, date = '2026-10-08') => new Date(`${date}T${time}:00+07:00`);
@@ -1122,9 +1153,9 @@ test('i18n dictionary supports English and Vietnamese switching and config prese
 
 test('Odoo status updates drawn status dot and title', async () => {
   assert.equal(ODOO_STATUS_COLORS.checked_in, '#16a34a');
-  assert.equal(ODOO_STATUS_COLORS.checked_out, '#2563eb');
-  assert.equal(ODOO_STATUS_COLORS.not_today, '#d97706');
-  assert.equal(ODOO_STATUS_COLORS.error, '#dc2626');
+  assert.equal(ODOO_STATUS_COLORS.checked_out, '#dc2626');
+  assert.equal(ODOO_STATUS_COLORS.not_today, '#2563eb');
+  assert.equal(ODOO_STATUS_COLORS.error, '#d97706');
 
   // When disabled/disconnected
   await updateActionBadge({enabled: false}, null);

@@ -41,9 +41,9 @@ export async function remindDailyNote(now = new Date()) {
 
 export const ODOO_STATUS_COLORS = {
   checked_in: '#16a34a',
-  checked_out: '#2563eb',
-  not_today: '#d97706',
-  error: '#dc2626',
+  checked_out: '#dc2626',
+  not_today: '#2563eb',
+  error: '#d97706',
 };
 
 let actionIconBitmap;

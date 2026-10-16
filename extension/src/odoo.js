@@ -29,20 +29,23 @@ export function formatHoursMinutes(hours) {
 export function parseAttendance(data, now = new Date()) {
   if (!data?.id) throw new Error('no_employee');
   if (!['checked_in', 'checked_out'].includes(data.attendance_state)) throw new Error('unavailable');
-  let lastCheckIn = null;
-  if (data.last_check_in) {
+  const timestamps = {};
+  for (const field of ['last_check_in', 'last_check_out']) {
+    timestamps[field] = null;
+    if (!data[field]) continue;
     // Odoo serializes Datetime values in UTC, without a timezone suffix.
-    const value = data.last_check_in;
+    const value = data[field];
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?$/.test(value)) throw new Error('unavailable');
     parseDay(value.slice(0, 10));
     const parsed = new Date(value.replace(' ', 'T') + 'Z');
     if (!Number.isFinite(parsed.getTime()) || parsed.getTime() > now.getTime()) throw new Error('unavailable');
-    lastCheckIn = parsed.toISOString();
+    timestamps[field] = parsed.toISOString();
   }
+  const {last_check_in: lastCheckIn, last_check_out: lastCheckOut} = timestamps;
   if (data.attendance_state === 'checked_in' && !lastCheckIn) throw new Error('unavailable');
   const workedToday = lastCheckIn && today(new Date(lastCheckIn)) === today(now);
   return {
-    employeeId: data.id, lastCheckIn,
+    employeeId: data.id, lastCheckIn, lastCheckOut,
     hoursToday: typeof data.hours_today === 'number' && Number.isFinite(data.hours_today) && data.hours_today >= 0 ? data.hours_today : null,
     state: data.attendance_state === 'checked_in' ? 'checked_in' : workedToday ? 'checked_out' : 'not_today',
     checkedAt: now.toISOString(), error: null,
@@ -80,7 +83,30 @@ async function attendanceRequest(config, route, now, request) {
     const name = String(payload.error.data?.name || '');
     throw new Error(/SessionExpired|AccessDenied/.test(name) || payload.error.code === 100 ? 'login_required' : 'unavailable');
   }
-  return parseAttendance(payload.result, new Date(now.getTime() + Date.now() - started));
+  const result = payload.result;
+  let data = parseAttendance({...result, last_check_out: result?.last_check_out || result?.attendance?.check_out}, new Date(now.getTime() + Date.now() - started));
+  if (data.state === 'checked_out' && !data.lastCheckOut) {
+    try {
+      // Odoo 17's user data omits checkout; read the matching attendance record.
+      const checkoutResponse = await request(`${config.url}/web/dataset/call_kw/hr.attendance/search_read`, {
+        method: 'POST', credentials: 'include', redirect: 'error', signal: AbortSignal.timeout(15000),
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({jsonrpc: '2.0', method: 'call', params: {
+          model: 'hr.attendance', method: 'search_read', args: [],
+          kwargs: {domain: [['employee_id', '=', data.employeeId], ['check_in', '=', result.last_check_in]], fields: ['check_out'], limit: 1},
+        }, id: 1}),
+      });
+      if (checkoutResponse.ok) {
+        const checkout = await checkoutResponse.json();
+        if (!checkout.error && checkout.result?.[0]?.check_out) {
+          data = parseAttendance({...result, last_check_out: checkout.result[0].check_out}, new Date(now.getTime() + Date.now() - started));
+        }
+      }
+    } catch {
+      // Keep attendance available when the account cannot read attendance records.
+    }
+  }
+  return data;
 }
 
 export function readAttendance(config, now = new Date(), request = fetch) {

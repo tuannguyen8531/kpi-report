@@ -2046,8 +2046,11 @@ function renderOdoo() {
   }
   const timeLabel = (value) => new Date(value).toLocaleTimeString(currentLang === 'en' ? 'en-GB' : 'vi-VN', {timeZone: 'Asia/Ho_Chi_Minh', hour12: false});
   if ($('odoo-updated')) {
+    const attendanceLabel = data?.state === 'checked_out'
+      ? ` · Check-out: ${data.lastCheckOut ? timeLabel(data.lastCheckOut) : '—'}`
+      : data?.lastCheckIn ? ` · Check-in: ${timeLabel(data.lastCheckIn)}` : '';
     $('odoo-updated').textContent = data?.checkedAt
-      ? `${t('odoo.updated')}: ${timeLabel(data.checkedAt)}${data.lastCheckIn ? ` · Check-in: ${timeLabel(data.lastCheckIn)}` : ''}` : '';
+      ? `${t('odoo.updated')}: ${timeLabel(data.checkedAt)}${attendanceLabel}` : '';
   }
   if ($('odoo-open')) {
     $('odoo-open').hidden = !config?.enabled;

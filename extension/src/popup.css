@@ -1235,15 +1235,15 @@ select.select-input:focus {
 }
 
 .odoo-status-pill.status-checked_out {
-  background: var(--primary-soft);
-  color: var(--primary);
-  border: 1px solid var(--primary-border);
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
 }
 
 .odoo-status-pill.status-not_today {
-  background: var(--amber-soft);
-  color: #b45309;
-  border: 1px solid var(--amber-border);
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
 }
 
 .odoo-status-pill.status-disconnected {
@@ -1257,9 +1257,9 @@ select.select-input:focus {
 .odoo-status-pill.status-error,
 .odoo-status-pill.status-permission_required,
 .odoo-status-pill.status-no_employee {
-  background: var(--danger-soft);
-  color: var(--danger);
-  border: 1px solid var(--danger-border);
+  background: var(--amber-soft);
+  color: #b45309;
+  border: 1px solid var(--amber-border);
 }
 
 .odoo-actions {

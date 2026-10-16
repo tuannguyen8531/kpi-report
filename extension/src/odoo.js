@@ -59,8 +59,8 @@ export function nextAttendanceReminder(config, now = new Date(), completedSlots 
     if (weekday === 0 || weekday === 6) continue;
     const checks = config.times.flatMap((time, slot) => {
       if (offset === 0 && completedSlots.includes(slot)) return [];
-      const start = Date.parse(`${day}T${time}:00+07:00`);
-      return [0, 10, 20].map((minutes) => start + minutes * 60000);
+      const start = Date.parse(`${day}T${time}:00`);
+      return [0, 10, 20, 30].map((minutes) => start + minutes * 60000);
     }).sort((a, b) => a - b);
     for (const when of checks) {
       if (when > now.getTime()) return when;
@@ -117,15 +117,15 @@ export function changeAttendance(config, now = new Date(), request = fetch) {
   return attendanceRequest(config, 'systray_check_in_out', now, request);
 }
 
-// Each milestone is active for 30 minutes; missed windows are never replayed.
+// Include the entire +30 minute mark so alarm and network delays do not drop the final reminder.
 export function attendanceWindow(config, now = new Date()) {
   if (!config.enabled || (!config.reminders && !config.autoAttendance)) return null;
   const day = today(now), weekday = parseDay(day).getUTCDay();
   if (weekday === 0 || weekday === 6) return null;
-  const deadlines = config.times.map((time) => Date.parse(`${day}T${time}:00+07:00`));
+  const deadlines = config.times.map((time) => Date.parse(`${day}T${time}:00`));
   let slot = -1;
   deadlines.forEach((deadline, index) => {if (now.getTime() >= deadline) slot = index;});
-  return slot < 0 || now.getTime() >= deadlines[slot] + 30 * 60000 ? null : slot;
+  return slot < 0 || now.getTime() >= deadlines[slot] + 31 * 60000 ? null : slot;
 }
 
 export function attendanceReminder(config, data, now = new Date()) {
@@ -134,7 +134,7 @@ export function attendanceReminder(config, data, now = new Date()) {
   if (slot === null) return null;
   if (slot % 2 === 1) return data.state === 'checked_in' ? slot : null;
   const day = today(now);
-  const windowStart = Date.parse(`${day}T${slot === 0 ? '00:00' : config.times[slot - 1]}:00+07:00`);
+  const windowStart = Date.parse(`${day}T${slot === 0 ? '00:00' : config.times[slot - 1]}:00`);
   return data.lastCheckIn && Date.parse(data.lastCheckIn) >= windowStart ? null : slot;
 }
 

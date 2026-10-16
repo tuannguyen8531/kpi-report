@@ -4,7 +4,10 @@ import path from 'node:path';
 import {test, beforeEach} from 'node:test';
 import '../src/vendor/exceljs.min.js';
 import {SYNC_MINUTES, today, periods, parseDay, normalizeLogs, makeSnapshot, validateConfig, validateLeave, exportCsv} from '../src/core.js';
-import {verifyAttendanceCode, ODOO_TIMES, validateOdooConfig, parseAttendance, readAttendance, attendanceReminder, nextAttendanceReminder, formatHoursMinutes} from '../src/odoo.js';
+import {verifyAttendanceCode, ODOO_TIMES, validateOdooConfig, parseAttendance, readAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder, formatHoursMinutes} from '../src/odoo.js';
+
+// Existing fixtures use Vietnam time; timezone-specific cases override it explicitly.
+process.env.TZ = 'Asia/Ho_Chi_Minh';
 
 const ExcelJS = globalThis.ExcelJS;
 const ODOO_URL = 'https://odoo.example.com';
@@ -212,6 +215,67 @@ async function connect() {
   return handleMessage({type: 'connect', config, token: 'test-token', day});
 }
 beforeEach(() => {local = {}; session = {}; fetches = []; replyPages = []; notifications = []; openedTabs = []; noteAlarm = undefined; odooAlarm = undefined; odooReminderAlarm = undefined; actionBadge = {text: '', color: '', title: ''}; actionIcon = null;});
+
+test('system timezone controls local dates and attendance reminders in multiple regions', () => {
+  const previous = process.env.TZ;
+  try {
+    for (const [zone, expectedDay, reminder] of [
+      ['America/New_York', '2026-09-30', '2026-10-01T12:30:00Z'],
+      ['America/Los_Angeles', '2026-09-30', '2026-10-01T15:30:00Z'],
+      ['Asia/Ho_Chi_Minh', '2026-10-01', '2026-10-01T01:30:00Z'],
+      ['Asia/Kolkata', '2026-10-01', '2026-10-01T03:00:00Z'],
+    ]) {
+      process.env.TZ = zone;
+      const instant = new Date('2026-10-01T01:00:00Z');
+      assert.equal(today(instant), expectedDay);
+      const rows = normalizeLogs([log('one', instant.toISOString())], config, 'me', '2026-09-01', '2026-11-01');
+      assert.equal(rows[0].date, expectedDay);
+      const settings = validateOdooConfig({url: ODOO_URL, reminders: true});
+      assert.equal(nextAttendanceReminder(settings, new Date('2026-10-01T08:00:00')), Date.parse(reminder));
+      const now = new Date('2026-10-01T08:30:00');
+      assert.equal(attendanceWindow(settings, now), 0);
+      const absent = parseAttendance({id: 7, attendance_state: 'checked_out', last_check_in: false}, now);
+      assert.equal(attendanceReminder(settings, absent, now), 0);
+      const morning = new Date('2026-10-01T08:20:00');
+      const checkedOut = parseAttendance({id: 7, attendance_state: 'checked_out', last_check_in: morning.toISOString().slice(0, 19).replace('T', ' ')}, now);
+      assert.equal(checkedOut.state, 'checked_out');
+      assert.equal(checkedOut.lastCheckIn, morning.toISOString());
+      assert.equal(attendanceReminder(settings, checkedOut, now), null);
+    }
+  } finally {process.env.TZ = previous;}
+});
+
+test('timezone changes invalidate GitLab caches and scheduling follows daylight saving changes', async () => {
+  const previous = process.env.TZ;
+  try {
+    process.env.TZ = 'America/New_York';
+    await connect();
+    assert.equal(fetches.at(-1).variables.start, '2026-09-28T04:00:00.000Z');
+    assert.equal(fetches.at(-1).variables.end, '2026-11-01T04:00:00.000Z');
+    const before = fetches.length;
+    process.env.TZ = 'America/Los_Angeles';
+    replyPages.push(page([log('local-day', '2026-10-01T07:30:00Z')]));
+    const snapshot = await handleMessage({type: 'snapshot', day});
+    assert.equal(fetches.length, before + 1);
+    assert.equal(fetches.at(-1).variables.start, '2026-09-28T07:00:00.000Z');
+    assert.equal(snapshot.logs[0].date, day);
+    process.env.TZ = 'America/New_York';
+    replyPages.push(page([]));
+    await handleMessage({type: 'snapshot', day: '2026-03-10'});
+    assert.equal(fetches.at(-1).variables.start, '2026-03-01T05:00:00.000Z');
+    assert.equal(fetches.at(-1).variables.end, '2026-04-01T04:00:00.000Z');
+    for (const [now, next, hours] of [
+      ['2026-03-07T15:00:00Z', '2026-03-08T14:00:00Z', 23],
+      ['2026-10-31T14:00:00Z', '2026-11-01T15:00:00Z', 25],
+    ]) {
+      await remindDailyNote(new Date(now));
+      assert.equal(noteAlarm.when, Date.parse(next));
+      assert.equal((noteAlarm.when - Date.parse(now)) / 3600000, hours);
+    }
+    const settings = validateOdooConfig({url: ODOO_URL, reminders: true});
+    assert.equal(nextAttendanceReminder(settings, new Date('2026-10-30T18:30:00')), Date.parse('2026-11-02T13:30:00Z'));
+  } finally {process.env.TZ = previous;}
+});
 
 test('thirty-minute scheduling is recreated; refresh reads every page, caches, and handles deleted logs', async () => {
   await new Promise((resolve) => setImmediate(resolve));
@@ -551,7 +615,11 @@ test('Odoo reminders distinguish both shifts, skip weekends and do not replay ea
   for (const [start, end, slot] of [['08:50', '09:00', 0], ['12:20', '12:30', 1], ['13:50', '14:00', 2], ['18:20', '18:30', 3]]) {
     const data = slot % 2 ? morning : absent;
     assert.equal(attendanceReminder(config, data(at(start)), at(start)), slot);
-    assert.equal(attendanceReminder(config, data(at(end)), at(end)), null);
+    assert.equal(attendanceReminder(config, data(at(end)), at(end)), slot);
+    const delayed = new Date(at(end).getTime() + 59999);
+    assert.equal(attendanceReminder(config, data(delayed), delayed), slot);
+    const expired = new Date(at(end).getTime() + 60000);
+    assert.equal(attendanceReminder(config, data(expired), expired), null);
   }
   const saturday = at('08:30', '2026-10-10');
   assert.equal(attendanceReminder(config, absent(saturday), saturday), null);
@@ -560,11 +628,13 @@ test('Odoo reminders distinguish both shifts, skip weekends and do not replay ea
   assert.equal(nextAttendanceReminder(config, at('08:29')), at('08:30').getTime());
   assert.equal(nextAttendanceReminder(config, at('08:30')), at('08:40').getTime());
   assert.equal(nextAttendanceReminder(config, at('08:40')), at('08:50').getTime());
-  assert.equal(nextAttendanceReminder(config, at('08:50')), at('12:00').getTime());
+  assert.equal(nextAttendanceReminder(config, at('08:50')), at('09:00').getTime());
+  assert.equal(nextAttendanceReminder(config, at('09:00')), at('12:00').getTime());
   assert.equal(nextAttendanceReminder(config, at('08:30'), [0]), at('12:00').getTime());
   assert.equal(nextAttendanceReminder(config, at('12:00')), at('12:10').getTime());
   assert.equal(nextAttendanceReminder(config, at('13:30')), at('13:40').getTime());
-  assert.equal(nextAttendanceReminder(config, at('18:20', '2026-10-09')), at('08:30', '2026-10-12').getTime());
+  assert.equal(nextAttendanceReminder(config, at('18:20', '2026-10-09')), at('18:30', '2026-10-09').getTime());
+  assert.equal(nextAttendanceReminder(config, at('18:30', '2026-10-09')), at('08:30', '2026-10-12').getTime());
   assert.equal(nextAttendanceReminder({...config, reminders: false}, at('08:30')), null);
 });
 
@@ -627,33 +697,38 @@ test('Odoo repeats every ten minutes within the window and stops after completio
   globalThis.fetch = async () => ({ok: true, json: async () => ({result})});
   try {
     local.odooConfig = validateOdooConfig({url: ODOO_URL, reminders: true});
-    for (const time of ['08:30', '08:31', '08:40', '08:41', '08:50', '08:51', '09:00', '09:10']) await refreshOdoo(at(time), true);
-    assert.equal(notifications.length, 3);
-    assert.equal(new Set(notifications.map(n => n.id)).size, 3);
+    for (const time of ['08:30', '08:31', '08:40', '08:41', '08:50', '08:51', '09:00', '09:00', '09:01', '09:10']) await refreshOdoo(at(time), true);
+    assert.equal(notifications.length, 4);
+    assert.equal(new Set(notifications.map(n => n.id)).size, 4);
     assert.equal(odooReminderAlarm.when, at('12:00').getTime());
+
+    assert.equal(notifications.at(-1).id, 'odoo-attendance:0:3');
+    events.notificationClick(notifications.at(-1).id);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(openedTabs.at(-1).url, `${ODOO_URL}/web`);
 
     // A different employee completes check-in before the second reminder.
     result = {id: 8, attendance_state: 'checked_out', last_check_in: false};
     await refreshOdoo(at('08:30'), true);
     result = {id: 8, attendance_state: 'checked_in', last_check_in: '2026-10-08 01:35:00'};
     await refreshOdoo(at('08:40'), true);
-    assert.equal(notifications.length, 4);
+    assert.equal(notifications.length, 5);
     assert.equal(odooReminderAlarm.when, at('12:00').getTime());
     result = {id: 8, attendance_state: 'checked_out', last_check_in: false};
     await refreshOdoo(at('08:50'), true);
-    assert.equal(notifications.length, 4);
+    assert.equal(notifications.length, 5);
 
     result = {id: 8, attendance_state: 'checked_in', last_check_in: '2026-10-08 01:35:00'};
     await refreshOdoo(at('12:00'), true);
     await refreshOdoo(at('12:10'), true);
-    assert.equal(notifications.length, 6);
+    assert.equal(notifications.length, 7);
     result.attendance_state = 'checked_out';
     await refreshOdoo(at('12:20'), true);
-    assert.equal(notifications.length, 6);
+    assert.equal(notifications.length, 7);
     assert.equal(odooReminderAlarm.when, at('13:30').getTime());
     result.attendance_state = 'checked_in';
     await refreshOdoo(at('12:25'), true);
-    assert.equal(notifications.length, 6);
+    assert.equal(notifications.length, 7);
   } finally {globalThis.fetch = originalFetch;}
 });
 
@@ -737,7 +812,7 @@ test('only reminder alarms check and automate attendance inside the thirty-minut
     assert.equal(notifications.length, 0);
     assert.equal(odooReminderAlarm.when, originalDate.parse('2026-10-08T12:00:00+07:00'));
     // Delayed reminder alarms must not read attendance after the cutoff.
-    for (const time of ['09:00', '12:30', '14:00', '18:30']) {
+    for (const time of ['09:01', '12:31', '14:01', '18:31']) {
       clock = originalDate.parse(`2026-10-08T${time}:00+07:00`);
       events.alarm({name: 'odoo-reminder'});
       await drain();
@@ -821,14 +896,14 @@ test('automatic attendance does not write when status reads or attempt storage o
   try {
     local.odooAutomationUnlocked = true;
     local.odooConfig = {...validateOdooConfig({url: ODOO_URL, autoAttendance: true}), autoEmployeeId: 7};
-    await refreshOdoo(new Date('2026-10-08T08:59:50+07:00'), true);
+    await refreshOdoo(new Date('2026-10-08T09:00:50+07:00'), true);
     assert.equal(writes, 0);
     elapsed = 0;
     chrome.storage.local.set = async (data) => {
       if (data.odooAutoAttempts) elapsed += 20000;
       await originalSet(data);
     };
-    await refreshOdoo(new Date('2026-10-08T08:59:30+07:00'), true);
+    await refreshOdoo(new Date('2026-10-08T09:00:30+07:00'), true);
     assert.equal(writes, 0);
     assert.equal(local.odooAutoAttempts.keys.length, 1);
   } finally {

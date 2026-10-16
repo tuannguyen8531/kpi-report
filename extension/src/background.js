@@ -23,8 +23,8 @@ export async function remindDailyNote(now = new Date()) {
   }
   const day = today(now);
   const time = config.reminderTime || '10:00';
-  const due = Date.parse(`${day}T${time}:00+07:00`);
-  const next = now.getTime() < due ? due : Date.parse(`${addDays(day, 1)}T${time}:00+07:00`);
+  const due = Date.parse(`${day}T${time}:00`);
+  const next = now.getTime() < due ? due : Date.parse(`${addDays(day, 1)}T${time}:00`);
   await chrome.alarms.create(NOTE_ALARM, {when: next});
   const profile = profiles[config.profile];
   const note = profile?.notes?.[day];
@@ -208,7 +208,7 @@ export async function refreshOdoo(now = new Date(), scheduledCheck = false) {
     await chrome.storage.local.set({odooNotified: notified});
   }
   if (scheduledCheck && odooConfig.reminders && slot !== null && !notified.completed.includes(keyFor(slot)) && await chrome.notifications.getPermissionLevel() === 'granted') {
-    const start = Date.parse(`${day}T${odooConfig.times[slot]}:00+07:00`);
+    const start = Date.parse(`${day}T${odooConfig.times[slot]}:00`);
     const tick = Math.floor((now.getTime() - start) / (10 * 60000));
     const key = `${keyFor(slot)}|${tick}`;
     if (!notified.keys.includes(key)) {
@@ -257,7 +257,8 @@ async function synchronize(day, force = false) {
   if (!config?.profile) return {configured: false};
   const profiles = stored.profiles || {};
   const profile = profiles[config.profile] || {leaves: [], caches: {}};
-  const range = periods(day), key = `${range.start}/${range.end}`;
+  const range = periods(day), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const key = `${timeZone}|${range.start}/${range.end}`;
   let cache = profile.caches[key];
   const token = await getToken();
   if (force || !cache || Date.now() - Date.parse(cache.attemptedAt || cache.syncedAt || '') >= SYNC_MINUTES * 60000) {
@@ -267,8 +268,8 @@ async function synchronize(day, force = false) {
       let after = null;
       while (true) {
         const data = await request(config, token, TIMELOG_QUERY, {
-          username: config.username, start: `${range.start}T00:00:00+07:00`,
-          end: `${range.end}T00:00:00+07:00`, after,
+          username: config.username, start: new Date(`${range.start}T00:00:00`).toISOString(),
+          end: new Date(`${range.end}T00:00:00`).toISOString(), after,
         });
         const connection = data.timelogs;
         if (!Array.isArray(connection?.nodes) || !connection.pageInfo) throw new Error('GitLab returned an incomplete timelog list.');
@@ -589,7 +590,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 chrome.notifications.onClicked.addListener((id) => {
   void serial(async () => {
-    if (/^odoo-attendance:[0-3](?::[0-2])?$/.test(id)) {
+    if (/^odoo-attendance:[0-3](?::[0-3])?$/.test(id)) {
       const {odooConfig} = await chrome.storage.local.get('odooConfig');
       if (odooConfig?.enabled) await chrome.tabs.create({url: `${odooConfig.url}/web`});
       await chrome.notifications.clear(id);

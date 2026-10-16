@@ -319,7 +319,7 @@ function render(data) {
   } else {
     statusDot.className = 'status-dot live';
     const updatedTime = data.syncedAt ? new Date(data.syncedAt).toLocaleTimeString('en-GB', {
-      timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit'
+      hour: '2-digit', minute: '2-digit'
     }) : t('header.connected');
     statusText.textContent = t('header.synced_at', {time: updatedTime});
     statusText.title = t('header.synced_at', {time: updatedTime});
@@ -2084,7 +2084,7 @@ function renderOdoo() {
   if ($('odoo-hours')) {
     $('odoo-hours').textContent = formatHoursMinutes(config?.enabled && !data?.error ? data?.hoursToday : null);
   }
-  const timeLabel = (value) => new Date(value).toLocaleTimeString(currentLang === 'en' ? 'en-GB' : 'vi-VN', {timeZone: 'Asia/Ho_Chi_Minh', hour12: false});
+  const timeLabel = (value) => new Date(value).toLocaleTimeString(currentLang === 'en' ? 'en-GB' : 'vi-VN', {hour12: false});
   if ($('odoo-updated')) {
     const attendanceLabel = data?.state === 'checked_out'
       ? ` · Check-out: ${data.lastCheckOut ? timeLabel(data.lastCheckOut) : '—'}`

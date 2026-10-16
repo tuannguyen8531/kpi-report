@@ -264,7 +264,7 @@
       </div>
     </section>
 
-    <!-- KPI Metric Cards (3 cards) -->
+    <!-- Work Hours Cards (3 cards) -->
     <section class="metrics-grid" aria-label="Total work hours">
       <!-- Card 1: Day -->
       <article class="metric-card metric-card-interactive" id="card-day" role="button" tabindex="0" title="View work and leave details">
@@ -598,8 +598,8 @@
                 </div>
                 <div class="leave-stat-divider"></div>
                 <div class="leave-stat-item">
-                  <span class="leave-stat-val color-green" id="leave-stat-kpi">+0h</span>
-                  <span class="leave-stat-lbl">KPI hours</span>
+                  <span class="leave-stat-val color-green" id="leave-stat-credited">+0h</span>
+                  <span class="leave-stat-lbl" data-i18n="leave.credited_hours">Credited hours</span>
                 </div>
               </div>
 
@@ -778,7 +778,7 @@
 
           <div class="export-actions-card">
             <div class="export-buttons-group">
-              <button id="btn-export-excel" class="btn btn-primary btn-large" type="button" data-i18n-title="report.export_excel" title="Export Excel report (.xlsx) with KPI formulas">
+              <button id="btn-export-excel" class="btn btn-primary btn-large" type="button" data-i18n-title="report.export_excel" title="Export Excel report (.xlsx) with report formulas">
                 <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
@@ -798,7 +798,7 @@
               </button>
             </div>
             <p class="export-note" data-i18n="report.export_note">
-              Excel reports include KPI formulas, issue/MR links, and leave entries using the <code>work_report.xlsx</code> template.
+              Excel reports include report formulas, issue/MR links, and leave entries using the <code>work_report.xlsx</code> template.
             </p>
             <pre class="code-snippet sr-only" id="report-command-example" hidden></pre>
           </div>
@@ -856,7 +856,7 @@
             <div class="empty-desc" data-i18n="report.tasks_empty_sub">No work timelogs found in this month.</div>
           </div>
 
-          <!-- Mini KPI Stats Banner -->
+          <!-- Mini Work Hours Stats Banner -->
           <div id="report-tasks-stats-banner" class="report-tasks-stats-banner" hidden>
             <div class="report-task-stat-item">
               <span class="report-task-stat-label" data-i18n="report.stat_tasks">Total tasks</span>

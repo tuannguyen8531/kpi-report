@@ -336,7 +336,7 @@ function render(data) {
   }
   if (noteDay && !$('modal-breakdown').hidden) renderDayNote(data, noteDay);
 
-  // Top KPI Metrics (Combined Tracking Time: Work + Leave)
+  // Top Work Hours Metrics (Combined Tracking Time: Work + Leave)
   // 1. Day Card
   const isToday = data.date === data.today;
   $('day-label').textContent = isToday ? t('card.today') : `${t('card.day')} ${shortDay(data.date)}`;
@@ -846,7 +846,7 @@ function renderLeaves(data) {
   }
   if ($('leave-stat-days')) $('leave-stat-days').textContent = leaves.length;
   if ($('leave-stat-hours')) $('leave-stat-hours').textContent = formatHours(totalLeaveHours);
-  if ($('leave-stat-kpi')) $('leave-stat-kpi').textContent = `+${formatHours(totalLeaveHours)}`;
+  if ($('leave-stat-credited')) $('leave-stat-credited').textContent = `+${formatHours(totalLeaveHours)}`;
 
   if (leaves.length === 0) {
     emptyEl.hidden = false;
@@ -1158,7 +1158,7 @@ $('leave-form').addEventListener('submit', (e) => {
 // 8. Leave Backup & Restore
 $('backup').addEventListener('click', () => act(async () => {
   const backupData = await send({type: 'backup'});
-  downloadFile(`kpi-ngay-nghi-${today()}.json`, JSON.stringify(backupData, null, 2), 'application/json');
+  downloadFile(`work-hours-ngay-nghi-${today()}.json`, JSON.stringify(backupData, null, 2), 'application/json');
   showToast(t('toast.leave_backup'), 'success');
 }));
 $('restore').addEventListener('change', (e) => act(async () => {

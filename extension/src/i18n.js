@@ -5,6 +5,7 @@
 
 export const TRANSLATIONS = {
   vi: {
+    'leave.credited_hours': 'Giờ được cộng',
     // App & Header
     'app.title': 'Work Hours Tracker',
     'app.subtitle': 'Theo dõi giờ làm việc Realtime',
@@ -154,7 +155,7 @@ export const TRANSLATIONS = {
     'report.filter_over': '>100% Est',
     'report.tasks_pending_title': 'Chưa tải dữ liệu task trong tháng',
     'report.tasks_pending_desc': 'Xem danh sách task & MR đã làm, đối chiếu thời gian thực tế với ước tính (Spent vs Estimate).',
-    'report.subtitle': 'Tạo file báo cáo KPI hàng tháng',
+    'report.subtitle': 'Tạo file báo cáo công việc hàng tháng',
     'report.summary_title': 'Tổng hợp số liệu tháng',
     'report.work_hours': 'Giờ làm việc',
     'report.leave_hours': 'Giờ nghỉ phép',
@@ -163,7 +164,7 @@ export const TRANSLATIONS = {
     'report.cli_hint': 'Lệnh tạo báo cáo Python (CLI dự phòng):',
     'report.export_excel': 'Xuất Excel (.xlsx)',
     'report.export_csv': 'Xuất CSV',
-    'report.export_note': 'Tiện ích tự động tạo file Excel chuẩn KPI với đầy đủ công thức và liên kết GitLab.',
+    'report.export_note': 'Tiện ích tự động tạo file Excel báo cáo công việc với đầy đủ công thức và liên kết GitLab.',
 
     // Settings Modal
     'settings.title': 'Cài đặt & Tài khoản',
@@ -279,6 +280,7 @@ export const TRANSLATIONS = {
   },
 
   en: {
+    'leave.credited_hours': 'Credited hours',
     // App & Header
     'app.title': 'Work Hours Tracker',
     'app.subtitle': 'Realtime Work Hours',
@@ -428,7 +430,7 @@ export const TRANSLATIONS = {
     'report.filter_over': '>100% Est',
     'report.tasks_pending_title': 'Task summary not loaded',
     'report.tasks_pending_desc': 'Review monthly tasks and Merge Requests with Spent vs Estimate hours.',
-    'report.subtitle': 'Generate monthly KPI reports',
+    'report.subtitle': 'Generate monthly work reports',
     'report.summary_title': 'Monthly summary',
     'report.work_hours': 'Work hours',
     'report.leave_hours': 'Leave hours',
@@ -437,7 +439,7 @@ export const TRANSLATIONS = {
     'report.cli_hint': 'CLI report command (Python fallback):',
     'report.export_excel': 'Export Excel (.xlsx)',
     'report.export_csv': 'Export CSV',
-    'report.export_note': 'Automatically generates Excel KPI report with formulas and GitLab hyperlinks.',
+    'report.export_note': 'Automatically generates Excel work reports with formulas and GitLab hyperlinks.',
 
     // Settings Modal
     'settings.title': 'Settings & Account',

@@ -1,6 +1,6 @@
 # Work Hours Tracker
 
-A Chrome and Edge extension for tracking GitLab work hours, managing leave, and exporting monthly KPI reports.
+A Chrome and Edge extension for tracking GitLab work hours, managing leave, and exporting monthly work reports.
 
 ## Features
 

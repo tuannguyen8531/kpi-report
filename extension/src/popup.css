@@ -841,7 +841,7 @@ select.select-input:focus {
   width: auto;
 }
 
-/* KPI Metrics Grid */
+/* Work Hours Metrics Grid */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2633,7 +2633,7 @@ select.select-input:focus {
   border-top-color: var(--primary);
 }
 
-/* Mini KPI Stats Banner */
+/* Mini Work Hours Stats Banner */
 .report-tasks-stats-banner {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -3707,7 +3707,7 @@ a.breakdown-item-link:hover strong {
     padding: 14px 20px;
   }
 
-  /* Large KPI cards on desktop */
+  /* Large work hours cards on desktop */
   .metrics-grid {
     padding: 20px 28px;
     gap: 16px;

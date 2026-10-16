@@ -1,5 +1,5 @@
 {
-  "name": "kpi-tracker-extension",
+  "name": "work-hours-tracker-extension",
   "private": true,
   "type": "module",
   "scripts": {

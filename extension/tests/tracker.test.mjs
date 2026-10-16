@@ -1161,37 +1161,37 @@ test('Odoo status updates drawn status dot and title', async () => {
   await updateActionBadge({enabled: false}, null);
   assert.equal(actionBadge.text, '');
   assert.equal(actionIcon, null);
-  assert.equal(actionBadge.title, 'KPI · Work hours');
+  assert.equal(actionBadge.title, 'GitLab Work Hours Tracker');
 
   // When checked in (Vietnamese)
   await updateActionBadge({enabled: true}, {state: 'checked_in'}, 'vi');
   assert.equal(actionBadge.text, '');
   assert.equal(actionIcon, null);
-  assert.equal(actionBadge.title, 'KPI · Work hours (Đang check-in)');
+  assert.equal(actionBadge.title, 'GitLab Work Hours Tracker (Đang check-in)');
 
   // When checked in (English)
   await updateActionBadge({enabled: true}, {state: 'checked_in'}, 'en');
   assert.equal(actionBadge.text, '');
   assert.equal(actionIcon, null);
-  assert.equal(actionBadge.title, 'KPI · Work hours (Checked in)');
+  assert.equal(actionBadge.title, 'GitLab Work Hours Tracker (Checked in)');
 
   // When checked out
   await updateActionBadge({enabled: true}, {state: 'checked_out'}, 'vi');
   assert.equal(actionBadge.text, '');
   assert.equal(actionIcon, null);
-  assert.equal(actionBadge.title, 'KPI · Work hours (Đã check-out)');
+  assert.equal(actionBadge.title, 'GitLab Work Hours Tracker (Đã check-out)');
 
   // When not today
   await updateActionBadge({enabled: true}, {state: 'not_today'}, 'vi');
   assert.equal(actionBadge.text, '');
   assert.equal(actionIcon, null);
-  assert.equal(actionBadge.title, 'KPI · Work hours (Chưa check-in hôm nay)');
+  assert.equal(actionBadge.title, 'GitLab Work Hours Tracker (Chưa check-in hôm nay)');
 
   // When error
   await updateActionBadge({enabled: true}, {error: 'login_required'}, 'vi');
   assert.equal(actionBadge.text, '');
   assert.equal(actionIcon, null);
-  assert.equal(actionBadge.title, 'KPI · Work hours (Lỗi Odoo)');
+  assert.equal(actionBadge.title, 'GitLab Work Hours Tracker (Lỗi Odoo)');
   // Unknown and disconnected states clear a previously displayed dot.
   await updateActionBadge({enabled: true}, {state: 'unknown'});
   assert.equal(actionBadge.text, '');

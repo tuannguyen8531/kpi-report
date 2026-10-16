@@ -96,7 +96,7 @@ export async function updateActionBadge(config, data, language = 'vi') {
 
   if (!config?.enabled) {
     await updateActionIcon(null);
-    if (chrome.action.setTitle) await chrome.action.setTitle({title: 'KPI · Work hours'});
+    if (chrome.action.setTitle) await chrome.action.setTitle({title: 'GitLab Work Hours Tracker'});
     return;
   }
 
@@ -107,13 +107,13 @@ export async function updateActionBadge(config, data, language = 'vi') {
 
   const isEn = language === 'en';
   const statusTitles = {
-    checked_in: isEn ? 'KPI · Work hours (Checked in)' : 'KPI · Work hours (Đang check-in)',
-    checked_out: isEn ? 'KPI · Work hours (Checked out)' : 'KPI · Work hours (Đã check-out)',
-    not_today: isEn ? 'KPI · Work hours (Not checked in today)' : 'KPI · Work hours (Chưa check-in hôm nay)',
-    error: isEn ? 'KPI · Work hours (Odoo error)' : 'KPI · Work hours (Lỗi Odoo)',
+    checked_in: isEn ? 'GitLab Work Hours Tracker (Checked in)' : 'GitLab Work Hours Tracker (Đang check-in)',
+    checked_out: isEn ? 'GitLab Work Hours Tracker (Checked out)' : 'GitLab Work Hours Tracker (Đã check-out)',
+    not_today: isEn ? 'GitLab Work Hours Tracker (Not checked in today)' : 'GitLab Work Hours Tracker (Chưa check-in hôm nay)',
+    error: isEn ? 'GitLab Work Hours Tracker (Odoo error)' : 'GitLab Work Hours Tracker (Lỗi Odoo)',
   };
   if (chrome.action.setTitle) {
-    await chrome.action.setTitle({title: statusTitles[status] || 'KPI · Work hours'});
+    await chrome.action.setTitle({title: statusTitles[status] || 'GitLab Work Hours Tracker'});
   }
 }
 

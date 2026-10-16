@@ -308,7 +308,7 @@ function render(data) {
   $('view-dashboard').hidden = false;
 
   // User & Status header
-  $('user-name').textContent = data.username ? `@${data.username}` : 'GitLab';
+  $('user-name').textContent = data.username || 'GitLab';
   const statusDot = $('status-dot');
   const statusText = $('status-text');
 

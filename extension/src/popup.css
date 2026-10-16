@@ -662,18 +662,11 @@ input:focus, textarea:focus, select:focus {
   gap: 10px;
 }
 .logo-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  flex-shrink: 0;
   width: 32px;
   height: 32px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%);
-  color: #ffffff;
-}
-.logo-mark svg {
-  width: 18px;
-  height: 18px;
 }
 .brand-title {
   font-size: 15px;

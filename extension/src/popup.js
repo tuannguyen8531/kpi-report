@@ -1,5 +1,5 @@
 import {today, parseDay, addDays, validateConfig, projectName} from './core.js';
-import {generateExcelWorkbook} from './excel_generator.js';
+import {generateExcelWorkbook} from './excel.js';
 import {getLanguage, setLanguage, t} from './i18n.js';
 import {ENTRY_SIZE, ODOO_TIMES, validateOdooConfig, formatHoursMinutes} from './odoo.js';
 

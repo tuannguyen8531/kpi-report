@@ -534,8 +534,8 @@ export async function generateExcelWorkbook(templateBuffer, reportData, ExcelJS)
     [16, 'G', ''],
     [17, 'J', 'Đúng hạn'],
     [18, 'J', 'Trễ hạn'],
-    [20, 'H', '0'],
-    [21, 'H', '>0'],
+    [19, 'H', '0'],
+    [20, 'H', '>0'],
   ];
 
   for (const [cellRow, col, crit] of criteria) {
@@ -545,7 +545,7 @@ export async function generateExcelWorkbook(templateBuffer, reportData, ExcelJS)
   }
 
   // Wrap KPI calculation formulas with IFERROR(..., 0)
-  for (const r of [25, 26, 27, 28, 29, 31, 32, 33, 34, 36, 37, 38, 39]) {
+  for (const r of [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]) {
     const cell = sheet.getCell(`M${r}`);
     const originalFormula = cell.value?.formula || cell.formula;
     if (originalFormula) {
@@ -553,24 +553,27 @@ export async function generateExcelWorkbook(templateBuffer, reportData, ExcelJS)
     }
   }
 
-  // Append OFF rows outside task formula ranges
+  // Summarize leave in the scoring sheet explanation.
   if (offEntries && offEntries.length > 0) {
-    nextRow = Math.max(nextRow, 8);
-    writeRow(['OFF', null, null, null, null, null, null, null, null], 4);
-    writeRow(headers, 5);
-
-    const offTasks = offEntries.map((off) => ({
-      Url: off.Task,
-      'Start date': off.Start_date,
-      'Due date': '',
-      'Closed date': '',
-      Estimate: '',
-      Spent: off.Spent,
-      'Reopen count': 0,
-      'Task Type': DEFAULT_TASK_TYPE,
-      Progress: DEFAULT_PROGRESS,
-    }));
-    writeData(offTasks);
+    const scoring = workbook.getWorksheet('Chấm điểm KPI');
+    if (scoring) {
+      const reasons = new Map();
+      for (const off of offEntries) {
+        const reason = off.Task || 'OFF';
+        if (!reasons.has(reason)) reasons.set(reason, {hours: 0, dates: new Set()});
+        const group = reasons.get(reason);
+        group.hours += Number(off.Spent) || 0;
+        const date = parseMonthDayYear(off.Start_date);
+        if (date) group.dates.add(`${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}`);
+      }
+      const lines = [...reasons].map(([reason, group], index) =>
+        `${index + 1}. ${reason} ${Number(group.hours.toFixed(8))}h (${[...group.dates].sort().join(', ')})`);
+      const cell = scoring.getCell('A53');
+      cell.value = lines.join('\n');
+      cell.alignment = {...cell.alignment, wrapText: true, vertical: 'top'};
+      const textLines = cell.value.split('\n').reduce((total, line) => total + Math.max(1, Math.ceil(line.length / 100)), 0);
+      scoring.getRow(53).height = Math.max(scoring.getRow(53).height || 0, textLines * 18 + 12);
+    }
   }
 
   workbook.calcProperties.fullCalcOnLoad = true;

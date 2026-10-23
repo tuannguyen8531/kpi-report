@@ -44,7 +44,7 @@ Click **Save & Connect** and allow access to your GitLab server when prompted. H
 - Use **Export CSV** to download `tasks_MM_YYYY.csv`. For the CLI workflow, place it in the repository's `input/` directory and run `uv run report -m 10 -y 2026` with the appropriate month and year. The Python CLI still requires `projects.json`; its project names must match the CSV `Project` values. Direct Excel export needs no project file.
 - Open settings to update the connection, projects, or Excel filename pattern (`MM` and `YYYY` placeholders).
 
-Only the token owner's timelogs are counted, across all detected projects unless an optional project filter is set. Existing project lists remain active; clear the filter in Settings and save to switch to automatic detection. Dates and reminder schedules use the browser/system timezone, including daylight saving changes; weeks start on Monday and include only days within the selected month. Dashboard targets are 8 hours per day, 40 per week, and 192 per month, including leave. Excel lists leave separately and excludes it from task statistics.
+Only the token owner's timelogs are counted, across all detected projects unless an optional project filter is set. Existing project lists remain active; clear the filter in Settings and save to switch to automatic detection. Dates and reminder schedules use the browser/system timezone, including daylight saving changes; weeks start on Monday and include only days within the selected month. Dashboard targets are 8 hours per day, 40 per week, and 192 per month, including leave. Excel summarizes leave only in the scoring sheet explanation and excludes it from task statistics.
 
 Sync may be delayed while the browser is closed or the device is asleep. A failed sync preserves cached data and displays an error; exports require a successful sync.
 
@@ -52,7 +52,7 @@ Sync may be delayed while the browser is closed or the device is asleep. A faile
 
 In **Timelog**, expand **Add work outside GitLab** and enter a date, work name, and hours (greater than 0, up to 24 per entry). Entries have no project, category, estimate, or GitLab status. Use **Edit** / **Delete** on each manual entry to maintain it. They are stored locally per GitLab account/server and can be edited without a token or network connection after setup.
 
-Manual hours count as work in the daily/weekly/monthly totals and Spent/192h. Monthly reports and direct Excel exports combine entries with the same name into one row under **Nghiên cứu**, summing only that month's hours. Names are trimmed and Unicode-normalized; letter case is preserved. Estimates stay blank. In Excel, these rows count as planned work and are separate from OFF. Manual entries are included in the existing JSON backup/restore alongside leave; old leave-only backups still work. Refresh the monthly task summary after edits.
+Manual hours count as work in the daily/weekly/monthly totals and Spent/192h. Monthly reports and direct Excel exports combine entries with the same name into one row under **Nghiên cứu**, summing only that month's hours. Names are trimmed and Unicode-normalized; letter case is preserved. Estimates stay blank. In Excel, these rows count as planned work; leave appears only in the scoring sheet explanation. Manual entries are included in the existing JSON backup/restore alongside leave; old leave-only backups still work. Refresh the monthly task summary after edits.
 
 ## Note reminders
 
@@ -97,4 +97,4 @@ npm test
 
 ## KPI scoring sheet
 
-Excel exports also include **Chấm điểm KPI**, matching the second sheet in `example.xlsx`. Its seven metrics link to the work report and its scores follow the printed thresholds and weights. Excel recalculates the scores when opened and after you edit report values. Reports without tasks leave the metrics and scores blank. Explanation and self-assessment fields are left empty for you to complete.
+Excel exports also include **Chấm điểm KPI**, matching the second sheet in `example.xlsx`. Its seven metrics link to the work report and its scores follow the printed thresholds and weights. Excel recalculates the scores when opened and after you edit report values. Reports without tasks leave the metrics and scores blank. The explanation field lists the selected month's leave, grouped by reason with total hours and dates (for example, `1. Nghỉ lễ 16h (02/09, 03/09)`). Without leave, it remains blank. Self-assessment fields are left empty for you to complete.

@@ -24,7 +24,7 @@ import {
   formatMonthDayYear,
   parseMonthDayYear,
   formatExcelFilename,
-} from '../src/excel_generator.js';
+} from '../src/excel.js';
 
 const config = {url: 'https://gitlab.example.com', projects: [{project: 'Project A', url: 'group/a'}], rememberToken: false};
 const log = (id, spentAt, seconds = 3600, extra = {}) => ({
@@ -964,7 +964,7 @@ test('processProjectData groups by project/task/type, sums hours and finds earli
   assert.equal(off[0].Spent, 8);
 });
 
-test('pure JS Excel report matches template formulas, dimensions, hyperlinks and OFF placement', async () => {
+test('pure JS Excel report preserves task formulas and links, with leave only in the scoring explanation', async () => {
   const templatePath = path.resolve('assets/templates/work_report.xlsx');
   const templateBuffer = fs.readFileSync(templatePath);
 
@@ -1017,13 +1017,14 @@ test('pure JS Excel report matches template formulas, dimensions, hyperlinks and
   await wb.xlsx.load(buffer);
   assert.deepEqual(wb.worksheets.map((sheet) => sheet.name), ['Báo cáo công việc', 'Chấm điểm KPI']);
   const kpi = wb.getWorksheet('Chấm điểm KPI');
-  for (const [row, metric] of [[15, 27], [20, 25], [25, 26], [30, 28], [35, 36], [40, 31], [45, 33]]) {
+  for (const [row, metric] of [[15, 26], [20, 24], [25, 25], [30, 27], [35, 33], [40, 29], [45, 31]]) {
     assert.equal(kpi.getCell(`F${row}`).value.formula, `IF('Báo cáo công việc'!M5=0,"",'Báo cáo công việc'!M${metric}${row === 35 ? '' : '/100'})`);
     assert.ok(kpi.getCell(`G${row}`).value.formula.startsWith(`IF(F${row}="","",IF(`));
   }
   assert.ok(kpi.getCell('G35').value.formula.includes('F35>=80,3'));
   assert.ok(kpi.getCell('G50').value.formula.includes('E45*G45)/10'));
-  for (const address of ['A53', 'A55', 'A57']) assert.equal(kpi.getCell(address).value, null);
+  assert.equal(kpi.getCell('A53').value, '1. Nghỉ phép 8h (03/10)');
+  for (const address of ['A55', 'A57']) assert.equal(kpi.getCell(address).value, null);
   const sheet = wb.getWorksheet('Báo cáo công việc');
   assert.ok(sheet);
 
@@ -1035,9 +1036,17 @@ test('pure JS Excel report matches template formulas, dimensions, hyperlinks and
   assert.equal(sheet.getCell('M10').value?.formula, 'SUM(G6:G8)');
   assert.equal(sheet.getCell('M11').value?.formula, 'M10-M12');
   assert.equal(sheet.getCell('M12').value?.formula, 'SUMIF(I6:I8,"Phát sinh",G6:G8)');
+  for (const row of [...Array.from({length: 17}, (_, i) => i + 4), ...Array.from({length: 14}, (_, i) => i + 23)]) assert.ok(sheet.getCell(`L${row}`).value, `Blank summary row ${row}`);
+  assert.equal(sheet.getCell('L23').value, 'Tỉ lệ (%)');
+  assert.equal(sheet.getCell('M30').value.formula, 'IFERROR(M19/M5*100,0)');
+  assert.equal(sheet.getCell('M33').value.formula, 'IFERROR(M10/M8*100,0)');
+  for (const row of [21, 22, 37, 38, 39]) {
+    assert.equal(sheet.getCell(`L${row}`).value, null);
+    assert.equal(sheet.getCell(`M${row}`).value, null);
+  }
 
   // Formula wrap IFERROR verification
-  for (const r of [25, 26, 27, 28, 29, 31, 32, 33, 34, 36, 37, 38, 39]) {
+  for (const r of [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]) {
     const f = sheet.getCell(`M${r}`).value?.formula;
     assert.ok(f && f.startsWith('IFERROR(') && f.endsWith(',0)'), `Row ${r} formula: ${f}`);
   }
@@ -1048,14 +1057,29 @@ test('pure JS Excel report matches template formulas, dimensions, hyperlinks and
   assert.equal(sheet.getCell('F6').value, 4.5);
   assert.equal(sheet.getCell('G6').value, 4.0);
 
-  // OFF row verification (placed at row >= 8, outside task formula range)
-  let offFoundRow = -1;
-  sheet.eachRow((row, rowNumber) => {
-    if (row.getCell(2).value === 'OFF') offFoundRow = rowNumber;
-  });
-  assert.ok(offFoundRow >= 8, `OFF row should be >= 8, got ${offFoundRow}`);
-  assert.equal(sheet.getRow(offFoundRow + 2).getCell(2).value, 'Nghỉ phép');
-  assert.equal(sheet.getRow(offFoundRow + 2).getCell(7).value, 8.0);
+  const workLabels = sheet.getColumn(2).values;
+  assert.equal(workLabels.includes('OFF'), false);
+  assert.equal(workLabels.includes('Nghỉ phép'), false);
+});
+
+test('Excel explanation groups leave by reason with hours and dates, and stays blank without leave', async () => {
+  const template = fs.readFileSync(new URL('../assets/templates/work_report.xlsx', import.meta.url));
+  const offEntries = processOffData([
+    {day: '2026-09-03', hours: 8, reason: 'Nghỉ lễ'},
+    {day: '2026-09-02', hours: 8, reason: 'Nghỉ lễ'},
+    {day: '2026-09-07', hours: 4, reason: 'Nghỉ phép'},
+    {day: '2026-09-08', hours: 0.5, reason: 'Khám sức khỏe'},
+  ]);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(await generateExcelWorkbook(template, {month: 9, year: 2026, offEntries}, ExcelJS));
+  const scoring = workbook.getWorksheet('Chấm điểm KPI');
+  assert.equal(scoring.getCell('A53').value, '1. Nghỉ lễ 16h (02/09, 03/09)\n2. Nghỉ phép 4h (07/09)\n3. Khám sức khỏe 0.5h (08/09)');
+  assert.equal(scoring.getCell('A53').alignment.wrapText, true);
+  assert.ok(scoring.getRow(53).height > 48);
+  for (const address of ['A55', 'A57']) assert.equal(scoring.getCell(address).value, null);
+  const empty = new ExcelJS.Workbook();
+  await empty.xlsx.load(await generateExcelWorkbook(template, {month: 10, year: 2026}, ExcelJS));
+  assert.equal(empty.getWorksheet('Chấm điểm KPI').getCell('A53').value, null);
 });
 
 test('formatExcelFilename replaces MM and YYYY and guarantees .xlsx extension', () => {

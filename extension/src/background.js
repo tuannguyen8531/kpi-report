@@ -1,5 +1,5 @@
 import {SYNC_MINUTES, TIMELOG_QUERY, today, addDays, parseDay, periods, validateConfig, normalizeLogs, validateLeave, validateManualEntry, makeSnapshot, exportCsv} from './core.js';
-import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel_generator.js';
+import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel.js';
 import {verifyAttendanceCode, validateOdooConfig, readAttendance, changeAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder} from './odoo.js';
 
 const ALARM = 'gitlab-sync';

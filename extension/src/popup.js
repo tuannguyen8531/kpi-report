@@ -1293,7 +1293,7 @@ function renderMonthlyReport() {
       if (ratio > 1) row.dataset.over = 'true';
 
       const values = [task.Type === 'MANUAL' ? t('manual.project') : projectName(block.project),
-        task.Type === 'MANUAL' ? task.Title : `${task.Type === 'MR' ? 'MR !' : '#'}${task.Task} · ${task.Title}`,
+        task.Type === 'MANUAL' ? task.Title : `${task.Type === 'MR' ? '!' : '#'}${task.Task} · ${task.Title}`,
         formatHours(task.Spent), estimate > 0 ? formatHours(estimate) : '—',
         ratio === null ? '—' : `${new Intl.NumberFormat(currentLang, {maximumFractionDigits: 1}).format(ratio * 100)}%`];
       values.forEach((value, index) => {
@@ -1941,9 +1941,7 @@ for (const kind of ['work', 'leave']) {
       manualProfile = snapshot.profile;
       $('manual-editor').open = true;
       $('manual-title').focus({preventScroll: true});
-      if (window.matchMedia('(max-width: 819px)').matches) {
-        $('manual-editor').scrollIntoView({block: 'center', behavior: 'instant'});
-      }
+      $('manual-editor').scrollIntoView({block: 'center', behavior: 'instant'});
     } else {
       resetLeaveForm();
       $('leave-reason').value = '';

@@ -972,9 +972,9 @@
 
           <div class="reminder-settings-card">
             <div class="reminder-toggle-row">
-              <label class="custom-checkbox">
-                <input id="reminder-enabled" type="checkbox" checked>
-                <span class="checkmark"></span>
+              <label class="custom-checkbox settings-switch">
+                <input id="reminder-enabled" type="checkbox" role="switch" checked>
+                <span class="switch-track" aria-hidden="true"></span>
                 <span class="checkbox-text" data-i18n="settings.reminder_title">Daily note reminders</span>
               </label>
               <div class="reminder-time-box">
@@ -1064,9 +1064,9 @@
             <span class="field-hint" data-i18n="settings.token_hint">Leave blank to keep your saved token.</span>
           </div>
 
-          <label class="custom-checkbox">
-            <input id="remember-token" type="checkbox">
-            <span class="checkmark"></span>
+          <label class="custom-checkbox settings-switch">
+            <input id="remember-token" type="checkbox" role="switch">
+            <span class="switch-track" aria-hidden="true"></span>
             <span class="checkbox-text" data-i18n="settings.remember_token">Remember token across browser sessions</span>
           </label>
 
@@ -1121,9 +1121,9 @@
 
           <div id="odoo-auto-attendance-setting" class="reminder-settings-card" hidden>
             <div class="odoo-auto-attendance-row">
-              <label class="custom-checkbox">
-                <input id="odoo-auto-attendance" type="checkbox">
-                <span class="checkmark"></span>
+              <label class="custom-checkbox settings-switch">
+                <input id="odoo-auto-attendance" type="checkbox" role="switch">
+                <span class="switch-track" aria-hidden="true"></span>
                 <span class="checkbox-text" data-i18n="odoo.auto_attendance">Tự động check-in/check-out từ thứ Hai đến thứ Sáu</span>
               </label>
               <button id="odoo-lock" type="button" class="btn-icon odoo-lock-btn" data-i18n-title="odoo.lock" title="Khóa lại" aria-label="Khóa lại">
@@ -1136,9 +1136,9 @@
           </div>
 
           <div class="reminder-settings-card">
-            <label class="custom-checkbox">
-              <input id="odoo-reminders" type="checkbox" checked>
-              <span class="checkmark"></span>
+            <label class="custom-checkbox settings-switch">
+              <input id="odoo-reminders" type="checkbox" role="switch" checked>
+              <span class="switch-track" aria-hidden="true"></span>
               <span class="checkbox-text" data-i18n="odoo.reminders">Nhắc chấm công từ thứ Hai đến thứ Sáu (giờ hệ thống)</span>
             </label>
             <div class="odoo-times-grid mt-2">

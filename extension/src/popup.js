@@ -1,4 +1,4 @@
-import {today, parseDay, addDays, validateConfig} from './core.js';
+import {today, parseDay, addDays, validateConfig, projectName} from './core.js';
 import {generateExcelWorkbook} from './excel_generator.js';
 import {getLanguage, setLanguage, t} from './i18n.js';
 import {ENTRY_SIZE, ODOO_TIMES, validateOdooConfig, formatHoursMinutes} from './odoo.js';
@@ -703,7 +703,7 @@ function renderLogs() {
 
     const projectTag = document.createElement('span');
     projectTag.className = `tag-project ${log.isLeave ? 'tag-project-off' : ''} ${log.type === 'MANUAL' ? 'tag-project-manual' : ''}`;
-    projectTag.textContent = log.type === 'MANUAL' ? t('manual.project') : log.project;
+    projectTag.textContent = log.type === 'MANUAL' ? t('manual.project') : projectName(log.project);
 
     const typeTag = document.createElement('span');
     let typeClass = 'tag-task';
@@ -948,7 +948,7 @@ function updateProjectFilterOptions() {
     Number(manualProjects.has(a)) - Number(manualProjects.has(b)) || a.localeCompare(b))) {
     const opt = document.createElement('option');
     opt.value = p;
-    opt.textContent = (snapshot?.logs || []).some(log => log.project === p && log.type === 'MANUAL') ? t('manual.project') : p;
+    opt.textContent = (snapshot?.logs || []).some(log => log.project === p && log.type === 'MANUAL') ? t('manual.project') : projectName(p);
     select.appendChild(opt);
   }
 
@@ -1132,7 +1132,7 @@ $('leave-hours').addEventListener('input', updatePresetChipsActive);
 
 document.querySelectorAll('.reason-chip').forEach((chip) => {
   chip.addEventListener('click', () => {
-    $('leave-reason').value = chip.dataset.reason;
+    $('leave-reason').value = t(chip.dataset.i18n);
     $('leave-reason').focus();
   });
 });
@@ -1188,7 +1188,6 @@ $('restore').addEventListener('change', (e) => act(async () => {
 
 // 9. Export Excel (.xlsx) & CSV Backup
 function renderMonthlyReport() {
-  const projectName = (name) => name.replace(/\s+\([^()]*\/[^()]*\)$/, '');
   const body = $('report-tasks-body');
   if (body) body.replaceChildren();
   const table = $('report-tasks-table');
@@ -1779,7 +1778,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
 
     workItems = (snapshot.logs || []).filter((log) => log.date === activeDate).map((log) => ({
       title: log.type === 'MANUAL' ? log.title : `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
-      meta: log.project,
+      meta: projectName(log.project),
       hours: log.hours,
       url: log.url || null,
     }));
@@ -1800,7 +1799,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
 
     workItems = (snapshot.logs || []).filter((log) => log.date >= startStr && log.date < endStr).map((log) => ({
       title: log.type === 'MANUAL' ? log.title : `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
-      meta: `${shortDay(log.date)} · ${log.project}`,
+      meta: `${shortDay(log.date)} · ${projectName(log.project)}`,
       hours: log.hours,
       url: log.url || null,
     }));
@@ -1819,7 +1818,7 @@ function openBreakdownModal(scope = 'day', targetDate = null) {
 
     workItems = (snapshot.logs || []).map((log) => ({
       title: log.type === 'MANUAL' ? log.title : `${log.type === 'MR' ? 'MR !' : '#'}${log.task} · ${log.title}`,
-      meta: `${shortDay(log.date)} · ${log.project}`,
+      meta: `${shortDay(log.date)} · ${projectName(log.project)}`,
       hours: log.hours,
       url: log.url || null,
     }));

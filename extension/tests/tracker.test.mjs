@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {test, beforeEach} from 'node:test';
 import '../src/vendor/exceljs.min.js';
-import {SYNC_MINUTES, today, periods, parseDay, normalizeLogs, makeSnapshot, validateConfig, validateLeave, exportCsv} from '../src/core.js';
+import {SYNC_MINUTES, today, periods, parseDay, normalizeLogs, makeSnapshot, validateConfig, validateLeave, exportCsv, projectName} from '../src/core.js';
 import {verifyAttendanceCode, ODOO_TIMES, validateOdooConfig, parseAttendance, readAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder, formatHoursMinutes} from '../src/odoo.js';
 
 // Existing fixtures use Vietnam time; timezone-specific cases override it explicitly.
@@ -1181,6 +1181,9 @@ test('startup restores missing reminder alarms and alarm events deliver only onc
 });
 
 test('automatic project discovery accepts empty filters and keeps same-name projects distinct', () => {
+  assert.equal(projectName('Shared (team-a/app)'), 'Shared');
+  assert.equal(projectName('Custom (Mobile)'), 'Custom (Mobile)');
+  assert.equal(projectName('Nghiên cứu'), 'Nghiên cứu');
   for (const projects of [undefined, '', '  ', '[]', []]) {
     assert.deepEqual(validateConfig({...config, projects}).projects, []);
   }
@@ -1225,6 +1228,13 @@ test('connecting without a project file exports discovered projects with correct
   assert.equal(report.projectBlocks[0].tasks[0]['Task Type'], 'Kế hoạch');
   assert.equal(report.projectBlocks[0].tasks[0].Progress, 'Đúng hạn');
   assert.deepEqual(fetches.filter((request) => request.variables.fullPath).map((request) => request.variables.fullPath).sort(), ['team-a/app', 'team-b/app']);
+  const template = fs.readFileSync(new URL('../assets/templates/work_report.xlsx', import.meta.url));
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(await generateExcelWorkbook(template, report, ExcelJS));
+  const labels = workbook.getWorksheet('Báo cáo công việc').getColumn(2).values;
+  assert.equal(labels.filter(value => value === 'App').length, 2);
+  assert.equal(labels.includes('App (team-a/app)'), false);
+  assert.equal(labels.includes('App (team-b/app)'), false);
   replyPages.push(page([]));
   const empty = await handleMessage({type: 'export_excel_data', day});
   assert.deepEqual(empty.projectBlocks, []);
@@ -1418,7 +1428,7 @@ test('monthly report renders Excel task totals, ratios and missing estimates saf
   const renderSource = source.slice(source.indexOf('function renderMonthlyReport()'), source.indexOf("$('report-load-tasks').addEventListener"));
   const element = () => ({children: [], textContent: '', appendChild(child) {this.children.push(child);}, replaceChildren() {this.children = [];}});
   const ids = Object.fromEntries(['report-tasks-body', 'report-tasks-table', 'report-tasks-status', 'report-stat-company-ratio'].map(id => [id, element()]));
-  const render = new Function('$', 'document', 'monthlyReport', 't', 'formatHours', 'currentLang', `${renderSource}; renderMonthlyReport();`);
+  const render = new Function('$', 'document', 'monthlyReport', 't', 'formatHours', 'currentLang', 'projectName', `${renderSource}; renderMonthlyReport();`);
   const grouped = processProjectData([
     {project: 'Project A', task: '12', type: 'TASK', title: '<Work>', date: '2026-10-01', hours: 2},
     {project: 'Project A', task: '12', type: 'TASK', title: '<Work>', date: '2026-10-02', hours: 4},
@@ -1426,7 +1436,7 @@ test('monthly report renders Excel task totals, ratios and missing estimates saf
   ]);
   const report = buildProjectData(grouped, new Map([['Project A:::12:::TASK', {estimate: '4.50'}]]), config);
   report.projectBlocks[0].project = 'Project A (group/a)';
-  render(id => ids[id], {createElement: element}, report, key => key, hours => `${hours}h`, 'en');
+  render(id => ids[id], {createElement: element}, report, key => key, hours => `${hours}h`, 'en', projectName);
   const rows = ids['report-tasks-body'].children;
   assert.equal(rows.length, 2);
   assert.equal(rows[0].children[0].textContent, 'Project A');
@@ -1439,7 +1449,7 @@ test('monthly report renders Excel task totals, ratios and missing estimates saf
   assert.equal(rows[0].children[4].className, 'report-over-estimate');
   assert.equal(rows[1].children[3].textContent, '—');
   assert.equal(rows[1].children[4].textContent, '—');
-  render(id => ids[id], {createElement: element}, null, key => key, hours => `${hours}h`, 'en');
+  render(id => ids[id], {createElement: element}, null, key => key, hours => `${hours}h`, 'en', projectName);
   assert.equal(ids['report-tasks-table'].hidden, true);
   assert.equal(ids['report-tasks-body'].children.length, 0);
 });
@@ -1453,14 +1463,15 @@ test('Timelog project filter puts research and OFF after GitLab projects', () =>
     replaceChildren() {this.children = [];},
     appendChild(option) {this.children.push(option);},
   };
-  const update = new Function('$', 'document', 'snapshot', 't', `${source.slice(start, end)}; updateProjectFilterOptions();`);
+  const update = new Function('$', 'document', 'snapshot', 't', 'projectName', `${source.slice(start, end)}; updateProjectFilterOptions();`);
   const snapshot = {logs: [
-    {project: 'Z Project', type: 'ISSUE'},
+    {project: 'Z Project (group/z)', type: 'ISSUE'},
     {project: 'Nghiên cứu', type: 'MANUAL'},
     {project: 'A Project', type: 'ISSUE'},
   ], leaves: [{day}]};
-  update(() => select, {createElement: () => ({})}, snapshot, key => key);
-  assert.deepEqual(select.children.map(option => option.value), ['', 'A Project', 'Z Project', 'Nghiên cứu', 'OFF']);
+  update(() => select, {createElement: () => ({})}, snapshot, key => key, projectName);
+  assert.deepEqual(select.children.map(option => option.value), ['', 'A Project', 'Z Project (group/z)', 'Nghiên cứu', 'OFF']);
+  assert.equal(select.children[2].textContent, 'Z Project');
   assert.equal(select.value, 'Nghiên cứu');
   assert.equal(select.children[3].textContent, 'manual.project');
 });

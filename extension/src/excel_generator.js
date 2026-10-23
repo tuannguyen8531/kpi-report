@@ -1,4 +1,4 @@
-import {MANUAL_PROJECT} from './core.js';
+import {MANUAL_PROJECT, projectName} from './core.js';
 
 // Pure JavaScript implementation of KPI Excel report generation.
 // Equivalent to Python's kpi_report (processor.py, gitlab.py, report.py).
@@ -506,7 +506,7 @@ export async function generateExcelWorkbook(templateBuffer, reportData, ExcelJS)
   for (const block of projectBlocks) {
     if (!block.tasks.length) continue;
     // Project title row
-    writeRow([block.project, null, null, null, null, null, null, null, null], 4);
+    writeRow([projectName(block.project), null, null, null, null, null, null, null, null], 4);
     // Table header row
     writeRow(headers, 5);
     // Task data rows

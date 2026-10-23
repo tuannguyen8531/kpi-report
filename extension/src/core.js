@@ -1,6 +1,7 @@
 // Pure date, timelog and export operations, shared by the worker and tests.
 export const SYNC_MINUTES = 30;
 export const MANUAL_PROJECT = 'Nghiên cứu';
+export const projectName = (name) => name.replace(/\s+\([^()]*\/[^()]*\)$/, '');
 export const TIMELOG_QUERY = `query($username: String!, $start: Time!, $end: Time!, $after: String) {
   timelogs(username: $username, startTime: $start, endTime: $end, first: 100, after: $after) {
     nodes {

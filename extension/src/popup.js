@@ -716,7 +716,7 @@ function renderLogs() {
       typeText = `MR !${log.task}`;
     } else if (log.type === 'OFF') {
       typeClass = 'tag-off';
-      typeText = '🏖️ OFF';
+      typeText = 'OFF';
     } else {
       typeText = `TASK #${log.task}`;
     }
@@ -955,7 +955,7 @@ function updateProjectFilterOptions() {
   if ((snapshot?.leaves || []).length > 0) {
     const offOpt = document.createElement('option');
     offOpt.value = 'OFF';
-    offOpt.textContent = `🏖️ OFF (${t('card.leave', {hours: ''}).replace(':', '').trim()})`;
+    offOpt.textContent = `OFF (${t('card.leave', {hours: ''}).replace(':', '').trim()})`;
     select.appendChild(offOpt);
   }
 

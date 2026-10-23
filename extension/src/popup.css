@@ -2101,11 +2101,6 @@ select.select-input:focus {
   background: #fdfdfd;
 }
 
-.log-card.log-card-manual:hover {
-  background: #ffffff;
-  border-color: #cbd5e1;
-}
-
 .log-card.log-card-manual.is-editing {
   background: #faf5ff !important;
   border-color: #c4b5fd !important;

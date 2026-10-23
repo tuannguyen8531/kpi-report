@@ -1,9 +1,10 @@
 """Report output generation: CSV and Excel files."""
 
 import os
+import re
 from calendar import monthrange
 from copy import copy
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import cast
 
@@ -16,6 +17,14 @@ from .constants import OUTPUT_COLUMNS
 from .processor import ReportStats
 
 
+def format_excel_filename(pattern: str | None, month: int, year: int) -> str:
+    """Apply the extension's month/year placeholders to a safe download filename."""
+    name = (pattern or '').strip() or 'report_MM_YYYY.xlsx'
+    name = name.replace('YYYY', str(year)).replace('MM', f'{month:02d}')
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name).rstrip(' .')
+    return name if name.lower().endswith('.xlsx') else name + '.xlsx'
+
+
 def save_report(
     output_dfs: list[pd.DataFrame],
     output_file: str,
@@ -24,6 +33,7 @@ def save_report(
     month: int,
     year: int,
     off_df: pd.DataFrame | None = None,
+    excel_file: str | None = None,
 ) -> None:
     """Save the final report to CSV and Excel files.
 
@@ -33,7 +43,8 @@ def save_report(
         stats: Accumulated report statistics.
         month: Reporting month for the Excel title.
         year: Reporting year for the Excel title.
-        off_df: Optional time-off entries, shown only in Excel.
+        off_df: Optional time-off entries, summarized in the scoring explanation.
+        excel_file: Optional Excel output path, independent of the CSV filename.
     """
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     print("Combining data and creating final report...")
@@ -62,7 +73,7 @@ def save_report(
     final_df.to_csv(output_file, index=False, encoding="utf-8-sig")
 
     # Save Excel
-    excel_file = output_file.replace(".csv", ".xlsx")
+    excel_file = excel_file or str(Path(output_file).with_suffix('.xlsx'))
     print(f"Creating Excel file: {excel_file}")
     _save_excel(project_dfs, excel_file, month, year, off_df)
 
@@ -93,7 +104,7 @@ def _save_excel(
 
     next_row = 4
 
-    def write_row(values: list, style_row: int) -> None:
+    def write_row(values: list, style_row: int, hyperlink: bool = True) -> None:
         nonlocal next_row
         for col, (value, style) in enumerate(zip(values, styles[style_row]), start=2):
             cell = cast(Cell, sheet.cell(next_row, col))
@@ -106,6 +117,7 @@ def _save_excel(
                     cell.number_format = "dd/mm/yyyy"
                 if (
                     col == 2
+                    and hyperlink
                     and isinstance(value, str)
                     and value.startswith(("https://", "http://"))
                 ):
@@ -125,7 +137,7 @@ def _save_excel(
                 elif index in (4, 5, 6):
                     value = float(value)
                 values.append(value)
-            write_row(values, 6)
+            write_row(values, 6, hyperlink=not frame.attrs.get('manual', False))
 
     for frame in project_dfs:
         if frame.empty:
@@ -158,8 +170,8 @@ def _save_excel(
         (16, "G", ""),
         (17, "J", "Đúng hạn"),
         (18, "J", "Trễ hạn"),
-        (20, "H", "0"),
-        (21, "H", ">0"),
+        (19, "H", "0"),
+        (20, "H", ">0"),
     ):
         value_range = f"{column}6:{column}{last_task_row}"
         counts = [
@@ -168,19 +180,35 @@ def _save_excel(
         ]
         sheet.cell(cell_row, 13, "=" + "+".join(counts))
 
-    for row in (25, 26, 27, 28, 29, 31, 32, 33, 34, 36, 37, 38, 39):
+    for row in range(24, 37):
         cell = cast(Cell, sheet.cell(row, 13))
         formula = cell.value
         if not isinstance(formula, str) or not formula.startswith("="):
             raise ValueError(f"Missing formula in template cell {cell.coordinate}")
         cell.value = f"=IFERROR({formula[1:]},0)"
 
-    # Keep OFF outside the task formula ranges, including reports with no tasks.
+    # Leave belongs only in the scoring explanation, not in the work task table.
     if off_df is not None and not off_df.empty:
-        next_row = max(next_row, 8)
-        write_row(["OFF"] + [None] * 8, 4)
-        write_row(headers, 5)
-        write_data(off_df)
+        reasons = {}
+        for row in off_df.itertuples(index=False, name=None):
+            reason, start, _, _, _, spent, *_ = row
+            group = reasons.setdefault(reason or 'OFF', {'hours': 0, 'dates': set()})
+            group['hours'] += float(spent)
+            group['dates'].add(datetime.strptime(start, '%m/%d/%Y').strftime('%d/%m'))
+        lines = []
+        for index, (reason, group) in enumerate(reasons.items(), start=1):
+            hours = f"{group['hours']:.8f}".rstrip('0').rstrip('.')
+            lines.append(f"{index}. {reason} {hours}h ({', '.join(sorted(group['dates']))})")
+        scoring = cast(Worksheet, workbook['Chấm điểm KPI'])
+        cell = scoring['A53']
+        cell.value = '\n'.join(lines)
+        cell.data_type = 's'
+        alignment = copy(cell.alignment)
+        alignment.wrapText = True
+        alignment.vertical = 'top'
+        cell.alignment = alignment
+        text_lines = sum(max(1, (len(line) + 99) // 100) for line in cell.value.split('\n'))
+        scoring.row_dimensions[53].height = max(scoring.row_dimensions[53].height or 0, text_lines * 18 + 12)
 
     workbook.calculation.fullCalcOnLoad = True
     workbook.calculation.forceFullCalc = True

@@ -50,19 +50,7 @@ query($fullPath: ID!, $iid: String!) {
 }
 `;
 
-/**
- * Format Excel filename using pattern with MM and YYYY.
- */
-export function formatExcelFilename(pattern, month, year) {
-  const p = String(pattern || '').trim() || 'report_MM_YYYY.xlsx';
-  const mm = String(month).padStart(2, '0');
-  const yyyy = String(year);
-  let filename = p.replaceAll('YYYY', yyyy).replaceAll('MM', mm);
-  if (!filename.toLowerCase().endsWith('.xlsx')) {
-    filename += '.xlsx';
-  }
-  return filename;
-}
+export {formatExcelFilename} from './core.js';
 
 /**
  * Format Date or ISO date string into MM/DD/YYYY format.

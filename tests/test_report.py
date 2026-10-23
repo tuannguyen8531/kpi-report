@@ -107,14 +107,15 @@ class ReportTest(unittest.TestCase):
                     workbook = load_workbook(path.with_suffix(".xlsx"))
                     self.assertEqual(workbook.sheetnames, ["Báo cáo công việc", "Chấm điểm KPI"])
                     kpi = workbook["Chấm điểm KPI"]
-                    for row, metric in [(15, 27), (20, 25), (25, 26), (30, 28), (35, 36), (40, 31), (45, 33)]:
+                    for row, metric in [(15, 26), (20, 24), (25, 25), (30, 27), (35, 33), (40, 29), (45, 31)]:
                         divisor = "" if row == 35 else "/100"
                         self.assertEqual(kpi[f"F{row}"].value, f'''=IF('Báo cáo công việc'!M5=0,"",'Báo cáo công việc'!M{metric}{divisor})''')
                         self.assertTrue(kpi[f"G{row}"].value.startswith(f'=IF(F{row}="","",IF('))
                     self.assertIn('F35>=80,3', kpi['G35'].value)
                     self.assertEqual(kpi['E35'].value, 3)
                     self.assertIn('E45*G45)/10', kpi['G50'].value)
-                    for address in ['A53', 'A55', 'A57']:
+                    self.assertEqual(kpi['A53'].value, '1. Vacation 8h (04/02)' if include_off else None)
+                    for address in ['A55', 'A57']:
                         self.assertIsNone(kpi[address].value)
                     sheet = cast(Worksheet, workbook["Báo cáo công việc"])
                     self.assertEqual(sheet["B2"].value, "Tháng 01/02/2024 - 29/02/2024")
@@ -143,29 +144,20 @@ class ReportTest(unittest.TestCase):
                         f'+COUNTIFS(I6:I{end},"Phát sinh",D6:D{end},"")',
                     )
                     self.assertEqual(
-                        sheet["M21"].value,
+                        sheet["M20"].value,
                         f'=COUNTIFS(I6:I{end},"Kế hoạch",H6:H{end},">0")'
                         f'+COUNTIFS(I6:I{end},"Phát sinh",H6:H{end},">0")',
                     )
-                    for row in (25, 26, 27, 28, 29, 31, 32, 33, 34, 36, 37, 38, 39):
+                    for row in range(24, 37):
                         formula = template.cell(row, 13).value
                         assert isinstance(formula, str)
                         self.assertEqual(
                             sheet.cell(row, 13).value, f"=IFERROR({formula[1:]},0)"
                         )
-                    if include_off:
-                        off_row = next(c.row for c in sheet["B"] if c.value == "OFF")
-                        self.assertGreater(off_row, end)
-                        self.assertEqual(sheet.cell(off_row + 1, 2).value, "Tasks ")
-                        self.assertEqual(sheet.cell(off_row + 2, 2).value, "Vacation")
-                        self.assertEqual(sheet.cell(off_row + 2, 7).value, 8)
-                        off_date = sheet.cell(off_row + 2, 3).value
-                        assert isinstance(off_date, datetime)
-                        self.assertEqual(off_date.date(), date(2024, 2, 4))
-                    else:
-                        self.assertFalse(
-                            any(c.value in ("OFF", "Vacation") for c in sheet["B"])
-                        )
+                    self.assertFalse(any(c.value in ('OFF', 'Vacation') for c in sheet['B']))
+                    for row in (21, 22):
+                        self.assertIsNone(sheet.cell(row, 12).value)
+                    self.assertEqual(sheet['L23'].value, 'Tỉ lệ (%)')
                     self.assertEqual(workbook.calculation.calcMode, "auto")
                     if count:
                         start_date = sheet["C6"].value

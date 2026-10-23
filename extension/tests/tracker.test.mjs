@@ -1083,6 +1083,7 @@ test('Excel explanation groups leave by reason with hours and dates, and stays b
 });
 
 test('formatExcelFilename replaces MM and YYYY and guarantees .xlsx extension', () => {
+  assert.equal(formatExcelFilename('Report - KPI (MM/YYYY)', 10, 2026), 'Report - KPI (10_2026).xlsx');
   assert.equal(formatExcelFilename('report_MM_YYYY.xlsx', 10, 2026), 'report_10_2026.xlsx');
   assert.equal(formatExcelFilename('Bao_cao_KPI_MM_YYYY', 2, 2024), 'Bao_cao_KPI_02_2024.xlsx');
   assert.equal(formatExcelFilename('kpi_YYYY_MM.xlsx', 1, 2025), 'kpi_2025_01.xlsx');

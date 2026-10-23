@@ -57,6 +57,7 @@ export function formatExcelFilename(pattern, month, year) {
   const mm = String(month).padStart(2, '0');
   const yyyy = String(year);
   let filename = p.replaceAll('YYYY', yyyy).replaceAll('MM', mm);
+  filename = filename.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/[ .]+$/, '');
   if (!filename.toLowerCase().endsWith('.xlsx')) {
     filename += '.xlsx';
   }

@@ -4,7 +4,7 @@ import pandas as pd
 from typing import Dict, Tuple, List, NamedTuple
 from tqdm import tqdm
 
-from .constants import OUTPUT_COLUMNS, DEFAULT_TASK_TYPE, DEFAULT_PROGRESS
+from .constants import OUTPUT_COLUMNS, DEFAULT_TASK_TYPE, DEFAULT_PROGRESS, MANUAL_PROJECT, project_name
 from .gitlab import GraphQLClient
 
 
@@ -20,14 +20,18 @@ def process_project_data(df: pd.DataFrame) -> pd.DataFrame:
 
     Aggregates time spent per task and finds the earliest work date.
     """
-    df_projects = df[df['Project'] != 'OFF']
+    df_projects = df[df['Project'] != 'OFF'].copy()
+    df_projects.loc[df_projects['Type'] == 'MANUAL', 'Project'] = MANUAL_PROJECT
+    manual = df_projects['Type'] == 'MANUAL'
+    df_projects.loc[manual, 'Task'] = df_projects.loc[manual, 'Task'].astype(str).str.strip().str.normalize('NFC')
 
-    grouped = df_projects.groupby(['Project', 'Task', 'Type']).agg(
+    grouped = df_projects.groupby(['Project', 'Task', 'Type'], sort=False).agg(
         Start_date=('Date', 'min'),
         Spent=('Time', 'sum')
     ).reset_index()
 
     grouped['Start_date'] = grouped['Start_date'].dt.strftime('%m/%d/%Y')
+    grouped['Spent'] = grouped['Spent'].round(4)
     return grouped
 
 
@@ -74,7 +78,7 @@ def sort_projects_by_order(
     url_map: Dict[str, str],
 ) -> pd.DataFrame:
     """Sort projects according to their order in the URL map."""
-    project_order = list(url_map.keys())
+    project_order = [project for project in url_map if project not in ('OFF', MANUAL_PROJECT)] + [MANUAL_PROJECT]
     grouped_projects = grouped_projects.copy()
     grouped_projects['Project_order'] = grouped_projects['Project'].apply(
         lambda x: project_order.index(x) if x in project_order else len(project_order)
@@ -95,7 +99,7 @@ def get_gitlab_details(
         Tuple of (start_date, due_date, closed_date, estimate, task_type).
     """
     project_path = url_map.get(project, '')
-    if project == 'OFF' or not project_path:
+    if project == 'OFF' or task_type == 'MANUAL' or not project_path:
         return '', '', '', '', DEFAULT_TASK_TYPE
 
     try:
@@ -139,13 +143,13 @@ def create_project_dataframes(
     grouped_projects = sort_projects_by_order(grouped_projects, url_map)
 
     output_dfs: List[pd.DataFrame] = []
-    project_order = list(url_map.keys())
+    project_order = [project for project in url_map if project not in ('OFF', MANUAL_PROJECT)] + [MANUAL_PROJECT]
 
     total_tasks = 0
     total_spent = 0.0
     total_estimate = 0.0
 
-    print(f"Processing {len(grouped_projects)} tasks from GitLab API...")
+    print(f"Processing {len(grouped_projects)} work items...")
 
     for project in project_order:
         if project == 'OFF':
@@ -155,11 +159,11 @@ def create_project_dataframes(
         if group.empty:
             continue
 
-        print(f"Processing project: {project}")
+        print(f"Processing project: {project_name(project)}")
 
         # Add project header row
         header_df = pd.DataFrame([{col: '' for col in OUTPUT_COLUMNS}])
-        header_df.at[0, 'Url'] = project
+        header_df.at[0, 'Url'] = project_name(project)
         output_dfs.append(header_df)
 
         urls, start_dates, due_dates, closed_dates, estimates, spent_times = (
@@ -169,9 +173,10 @@ def create_project_dataframes(
         task_types = []
         for _, row in tqdm(
             group.iterrows(), total=len(group),
-            desc=f"{project} tasks", leave=False,
+            desc=f"{project_name(project)} tasks", leave=False,
         ):
-            urls.append(row['Url'])
+            manual = row['Type'] == 'MANUAL'
+            urls.append(row['Task'] if manual else row['Url'])
             spent_times.append(row['Spent'])
 
             gitlab_start, gitlab_due, gitlab_closed, gitlab_estimate, task_type = get_gitlab_details(
@@ -212,6 +217,7 @@ def create_project_dataframes(
             'Task Type': task_types,
             'Progress': DEFAULT_PROGRESS,
         })
+        project_df.attrs['manual'] = (group['Type'] == 'MANUAL').all()
         output_dfs.append(project_df)
 
         blank_df = pd.DataFrame([[''] * len(OUTPUT_COLUMNS)], columns=OUTPUT_COLUMNS)

@@ -1,7 +1,7 @@
 [project]
 name = "kpi-report"
 version = "0.1.0"
-description = "KPI Report Generator for GitLab data"
+description = "Work Report Generator for GitLab and manual work"
 readme = "README.md"
 authors = [
     { name = "SeventhS", email = "tuannguyen8531@gmail.com" }

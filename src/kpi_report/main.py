@@ -2,6 +2,8 @@
 
 import os
 import sys
+import math
+from pathlib import Path
 
 import pandas as pd
 
@@ -14,7 +16,7 @@ from .processor import (
     process_off_data,
     process_project_data,
 )
-from .report import save_report
+from .report import save_report, format_excel_filename
 
 
 def get_file_paths(month: int, year: int) -> tuple[str, str]:
@@ -36,7 +38,23 @@ def load_and_validate_data(input_file: str, url_map: dict) -> pd.DataFrame:
         print(f"Input file {input_file} does not exist.")
         sys.exit(1)
 
-    df = pd.read_csv(input_file)
+    df = pd.read_csv(input_file, dtype={'Project': str, 'Task': str, 'Type': str})
+    required = {'Project', 'Task', 'Type', 'Time', 'Date'}
+    if not required.issubset(df.columns):
+        raise ValueError(f"CSV is missing columns: {', '.join(sorted(required - set(df.columns)))}")
+    if df[['Project', 'Task', 'Type', 'Date']].isna().any().any():
+        raise ValueError('Project, Task, Type and Date must not be empty.')
+    if not df['Type'].isin(['TASK', 'MR', 'MANUAL', 'OFF']).all():
+        raise ValueError('Type must be TASK, MR, MANUAL or OFF.')
+    df['Time'] = pd.to_numeric(df['Time'], errors='raise')
+    if not df['Time'].map(math.isfinite).all():
+        raise ValueError('Hours must be finite numbers.')
+    manual_or_leave = df['Type'].isin(['MANUAL', 'OFF'])
+    df.loc[manual_or_leave, 'Task'] = df.loc[manual_or_leave, 'Task'].str.strip().str.normalize('NFC')
+    if not df.loc[manual_or_leave, 'Task'].str.len().between(1, 500).all():
+        raise ValueError('Manual work names and leave reasons must contain 1–500 characters.')
+    if not df.loc[manual_or_leave, 'Time'].between(0, 24, inclusive='right').all():
+        raise ValueError('Manual work and leave hours must be greater than 0 and no more than 24.')
     df["Date"] = pd.to_datetime(df["Date"], format="%B %d, %Y")
     validate_projects_in_csv(df, url_map)
     return df
@@ -45,7 +63,8 @@ def load_and_validate_data(input_file: str, url_map: dict) -> pd.DataFrame:
 def main() -> None:
     """Main function to orchestrate the report generation."""
     # --- Parse CLI args first (so --help exits without side effects) ---
-    month, year = parse_arguments()
+    args = parse_arguments()
+    month, year = args.month, args.year
 
     # --- Initialization ---
     load_env()
@@ -54,18 +73,18 @@ def main() -> None:
     gitlab_url = os.getenv("GITLAB_URL", "")
     gitlab_token = os.getenv("GITLAB_TOKEN", "")
 
-    if not gitlab_url or not gitlab_token:
-        print("Error: GITLAB_URL and GITLAB_TOKEN must be set in .env file.")
-        sys.exit(1)
-
-    client = GraphQLClient(gitlab_url, gitlab_token)
-
     # --- Resolve paths and load data ---
     input_file, output_file = get_file_paths(month, year)
     print(f"Input file: {input_file}")
 
     print("Loading and processing data...")
     df = load_and_validate_data(input_file, url_map)
+    df = df[(df['Date'].dt.month == month) & (df['Date'].dt.year == year)]
+    needs_gitlab = df['Type'].isin(['TASK', 'MR']).any()
+    if needs_gitlab and (not gitlab_url or not gitlab_token):
+        print("Error: GITLAB_URL and GITLAB_TOKEN must be set in .env file.")
+        sys.exit(1)
+    client = GraphQLClient(gitlab_url, gitlab_token)
 
     grouped_projects = process_project_data(df)
 
@@ -75,9 +94,9 @@ def main() -> None:
     off_df = create_off_dataframe(process_off_data(df))
 
     # --- Generate report ---
-    save_report(output_dfs, output_file, stats, month=month, year=year, off_df=off_df)
-
-    excel_file = output_file.replace(".csv", ".xlsx")
+    excel_name = format_excel_filename(args.excel_pattern or os.getenv('EXCEL_PATTERN'), month, year)
+    excel_file = str(Path(output_file).with_name(excel_name))
+    save_report(output_dfs, output_file, stats, month=month, year=year, off_df=off_df, excel_file=excel_file)
     print("Successfully processed and exported:")
     print(f"  CSV:   {output_file}")
     print(f"  Excel: {excel_file}")

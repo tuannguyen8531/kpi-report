@@ -1,6 +1,7 @@
 """Configuration loading: environment variables and project mappings."""
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Dict
@@ -35,10 +36,7 @@ def load_url_map() -> Dict[str, str]:
     projects_file = get_project_root() / 'projects.json'
 
     if not projects_file.exists():
-        print(f"Error: {projects_file} not found.")
-        print("Please create this file with project configurations.")
-        print('Format: [{"project": "ProjectName", "url": "gitlab/full/path"}]')
-        sys.exit(1)
+        return url_map
 
     try:
         with open(projects_file, 'r', encoding='utf-8') as f:
@@ -60,7 +58,14 @@ def load_url_map() -> Dict[str, str]:
 
 def validate_projects_in_csv(df: pd.DataFrame, url_map: Dict[str, str]) -> None:
     """Validate that all projects referenced in the CSV exist in the URL map."""
-    csv_projects = df['Project'].unique()
+    csv_projects = df.loc[~df['Type'].isin(['MANUAL', 'OFF']), 'Project'].unique()
+    for project in csv_projects:
+        if project in url_map:
+            continue
+        match = re.search(r'\s+\(([^()]*\/[^()]*)\)$', project)
+        path = match[1] if match else project if '/' in project else ''
+        if path and not path.startswith('/') and '://' not in path:
+            url_map[project] = path
     missing = [p for p in csv_projects if p not in url_map]
 
     if missing:

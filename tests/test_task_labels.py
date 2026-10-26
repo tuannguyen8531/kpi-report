@@ -10,7 +10,7 @@ from kpi_report.processor import create_project_dataframes
 
 
 def response(titles, has_next=False, cursor=None):
-    return {"data": {"project": {"workItems": {"nodes": [{
+    return {"data": {"namespace": {"workItem": {
         "closedAt": "2026-10-03T12:00:00Z",
         "widgets": [
             {"startDate": "2026-10-01", "dueDate": "2026-10-04"},
@@ -18,10 +18,29 @@ def response(titles, has_next=False, cursor=None):
             {"labels": {"nodes": [{"title": title} for title in titles],
                         "pageInfo": {"hasNextPage": has_next, "endCursor": cursor}}},
         ],
-    }]}}}}
+    }}}}
 
 
 class TaskLabelTest(unittest.TestCase):
+    def test_single_item_responses_and_missing_items(self):
+        client = GraphQLClient("https://gitlab.example.com", "test")
+        for data in [{}, {"data": None}, {"data": {"namespace": None}},
+                     {"data": {"namespace": {"workItem": None}}}]:
+            with self.subTest(data=data), patch.object(client, "execute_query", return_value=data), patch("builtins.print") as log:
+                self.assertEqual(client.get_work_item("group/app", "1"), {
+                    "closed_date": "", "start_date": "", "due_date": "",
+                    "estimate": "", "task_type": "Kế hoạch",
+                })
+                log.assert_not_called()
+        for data, estimate in [
+            ({"data": {"project": {"mergeRequest": {"timeEstimate": 7200}}}}, "2.00"),
+            ({"data": {"project": {"mergeRequest": None}}}, ""),
+            ({"data": {"project": None}}, ""), ({"data": None}, ""),
+        ]:
+            with self.subTest(data=data), patch.object(client, "execute_query", return_value=data), patch("builtins.print") as log:
+                self.assertEqual(client.get_merge_request("group/app", "1"), {"estimate": estimate})
+                log.assert_not_called()
+
     def test_exact_case_insensitive_label(self):
         client = GraphQLClient("https://gitlab.example.com", "test")
         for labels, expected in [

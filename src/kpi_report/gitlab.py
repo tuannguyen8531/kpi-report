@@ -15,24 +15,22 @@ class GraphQLClient:
 
     query_task = """
     query($fullPath: ID!, $iid: String!, $labelsAfter: String) {
-        project(fullPath: $fullPath) {
-            workItems(iid: $iid) {
-                nodes {
-                    closedAt
-                    widgets {
-                        ... on WorkItemWidgetStartAndDueDate {
-                            startDate
-                            dueDate
+        namespace(fullPath: $fullPath) {
+            workItem(iid: $iid) {
+                closedAt
+                widgets {
+                    ... on WorkItemWidgetStartAndDueDate {
+                        startDate
+                        dueDate
+                    }
+                    ... on WorkItemWidgetLabels {
+                        labels(first: 100, after: $labelsAfter) {
+                            nodes { title }
+                            pageInfo { hasNextPage endCursor }
                         }
-                        ... on WorkItemWidgetLabels {
-                            labels(first: 100, after: $labelsAfter) {
-                                nodes { title }
-                                pageInfo { hasNextPage endCursor }
-                            }
-                        }
-                        ... on WorkItemWidgetTimeTracking {
-                            timeEstimate
-                        }
+                    }
+                    ... on WorkItemWidgetTimeTracking {
+                        timeEstimate
                     }
                 }
             }
@@ -43,10 +41,8 @@ class GraphQLClient:
     query_mr = """
     query($fullPath: ID!, $iid: String!) {
         project(fullPath: $fullPath) {
-            mergeRequests(iids: [$iid]) {
-                nodes {
-                    timeEstimate
-                }
+            mergeRequest(iid: $iid) {
+                timeEstimate
             }
         }
     }
@@ -108,16 +104,9 @@ class GraphQLClient:
         }
 
         try:
-            nodes = (
-                result.get("data", {})
-                .get("project", {})
-                .get("workItems", {})
-                .get("nodes", [])
-            )
-            if not nodes:
+            work_item = ((result.get("data") or {}).get("namespace") or {}).get("workItem")
+            if not work_item:
                 return work_item_info
-
-            work_item = nodes[0]
 
             if work_item.get("closedAt"):
                 closed_dt = datetime.fromisoformat(
@@ -154,7 +143,7 @@ class GraphQLClient:
                     raise RuntimeError("GitLab returned an invalid label pagination cursor.")
                 seen.add(cursor)
                 result = self.execute_query(self.query_task, {**variables, "labelsAfter": cursor})
-                work_item = result["data"]["project"]["workItems"]["nodes"][0]
+                work_item = result["data"]["namespace"]["workItem"]
 
         except Exception as e:
             print(f"Error processing work item data: {e}")
@@ -173,16 +162,9 @@ class GraphQLClient:
         mr_info = {"estimate": ""}
 
         try:
-            nodes = (
-                result.get("data", {})
-                .get("project", {})
-                .get("mergeRequests", {})
-                .get("nodes", [])
-            )
-            if not nodes:
+            mr = ((result.get("data") or {}).get("project") or {}).get("mergeRequest")
+            if not mr:
                 return mr_info
-
-            mr = nodes[0]
             if mr.get("timeEstimate"):
                 estimate_hours = mr["timeEstimate"] / 3600
                 mr_info["estimate"] = f"{estimate_hours:.2f}"

@@ -20,6 +20,8 @@ A Chrome and Edge extension for tracking GitLab work hours, managing leave, and 
 
 No build step, npm installation, or Python server is required to use the extension. Chrome 120+ or a compatible Chromium-based Edge version is required.
 
+Supports **GitLab 18** with a personal access token scoped to `read_api`.
+
 ## Setup
 
 Enter your GitLab server URL and a personal access token with the `read_api` scope. Projects are detected automatically from your timelogs; no project file is required. Names include the full GitLab path to distinguish projects with identical names.

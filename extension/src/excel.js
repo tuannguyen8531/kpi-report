@@ -13,24 +13,22 @@ export const DEFAULT_PROGRESS = 'Đúng hạn';
 
 export const QUERY_WORK_ITEM = `
 query($fullPath: ID!, $iid: String!, $labelsAfter: String) {
-  project(fullPath: $fullPath) {
-    workItems(iid: $iid) {
-      nodes {
-        closedAt
-        widgets {
-          ... on WorkItemWidgetStartAndDueDate {
-            startDate
-            dueDate
+  namespace(fullPath: $fullPath) {
+    workItem(iid: $iid) {
+      closedAt
+      widgets {
+        ... on WorkItemWidgetStartAndDueDate {
+          startDate
+          dueDate
+        }
+        ... on WorkItemWidgetLabels {
+          labels(first: 100, after: $labelsAfter) {
+            nodes { title }
+            pageInfo { hasNextPage endCursor }
           }
-          ... on WorkItemWidgetLabels {
-            labels(first: 100, after: $labelsAfter) {
-              nodes { title }
-              pageInfo { hasNextPage endCursor }
-            }
-          }
-          ... on WorkItemWidgetTimeTracking {
-            timeEstimate
-          }
+        }
+        ... on WorkItemWidgetTimeTracking {
+          timeEstimate
         }
       }
     }
@@ -41,10 +39,8 @@ query($fullPath: ID!, $iid: String!, $labelsAfter: String) {
 export const QUERY_MERGE_REQUEST = `
 query($fullPath: ID!, $iid: String!) {
   project(fullPath: $fullPath) {
-    mergeRequests(iids: [$iid]) {
-      nodes {
-        timeEstimate
-      }
+    mergeRequest(iid: $iid) {
+      timeEstimate
     }
   }
 }
@@ -167,9 +163,8 @@ export function parseWorkItemResponse(data) {
   };
 
   try {
-    const nodes = data?.project?.workItems?.nodes || [];
-    if (!nodes.length) return info;
-    const workItem = nodes[0];
+    const workItem = data?.namespace?.workItem;
+    if (!workItem) return info;
 
     if (workItem.closedAt) {
       info.closed_date = formatMonthDayYear(workItem.closedAt);
@@ -203,9 +198,8 @@ export function parseWorkItemResponse(data) {
 export function parseMergeRequestResponse(data) {
   const info = { estimate: '' };
   try {
-    const nodes = data?.project?.mergeRequests?.nodes || [];
-    if (!nodes.length) return info;
-    const mr = nodes[0];
+    const mr = data?.project?.mergeRequest;
+    if (!mr) return info;
     if (mr.timeEstimate) {
       info.estimate = (mr.timeEstimate / 3600).toFixed(2);
     }
@@ -259,7 +253,7 @@ export async function enrichTasks(requestFn, config, token, tasks, onProgress = 
             const parsed = parseWorkItemResponse(data);
             info ||= parsed;
             if (parsed.task_type === 'Phát sinh') info.task_type = parsed.task_type;
-            const labels = data?.project?.workItems?.nodes?.[0]?.widgets?.find((widget) => widget.labels)?.labels;
+            const labels = data?.namespace?.workItem?.widgets?.find((widget) => widget.labels)?.labels;
             if (info.task_type === 'Phát sinh' || !labels?.pageInfo?.hasNextPage) break;
             labelsAfter = labels.pageInfo.endCursor;
             if (!labelsAfter || seen.has(labelsAfter)) throw new Error('GitLab returned an invalid label pagination cursor.');

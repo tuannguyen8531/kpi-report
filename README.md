@@ -9,6 +9,10 @@ Generate monthly work reports from GitLab work items, merge requests and manual 
 - Group manual work under **Nghiên cứu** and summarize leave in the scoring explanation.
 - Track daily, weekly, and monthly hours through the standalone browser extension.
 
+## Requirements
+
+The CLI and browser extension support **GitLab 18** and require a personal access token with the `read_api` scope to read GitLab data.
+
 ## CLI setup
 
 Requires Python 3.12+. Reports containing GitLab tasks/MRs also require a personal access token with the `read_api` scope; manual-work/leave-only reports can run offline.

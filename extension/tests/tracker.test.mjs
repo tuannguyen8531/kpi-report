@@ -14,6 +14,7 @@ const ODOO_URL = 'https://odoo.example.com';
 import {t, getLanguage, setLanguage} from '../src/i18n.js';
 import {
   parseWorkItemResponse,
+  parseMergeRequestResponse,
   QUERY_WORK_ITEM,
   QUERY_MERGE_REQUEST,
   processProjectData,
@@ -164,21 +165,19 @@ globalThis.chrome = {
 globalThis.fetch = async (url, options) => {
   const payload = JSON.parse(options.body); fetches.push(payload);
   if (payload.query.includes('currentUser')) return {ok: true, async json() {return {data: {currentUser: {username: 'me'}}};}};
-  if (payload.query.includes('workItems')) {
+  if (payload.query.includes('workItem(iid:')) {
     return {
       ok: true,
       async json() {
         return {
           data: {
-            project: {
-              workItems: {
-                nodes: [{
-                  closedAt: '2026-10-05T12:00:00Z',
-                  widgets: [
-                    { startDate: '2026-10-01', dueDate: '2026-10-10' },
-                    { timeEstimate: 16200 },
-                  ],
-                }],
+            namespace: {
+              workItem: {
+                closedAt: '2026-10-05T12:00:00Z',
+                widgets: [
+                  { startDate: '2026-10-01', dueDate: '2026-10-10' },
+                  { timeEstimate: 16200 },
+                ],
               },
             },
           },
@@ -186,16 +185,14 @@ globalThis.fetch = async (url, options) => {
       },
     };
   }
-  if (payload.query.includes('mergeRequests')) {
+  if (payload.query.includes('mergeRequest(iid:')) {
     return {
       ok: true,
       async json() {
         return {
           data: {
             project: {
-              mergeRequests: {
-                nodes: [{ timeEstimate: 7200 }],
-              },
+              mergeRequest: { timeEstimate: 7200 },
             },
           },
         };
@@ -1266,11 +1263,25 @@ test('connecting without a project file exports discovered projects with correct
 });
 
 
+test('single-item GraphQL responses preserve report fields and tolerate missing items', () => {
+  assert.deepEqual(parseWorkItemResponse({namespace: {workItem: {
+    closedAt: '2026-10-03T12:00:00Z',
+    widgets: [{startDate: '2026-10-01', dueDate: '2026-10-04'}, {timeEstimate: 7200}],
+  }}}), {start_date: '10/01/2026', due_date: '10/04/2026', closed_date: '10/03/2026', estimate: '2.00', task_type: 'Kế hoạch'});
+  for (const data of [null, {}, {namespace: null}, {namespace: {workItem: null}}]) {
+    assert.deepEqual(parseWorkItemResponse(data), {start_date: '', due_date: '', closed_date: '', estimate: '', task_type: 'Kế hoạch'});
+  }
+  assert.deepEqual(parseMergeRequestResponse({project: {mergeRequest: {timeEstimate: 7200}}}), {estimate: '2.00'});
+  for (const data of [null, {}, {project: null}, {project: {mergeRequest: null}}]) {
+    assert.deepEqual(parseMergeRequestResponse(data), {estimate: ''});
+  }
+});
+
 test('UNPLANNED labels classify only work items, including later label pages, in Excel', async () => {
-  const response = (titles, hasNextPage = false, endCursor = null) => ({project: {workItems: {nodes: [{widgets: [
+  const response = (titles, hasNextPage = false, endCursor = null) => ({namespace: {workItem: {widgets: [
     {labels: {nodes: titles.map((title) => ({title})), pageInfo: {hasNextPage, endCursor}}},
     {timeEstimate: 3600},
-  ]}]}}});
+  ]}}});
   for (const title of ['UNPLANNED', 'unplanned', ' UnPlAnNeD ']) {
     assert.equal(parseWorkItemResponse(response([title])).task_type, 'Phát sinh');
   }
@@ -1286,7 +1297,7 @@ test('UNPLANNED labels classify only work items, including later label pages, in
   const calls = [];
   const request = async (_, token, query, variables) => {
     calls.push({query, variables});
-    if (query === QUERY_MERGE_REQUEST) return {project: {mergeRequests: {nodes: [{timeEstimate: 7200}]}}};
+    if (query === QUERY_MERGE_REQUEST) return {project: {mergeRequest: {timeEstimate: 7200}}};
     assert.equal(query, QUERY_WORK_ITEM);
     assert.ok(query.includes('... on WorkItemWidgetLabels'));
     if (variables.iid === '2') return response(['PLANNED']);
@@ -1529,7 +1540,7 @@ test('manual work persists locally, groups equal names in monthly Excel and coun
   assert.equal(report.stats.totalTasks, 3);
   assert.equal(report.stats.totalSpent, 7.5);
   assert.deepEqual(report.offEntries, []);
-  assert.ok(fetches.filter(request => request.query.includes('workItems')).every(request => request.variables.fullPath === 'group/a'));
+  assert.ok(fetches.filter(request => request.query.includes('workItem(iid:')).every(request => request.variables.fullPath === 'group/a'));
 
   const template = fs.readFileSync(new URL('../assets/templates/work_report.xlsx', import.meta.url));
   const bytes = await generateExcelWorkbook(template, report, ExcelJS);

@@ -110,7 +110,7 @@ test('configuration and leave validation; external task links do not become exec
 });
 
 let local = {}, session = {}, fetches = [], replyPages = [], alarm;
-let noteAlarm, odooAlarm, odooReminderAlarm, notifications = [], openedTabs = [];
+let noteAlarm, hoursAlarm, odooAlarm, odooReminderAlarm, notifications = [], openedTabs = [];
 let actionBadge = {text: '', color: '', title: ''};
 let actionIcon = null;
 const events = {};
@@ -130,15 +130,17 @@ globalThis.chrome = {
   permissions: {async contains() {return true;}},
   storage: {local: area(() => local), session: area(() => session)},
   alarms: {
-    async get(name) {return name === 'daily-note' ? noteAlarm : name === 'odoo-attendance' ? odooAlarm : name === 'odoo-reminder' ? odooReminderAlarm : alarm;},
+    async get(name) {return name === 'daily-note' ? noteAlarm : name === 'daily-hours' ? hoursAlarm : name === 'odoo-attendance' ? odooAlarm : name === 'odoo-reminder' ? odooReminderAlarm : alarm;},
     async create(name, options) {
       if (name === 'daily-note') noteAlarm = {name, ...options};
+      else if (name === 'daily-hours') hoursAlarm = {name, ...options};
       else if (name === 'odoo-attendance') odooAlarm = {name, ...options};
       else if (name === 'odoo-reminder') odooReminderAlarm = {name, ...options};
       else alarm = {name, ...options};
     },
     async clear(name) {
       if (name === 'daily-note') noteAlarm = undefined;
+      if (name === 'daily-hours') hoursAlarm = undefined;
       if (name === 'odoo-attendance') odooAlarm = undefined;
       if (name === 'odoo-reminder') odooReminderAlarm = undefined;
     },
@@ -204,14 +206,14 @@ globalThis.fetch = async (url, options) => {
   if (!response) throw new Error('Unexpected fetch');
   return {ok: true, async json() {return response;}};
 };
-const {handleMessage, remindDailyNote, refreshOdoo, updateActionBadge, renderStatusIcon, ODOO_STATUS_COLORS} = await import('../src/background.js');
+const {handleMessage, remindDailyNote, remindMissingHours, refreshOdoo, updateActionBadge, renderStatusIcon, ODOO_STATUS_COLORS} = await import('../src/background.js');
 const page = (nodes, hasNextPage = false, endCursor = null) => ({data: {timelogs: {nodes, pageInfo: {hasNextPage, endCursor}}}});
 const day = '2026-10-01';
 async function connect() {
   replyPages.push(page([log('one', '2026-10-01T01:00:00Z')]));
   return handleMessage({type: 'connect', config, token: 'test-token', day});
 }
-beforeEach(() => {local = {}; session = {}; fetches = []; replyPages = []; notifications = []; openedTabs = []; noteAlarm = undefined; odooAlarm = undefined; odooReminderAlarm = undefined; actionBadge = {text: '', color: '', title: ''}; actionIcon = null;});
+beforeEach(() => {local = {}; session = {}; fetches = []; replyPages = []; notifications = []; openedTabs = []; noteAlarm = undefined; hoursAlarm = undefined; odooAlarm = undefined; odooReminderAlarm = undefined; actionBadge = {text: '', color: '', title: ''}; actionIcon = null;});
 
 test('system timezone controls local dates and attendance reminders in multiple regions', () => {
   const previous = process.env.TZ;
@@ -1106,6 +1108,118 @@ test('handleMessage export_excel_data integrates background enrichment and retur
   assert.equal(data.projectBlocks[0].tasks[0]['Due date'], '10/10/2026');
 });
 
+
+test('missing hours syncs all pages after final checkout, counts manual work and leave, and notifies once', async () => {
+  await connect();
+  const profile = local.config.profile;
+  local.odooConfig = validateOdooConfig({url: ODOO_URL, times: ['08:00', '12:00', '13:00', '17:30']});
+  local.profiles[profile].manualEntries = [{id: 'manual', day, title: 'Meeting', hours: 1}];
+  local.profiles[profile].leaves = [{id: 'leave', day, reason: 'Leave', hours: 0.5}];
+  const before = fetches.length;
+  await remindMissingHours(new Date(`${day}T17:29:59+07:00`));
+  assert.equal(fetches.length, before);
+  assert.equal(hoursAlarm.when, Date.parse(`${day}T17:30:00+07:00`));
+  replyPages.push(page([log('today-1', `${day}T09:00:00+07:00`, 4 * 3600)], true, 'next'),
+    page([log('today-2', `${day}T14:00:00+07:00`, 2 * 3600), log('yesterday', '2026-09-30T09:00:00+07:00', 8 * 3600)]));
+  await remindMissingHours(new Date(`${day}T17:30:00+07:00`));
+  assert.equal(fetches.length, before + 2);
+  assert.equal(notifications.length, 1);
+  assert.ok(notifications[0].message.includes('7h 30m / 8h'));
+  assert.ok(notifications[0].message.includes('0h 30m'));
+  assert.equal(local.profiles[profile].lastHoursCheck, day);
+  assert.equal(Object.values(local.profiles[profile].caches)[0].logs.length, 3);
+  assert.equal(hoursAlarm.when, Date.parse('2026-10-02T17:30:00+07:00'));
+  await remindMissingHours(new Date(`${day}T22:00:00+07:00`));
+  assert.equal(fetches.length, before + 2);
+  assert.equal(notifications.length, 1);
+  events.notificationClick(notifications[0].id);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(openedTabs[0].url, `chrome-extension://test-extension/src/popup.html?note=${day}`);
+  local.config.profile = 'another-account';
+  events.notificationClick(notifications[0].id);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(openedTabs.length, 1);
+});
+
+test('missing hours ignores stale or failed syncs and retries after token or notification permission returns', async () => {
+  await connect();
+  local.odooConfig = validateOdooConfig({url: ODOO_URL});
+  const profile = local.config.profile, now = new Date(`${day}T19:00:00+07:00`);
+  session = {};
+  await remindMissingHours(now);
+  assert.equal(notifications.length, 0);
+  assert.equal(local.profiles[profile].lastHoursCheck, undefined);
+  session.token = 'test-token';
+  replyPages.push(page([log('partial', `${day}T09:00:00+07:00`, 8 * 3600)], true, 'next'), new Error('Offline'));
+  await remindMissingHours(now);
+  assert.equal(notifications.length, 0);
+  assert.equal(local.profiles[profile].lastHoursCheck, undefined);
+  const before = fetches.length, permission = chrome.notifications.getPermissionLevel;
+  chrome.notifications.getPermissionLevel = async () => 'denied';
+  try {await remindMissingHours(now);} finally {chrome.notifications.getPermissionLevel = permission;}
+  assert.equal(fetches.length, before);
+  assert.equal(local.profiles[profile].lastHoursCheck, undefined);
+  local.config.language = 'en';
+  replyPages.push(page([]));
+  await remindMissingHours(now);
+  assert.equal(notifications.length, 1);
+  assert.ok(notifications[0].title.startsWith('Missing work hours'));
+  assert.ok(notifications[0].message.includes('0h 00m / 8h'));
+});
+
+test('missing hours skips weekends, schedules local checkout across DST, and stops on disconnect', async () => {
+  await connect();
+  local.odooConfig = validateOdooConfig({url: ODOO_URL});
+  const previous = process.env.TZ, before = fetches.length;
+  try {
+    process.env.TZ = 'America/New_York';
+    await remindMissingHours(new Date('2026-10-30T17:00:00-04:00'));
+    assert.equal(hoursAlarm.when, Date.parse('2026-10-30T18:00:00-04:00'));
+    await remindMissingHours(new Date('2026-10-31T19:00:00-04:00'));
+    assert.equal(hoursAlarm.when, Date.parse('2026-11-02T18:00:00-05:00'));
+    assert.equal(fetches.length, before);
+  } finally {process.env.TZ = previous;}
+  await handleMessage({type: 'odoo.disconnect'});
+  assert.equal(hoursAlarm, undefined);
+  await remindMissingHours(new Date(`${day}T19:00:00+07:00`));
+  assert.equal(fetches.length, before);
+  local.odooConfig = validateOdooConfig({url: ODOO_URL});
+  await remindMissingHours(new Date(`${day}T17:00:00+07:00`));
+  assert.ok(hoursAlarm);
+  await handleMessage({type: 'disconnect'});
+  assert.equal(hoursAlarm, undefined);
+});
+
+test('missing hours reuses the periodic sync, accepts enough hours, and catches up through the dedicated alarm', async () => {
+  await connect();
+  local.odooConfig = validateOdooConfig({url: ODOO_URL});
+  const profile = local.config.profile, RealDate = Date;
+  let instant = new RealDate(`${day}T19:00:00+07:00`).getTime();
+  globalThis.Date = class extends RealDate {
+    constructor(...args) {super(...(args.length ? args : [instant]));}
+    static now() {return instant;}
+  };
+  try {
+    local.profiles[profile].manualEntries = [{id: 'manual', day, title: 'Meeting', hours: 1}];
+    local.profiles[profile].leaves = [{id: 'leave', day, reason: 'Leave', hours: 1}];
+    replyPages.push(page([log('enough', `${day}T09:00:00+07:00`, 6 * 3600)]));
+    const before = fetches.length;
+    events.alarm({name: 'gitlab-sync'});
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(fetches.length, before + 1);
+    assert.equal(notifications.length, 0);
+    assert.equal(local.profiles[profile].lastHoursCheck, day);
+    instant = new RealDate('2026-10-02T21:00:00+07:00').getTime();
+    replyPages.push(page([]));
+    events.alarm({name: 'daily-hours'});
+    events.alarm({name: 'daily-hours'});
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(fetches.length, before + 2);
+    assert.equal(notifications.length, 1);
+    assert.ok(notifications[0].id.endsWith(':2026-10-02'));
+    assert.equal(hoursAlarm.when, RealDate.parse('2026-10-05T18:00:00+07:00'));
+  } finally {globalThis.Date = RealDate;}
+});
 
 test('daily note reminders respect Vietnam time, catch up once, and open the correct note', async () => {
   await connect();

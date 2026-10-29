@@ -66,6 +66,12 @@ Notes are local, so reminders work offline and after a session token expires. Di
 
 After updating an unpacked installation, reload the extension at `chrome://extensions` or `edge://extensions` to apply the new `notifications` permission.
 
+## Missing-hours reminders
+
+With GitLab and Odoo connected, the extension automatically checks **today's** hours at the evening checkout time configured in **Settings → Odoo Attendance**, Monday–Friday in the system timezone. It refreshes GitLab timelogs and compares the day's GitLab work, manual work and leave against the dashboard's **8-hour** target, rounded to minutes. The optional GitLab project filter also applies here. If the total is short, a notification shows the total and remaining hours; click it to open that day's details.
+
+The check runs independently of Odoo attendance reminders and does not require an actual Odoo checkout or a successful Odoo attendance read. Each GitLab account is checked successfully at most once per day, including when the target is met. Browser restarts do not repeat a completed check. If the browser resumes after checkout, only today is checked; missed days are not replayed. Missing tokens or failed syncs never trigger a shortage notification and are retried during the regular 30-minute GitLab sync. Notifications must be allowed. Disconnecting GitLab or Odoo stops this reminder.
+
 ## Data and privacy
 
 Settings, cached timelogs, manual work, leave, and notes stay in local extension storage. Tokens are session-only by default; **Remember token** stores the token locally across browser sessions, without encryption or Chrome account sync.

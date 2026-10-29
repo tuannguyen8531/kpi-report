@@ -1,9 +1,11 @@
 import {SYNC_MINUTES, TIMELOG_QUERY, today, addDays, parseDay, periods, validateConfig, normalizeLogs, validateLeave, validateManualEntry, makeSnapshot, exportCsv} from './core.js';
 import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel.js';
-import {verifyAttendanceCode, validateOdooConfig, readAttendance, changeAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder} from './odoo.js';
+import {verifyAttendanceCode, validateOdooConfig, readAttendance, changeAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder, formatHoursMinutes} from './odoo.js';
 
 const ALARM = 'gitlab-sync';
 const NOTE_ALARM = 'daily-note';
+const HOURS_ALARM = 'daily-hours';
+const DAILY_HOURS_TARGET = 8;
 const ODOO_ALARM = 'odoo-attendance';
 const ODOO_REMINDER_ALARM = 'odoo-reminder';
 let pending = Promise.resolve();
@@ -37,6 +39,50 @@ export async function remindDailyNote(now = new Date()) {
   });
   profile.lastNoteReminder = day;
   await chrome.storage.local.set({profiles});
+}
+
+// Uses the final checkout time; all callers run through the shared storage queue.
+export async function remindMissingHours(now = new Date(), snapshot = null) {
+  const started = Date.now();
+  const {config, odooConfig, profiles = {}, language} = await chrome.storage.local.get(['config', 'odooConfig', 'profiles', 'language']);
+  if (!config?.profile || !odooConfig?.enabled) {
+    await chrome.alarms.clear(HOURS_ALARM);
+    return;
+  }
+  const day = today(now), checkout = odooConfig.times[3];
+  for (let offset = 0; offset < 8; offset++) {
+    const date = addDays(day, offset), weekday = parseDay(date).getUTCDay();
+    if (weekday === 0 || weekday === 6) continue;
+    const when = Date.parse(`${date}T${checkout}:00`);
+    if (when > now.getTime()) {
+      await chrome.alarms.create(HOURS_ALARM, {when});
+      break;
+    }
+  }
+  const weekday = parseDay(day).getUTCDay();
+  if (weekday === 0 || weekday === 6 || now.getTime() < Date.parse(`${day}T${checkout}:00`) ||
+      profiles[config.profile]?.lastHoursCheck === day) return;
+  if (await chrome.notifications.getPermissionLevel() !== 'granted') return;
+  snapshot ||= await synchronize(day, true);
+  if (!snapshot.configured || snapshot.profile !== config.profile || snapshot.date !== day ||
+      snapshot.error || !snapshot.syncedAt || !Number.isFinite(snapshot.day.hours) ||
+      today(new Date(now.getTime() + Date.now() - started)) !== day) return;
+  const total = snapshot.day.hours + snapshot.day.leaveHours;
+  // Match the dashboard's minute display, including manual work and leave.
+  if (Math.round(total * 60) < DAILY_HOURS_TARGET * 60) {
+    const isEn = (language || config.language) === 'en';
+    await chrome.notifications.create(`${HOURS_ALARM}:${encodeURIComponent(config.profile)}:${day}`, {
+      type: 'basic', iconUrl: chrome.runtime.getURL('assets/icon.png'),
+      title: isEn ? `Missing work hours · ${day}` : `Chưa đủ giờ công · ${day}`,
+      message: isEn
+        ? `Today: ${formatHoursMinutes(total)} / ${DAILY_HOURS_TARGET}h. Missing ${formatHoursMinutes(DAILY_HOURS_TARGET - total)}.`
+        : `Hôm nay: ${formatHoursMinutes(total)} / ${DAILY_HOURS_TARGET}h. Còn thiếu ${formatHoursMinutes(DAILY_HOURS_TARGET - total)}.`,
+    });
+  }
+  // synchronize() writes fresh caches; reload before recording completion.
+  const stored = await chrome.storage.local.get('profiles');
+  stored.profiles[config.profile].lastHoursCheck = day;
+  await chrome.storage.local.set({profiles: stored.profiles});
 }
 
 export const ODOO_STATUS_COLORS = {
@@ -124,6 +170,7 @@ async function initialize() {
     await chrome.alarms.create(ALARM, {delayInMinutes: SYNC_MINUTES, periodInMinutes: SYNC_MINUTES});
   }
   await remindDailyNote();
+  await remindMissingHours();
   const {odooConfig, language} = await chrome.storage.local.get(['odooConfig', 'language']);
   if (odooConfig?.enabled) {
     const odooAlarm = await chrome.alarms.get(ODOO_ALARM);
@@ -318,6 +365,7 @@ export async function handleMessage(message) {
       }
       await chrome.storage.local.set({odooConfig: config});
       await chrome.alarms.create(ODOO_ALARM, {periodInMinutes: SYNC_MINUTES});
+      await remindMissingHours();
       return refreshOdoo();
     }
     case 'odoo.lock': {
@@ -336,6 +384,7 @@ export async function handleMessage(message) {
       await chrome.storage.local.remove(['odooConfig', 'odooData']);
       await chrome.alarms.clear(ODOO_ALARM);
       await chrome.alarms.clear(ODOO_REMINDER_ALARM);
+      await chrome.alarms.clear(HOURS_ALARM);
       await updateActionBadge(null, null);
       return {config: null, data: null};
     }
@@ -378,7 +427,9 @@ export async function handleMessage(message) {
         await chrome.storage.local.remove('token');
       }
       await remindDailyNote();
-      return synchronize(message.day || today(), true);
+      const snapshot = await synchronize(message.day || today(), true);
+      await remindMissingHours(new Date(), snapshot);
+      return snapshot;
     }
     case 'snapshot': return synchronize(message.day || today(), Boolean(message.force));
     case 'note.unlock':
@@ -512,6 +563,7 @@ export async function handleMessage(message) {
         else await chrome.storage.local.remove('token');
       }
       await remindDailyNote();
+      await remindMissingHours();
       if (Object.hasOwn(updates, 'odooConfig')) {
         await chrome.storage.local.remove('odooData');
         if (updates.odooConfig) await chrome.alarms.create(ODOO_ALARM, {periodInMinutes: SYNC_MINUTES});
@@ -564,6 +616,7 @@ export async function handleMessage(message) {
       await chrome.storage.local.remove(['config', 'token']);
       await chrome.storage.session.remove('token');
       await chrome.alarms.clear(NOTE_ALARM);
+      await chrome.alarms.clear(HOURS_ALARM);
       return {disconnected: true};
     }
     default: throw new Error('This action is not supported.');
@@ -577,6 +630,10 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   return true;
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === HOURS_ALARM) {
+    void serial(() => remindMissingHours()).catch(console.error);
+    return;
+  }
   if (alarm.name === ODOO_ALARM || alarm.name === ODOO_REMINDER_ALARM) {
     void serial(() => refreshOdoo(new Date(), alarm.name === ODOO_REMINDER_ALARM)).catch(console.error);
     return;
@@ -584,7 +641,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === NOTE_ALARM || alarm.name === ALARM) {
     void serial(async () => {
       await remindDailyNote();
-      if (alarm.name === ALARM) await synchronize(today(), true);
+      if (alarm.name === ALARM) {
+        const snapshot = await synchronize(today(), true);
+        await remindMissingHours(new Date(), snapshot);
+      }
     }).catch(console.error);
   }
 });
@@ -596,7 +656,7 @@ chrome.notifications.onClicked.addListener((id) => {
       await chrome.notifications.clear(id);
       return;
     }
-    const match = /^daily-note:(.+):(\d{4}-\d{2}-\d{2})$/.exec(id);
+    const match = /^(?:daily-note|daily-hours):(.+):(\d{4}-\d{2}-\d{2})$/.exec(id);
     if (!match) return;
     const {config} = await chrome.storage.local.get('config');
     if (encodeURIComponent(config?.profile) !== match[1]) return;

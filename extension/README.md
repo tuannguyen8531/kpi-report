@@ -10,6 +10,7 @@ A Chrome and Edge extension for tracking GitLab work hours, managing leave, and 
 - Local leave tracking with JSON backup and restore for leave, manual work, daily notes and settings.
 - Direct Excel export with KPI formulas, plus CSV export for the [Python CLI](../README.md).
 - Compact popup and full-tab dashboard, with automatic sync every 30 minutes and manual refresh.
+- Monthly time allocation by project, with hours, percentages, and links to filtered timelogs.
 
 ## Installation
 
@@ -45,6 +46,8 @@ Click **Save & Connect** and allow access to your GitLab server when prompted. H
 - Click **Export Excel** to download the selected month's report. Work items with an exact `UNPLANNED` label (case-insensitive) are classified as `Phát sinh`; other tasks and all merge requests remain `Kế hoạch`. The original Excel template, Vietnamese report labels, and KPI formulas are preserved.
 - Use **Export CSV** to download `tasks_MM_YYYY.csv`. For the CLI workflow, place it in the repository's `input/` directory and run `uv run report -m 10 -y 2026` with the appropriate month and year. The Python CLI detects paths from automatically named projects in this CSV; custom project names require matching entries in `projects.json`. Manual work and OFF entries need no project mapping. Direct Excel export needs no project file.
 - Open settings to update the connection, projects, or Excel filename pattern (`MM` and `YYYY` placeholders).
+
+**Time allocation** in **Report & Export** shows monthly work hours by project, sorted from most to least, including manual work under **Nghiên cứu**. Leave is excluded. Click a row to view that group's timelogs for the full selected month; choose another project or **All projects** in Timelog to change the filter. The chart uses synced timelogs without additional GitLab requests and updates after sync, month changes, or manual work edits. Duplicate project names include their paths. Failed syncs display a warning beside available data. If a group has a negative net total from time corrections, all groups show hours without bars or percentages.
 
 Only the token owner's timelogs are counted, across all detected projects unless an optional project filter is set. Existing project lists remain active; clear the filter in Settings and save to switch to automatic detection. Dates and reminder schedules use the browser/system timezone, including daylight saving changes; weeks start on Monday and include only days within the selected month. Dashboard targets are 8 hours per day, 40 per week, and 192 per month, including leave. Excel summarizes leave only in the scoring sheet explanation and excludes it from task statistics.
 

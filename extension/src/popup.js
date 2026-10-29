@@ -1,4 +1,4 @@
-import {today, parseDay, addDays, validateConfig, projectName} from './core.js';
+import {today, parseDay, addDays, validateConfig, projectName, timeAllocation, workProjectKey} from './core.js';
 import {generateExcelWorkbook} from './excel.js';
 import {getLanguage, setLanguage, t} from './i18n.js';
 import {ENTRY_SIZE, ODOO_TIMES, validateOdooConfig, formatHoursMinutes} from './odoo.js';
@@ -118,6 +118,7 @@ let editingManualId = null;
 let manualProfile = null;
 let busy = false;
 let activeTab = 'calendar';
+let allocationSelection = null;
 const noteDrafts = new Map();
 let noteDay = null;
 let currentBreakdownScope = null;
@@ -287,7 +288,10 @@ async function restoreMonthlyReportCache(expectedKey) {
 }
 
 function render(data) {
-  if (snapshot?.profile !== data.profile) resetManualForm();
+  if (snapshot?.profile !== data.profile) {
+    resetManualForm();
+    allocationSelection = null;
+  }
   snapshot = data;
   const expectedKey = `${data.profile}|${data.date?.slice(0, 7)}|${data.syncedAt}|${data.manualRevision || ''}`;
   if (monthlyReportKey !== expectedKey) {
@@ -422,14 +426,113 @@ function render(data) {
   // Render Calendar Grid
   renderCalendar(data);
 
+  updateProjectFilterOptions();
+  if (allocationSelection && !(data.logs || []).some(log => workProjectKey(log) === allocationSelection)) {
+    allocationSelection = null;
+  }
+
   // Render Timelogs
   renderLogs();
 
   // Render Leave List
   renderLeaves(data);
 
-  // Populate project filter dropdown
-  updateProjectFilterOptions();
+  renderTimeAllocation();
+}
+
+function renderTimeAllocation() {
+  const ALLOCATION_PALETTE = [
+    { bar: '#3b82f6', soft: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' }, // Blue
+    { bar: '#10b981', soft: '#ecfdf5', text: '#047857', border: '#a7f3d0' }, // Emerald
+    { bar: '#f59e0b', soft: '#fffbeb', text: '#b45309', border: '#fde68a' }, // Amber
+    { bar: '#8b5cf6', soft: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' }, // Violet
+    { bar: '#ec4899', soft: '#fdf2f8', text: '#be185d', border: '#fbcfe8' }, // Rose
+    { bar: '#06b6d4', soft: '#ecfeff', text: '#0e7490', border: '#a5f3fc' }, // Cyan
+    { bar: '#f97316', soft: '#fff7ed', text: '#c2410c', border: '#fed7aa' }, // Orange
+    { bar: '#6366f1', soft: '#eef2ff', text: '#4338ca', border: '#c7d2fe' }, // Indigo
+    { bar: '#14b8a6', soft: '#f0fdfa', text: '#0f766e', border: '#99f6e4' }, // Teal
+    { bar: '#84cc16', soft: '#f7fee7', text: '#4d7c0f', border: '#d9f99d' }, // Lime
+  ];
+
+  const {rows, total, hasNegative} = timeAllocation(snapshot);
+  const list = $('allocation-list');
+  list.replaceChildren();
+  $('allocation-total').textContent = snapshot?.month?.hours === null || !snapshot?.configured ? '—' : formatHours(total);
+  const countBadge = $('allocation-count');
+  if (countBadge) {
+    countBadge.textContent = String(rows.length);
+    countBadge.hidden = !rows.length;
+  }
+  const messages = [];
+  if (snapshot?.error) messages.push(t('allocation.stale'));
+  else if (!snapshot?.syncedAt) messages.push(t('allocation.pending'));
+  if (!rows.length) messages.push(t('allocation.empty'));
+  if (hasNegative) messages.push(t('allocation.negative'));
+  $('allocation-status').textContent = messages.join(' ');
+  $('allocation-status').hidden = !messages.length;
+  const labels = rows.map(row => row.manual ? t('manual.project') : projectName(row.project));
+  for (const [index, row] of rows.entries()) {
+    const color = ALLOCATION_PALETTE[index % ALLOCATION_PALETTE.length];
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'allocation-row';
+    button.title = t('allocation.open');
+    button.style?.setProperty?.('--bar-color', color.bar);
+    button.style?.setProperty?.('--bar-soft', color.soft);
+    button.style?.setProperty?.('--bar-text', color.text);
+    button.style?.setProperty?.('--bar-border', color.border);
+
+    const heading = document.createElement('span');
+    heading.className = 'allocation-row-heading';
+
+    const label = document.createElement('span');
+    label.className = 'allocation-name';
+    label.textContent = labels[index];
+    if (labels.filter(name => name === labels[index]).length > 1 && row.projectPath) {
+      label.textContent += ` (${row.projectPath})`;
+    }
+
+    const value = document.createElement('span');
+    value.className = 'allocation-value';
+    const hours = document.createElement('span');
+    hours.className = 'allocation-hours';
+    hours.textContent = formatHours(row.hours);
+    value.appendChild(hours);
+    if (row.share !== null) {
+      const badge = document.createElement('span');
+      badge.className = 'allocation-badge';
+      badge.style.backgroundColor = color.soft;
+      badge.style.color = color.text;
+      badge.style.borderColor = color.border;
+      badge.textContent = new Intl.NumberFormat(currentLang, {style: 'percent', maximumFractionDigits: 1}).format(row.share);
+      value.appendChild(badge);
+    }
+    heading.append(label, value);
+    button.appendChild(heading);
+
+    if (row.share !== null) {
+      const track = document.createElement('span');
+      track.className = 'allocation-track';
+      track.setAttribute('aria-hidden', 'true');
+      const bar = document.createElement('span');
+      bar.className = 'allocation-bar';
+      bar.style.width = `${row.share * 100}%`;
+      bar.style.backgroundColor = color.bar;
+      track.appendChild(bar);
+      button.appendChild(track);
+    }
+    button.addEventListener('click', () => {
+      if (busy) return;
+      $('day-only').checked = false;
+      $('logs-search').value = '';
+      $('logs-project-filter').value = row.project;
+      allocationSelection = row.key;
+      switchTab('logs');
+      renderLogs();
+      $('logs-project-filter').focus();
+    });
+    list.appendChild(button);
+  }
 }
 
 function renderDayNote(data, day) {
@@ -666,6 +769,7 @@ function renderLogs() {
   const allItems = [...rawLogs, ...rawLeaves].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
 
   const filtered = allItems.filter((item) => {
+    if (allocationSelection && workProjectKey(item) !== allocationSelection) return false;
     if (isDayOnly && item.date !== targetDate) return false;
     if (selectedProject && item.project !== selectedProject) return false;
     if (searchKeyword) {
@@ -1089,7 +1193,10 @@ document.querySelectorAll('.tab-button').forEach((btn) => {
 // 6. Timelog filters
 $('day-only').addEventListener('change', renderLogs);
 $('logs-search').addEventListener('input', renderLogs);
-$('logs-project-filter').addEventListener('change', renderLogs);
+$('logs-project-filter').addEventListener('change', () => {
+  allocationSelection = null;
+  renderLogs();
+});
 
 // 7. Leave Form & Modal Controls
 function updatePresetChipsActive() {

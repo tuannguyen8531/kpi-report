@@ -2,6 +2,26 @@
 export const SYNC_MINUTES = 30;
 export const MANUAL_PROJECT = 'Nghiên cứu';
 export const projectName = (name) => name.replace(/\s+\([^()]*\/[^()]*\)$/, '');
+export const workProjectKey = (log) => log.type === 'MANUAL' ? 'manual' : `project:${log.projectPath || log.project}`;
+
+export function timeAllocation(snapshot) {
+  const month = snapshot?.date?.slice(0, 7);
+  const groups = new Map();
+  for (const log of snapshot?.logs || []) {
+    if (!month || log.date?.slice(0, 7) !== month || log.type === 'OFF' || !Number.isFinite(log.hours)) continue;
+    const key = workProjectKey(log);
+    if (!groups.has(key)) groups.set(key, {
+      key, project: log.project, projectPath: log.projectPath || '', manual: log.type === 'MANUAL', hours: 0,
+    });
+    groups.get(key).hours += log.hours;
+  }
+  const rows = [...groups.values()].sort((a, b) => b.hours - a.hours || a.project.localeCompare(b.project));
+  const total = rows.reduce((sum, row) => sum + row.hours, 0);
+  const hasNegative = rows.some(row => row.hours < 0);
+  for (const row of rows) row.share = total > 0 && !hasNegative ? row.hours / total : null;
+  return {rows, total, hasNegative};
+}
+
 export const TIMELOG_QUERY = `query($username: String!, $start: Time!, $end: Time!, $after: String) {
   timelogs(username: $username, startTime: $start, endTime: $end, first: 100, after: $after) {
     nodes {

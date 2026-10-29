@@ -780,6 +780,35 @@
           </div>
         </div>
 
+        <section class="allocation-card" aria-labelledby="allocation-title">
+          <div class="allocation-header">
+            <div class="allocation-header-left">
+              <div class="allocation-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="allocation-card-icon">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+              </div>
+              <div>
+                <div class="allocation-title-row">
+                  <h3 id="allocation-title" class="allocation-title" data-i18n="allocation.title">Phân bổ thời gian</h3>
+                  <span id="allocation-count" class="allocation-badge-count" hidden>0</span>
+                </div>
+                <p class="allocation-hint" data-i18n="allocation.hint">Tỷ lệ thời gian làm việc theo dự án trong tháng.</p>
+              </div>
+            </div>
+            <div class="allocation-header-right">
+              <div class="allocation-total-box">
+                <span class="allocation-total-label" data-i18n="allocation.total_label">Tổng</span>
+                <strong id="allocation-total" class="allocation-total">—</strong>
+              </div>
+            </div>
+          </div>
+          <p id="allocation-status" class="field-hint allocation-status" role="status" hidden></p>
+          <div id="allocation-list" class="allocation-list"></div>
+        </section>
+
         <!-- Monthly Tasks Section Card -->
         <div class="report-tasks-card">
           <!-- Card Header -->

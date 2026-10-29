@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {test, beforeEach} from 'node:test';
 import '../src/vendor/exceljs.min.js';
-import {SYNC_MINUTES, today, periods, parseDay, normalizeLogs, makeSnapshot, validateConfig, validateLeave, exportCsv, projectName} from '../src/core.js';
+import {SYNC_MINUTES, today, periods, parseDay, normalizeLogs, makeSnapshot, validateConfig, validateLeave, exportCsv, projectName, timeAllocation, workProjectKey} from '../src/core.js';
 import {verifyAttendanceCode, ODOO_TIMES, validateOdooConfig, parseAttendance, readAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder, formatHoursMinutes} from '../src/odoo.js';
 
 // Existing fixtures use Vietnam time; timezone-specific cases override it explicitly.
@@ -1571,6 +1571,80 @@ test('status dots extend past a slightly smaller intact base icon', () => {
       assert.equal(plain.cutout, undefined);
     }
   } finally {globalThis.OffscreenCanvas = originalCanvas;}
+});
+
+test('time allocation groups monthly net work by project path, includes manual work, and excludes leave', () => {
+  const logs = [
+    {id: 'a1', date: day, project: 'App (team-a/app)', projectPath: 'team-a/app', type: 'TASK', hours: 5},
+    {id: 'a2', date: day, project: 'App (team-a/app)', projectPath: 'team-a/app', type: 'MR', hours: -1},
+    {id: 'b', date: day, project: 'App (team-b/app)', projectPath: 'team-b/app', type: 'TASK', hours: 2},
+    {id: 'manual', date: day, project: 'Nghiên cứu', type: 'MANUAL', hours: 2},
+    {id: 'last-month', date: '2026-09-30', project: 'App', type: 'TASK', hours: 20},
+  ];
+  const snapshot = makeSnapshot(day, {logs, syncedAt: 'now'}, [{day, hours: 4, reason: 'Leave'}]);
+  const result = timeAllocation(snapshot);
+  assert.equal(result.total, snapshot.month.hours);
+  assert.equal(timeAllocation({...snapshot, logs: [...logs, {date: day, type: 'OFF', hours: 8}]}).total, 8);
+  assert.equal(result.total, 8);
+  assert.equal(result.rows.length, 3);
+  assert.equal(result.rows[0].projectPath, 'team-a/app');
+  assert.deepEqual(result.rows.map(row => row.hours), [4, 2, 2]);
+  assert.deepEqual(result.rows.map(row => row.share), [0.5, 0.25, 0.25]);
+  assert.equal(result.rows.reduce((sum, row) => sum + row.share, 0), 1);
+  assert.equal(workProjectKey(logs[0]), workProjectKey(logs[1]));
+  assert.notEqual(workProjectKey(logs[0]), workProjectKey(logs[2]));
+  assert.deepEqual(timeAllocation({date: day, logs: []}), {rows: [], total: 0, hasNegative: false});
+  const negative = timeAllocation({date: day, logs: [...logs, {...logs[2], hours: -5}]});
+  assert.equal(negative.total, 3);
+  assert.equal(negative.hasNegative, true);
+  assert.ok(negative.rows.every(row => row.share === null));
+  assert.equal(timeAllocation({date: day, logs: [{...logs[0], hours: 0}]}).rows[0].share, null);
+});
+
+test('allocation renders safe labels, separates duplicate names, and opens the selected project for the whole month', () => {
+  const source = fs.readFileSync(new URL('../src/popup.js', import.meta.url), 'utf8');
+  const start = source.indexOf('function renderTimeAllocation()');
+  const end = source.indexOf('\nfunction renderDayNote', start);
+  const element = () => ({children: [], style: {setProperty(k, v) { this[k] = v; }}, events: {}, textContent: '',
+    append(...children) {this.children.push(...children);}, appendChild(child) {this.children.push(child);},
+    replaceChildren() {this.children = [];}, setAttribute() {},
+    addEventListener(type, callback) {this.events[type] = callback;}, focus() {this.focused = true;}});
+  const ids = Object.fromEntries(['allocation-total', 'allocation-count', 'allocation-list', 'allocation-status', 'day-only', 'logs-search', 'logs-project-filter'].map(id => [id, element()]));
+  const snapshot = {configured: true, syncedAt: 'now', date: day, month: {hours: 8}, logs: [
+    {date: day, project: '<App> (team-a/app)', projectPath: 'team-a/app', type: 'TASK', hours: 6},
+    {date: day, project: '<App> (team-b/app)', projectPath: 'team-b/app', type: 'TASK', hours: 2},
+  ]};
+  const render = new Function('$', 'document', 'snapshot', 'timeAllocation', 'projectName', 'formatHours', 't', `
+    const currentLang = 'en', busy = false;
+    let allocationSelection = null, tab = null, renders = 0;
+    const switchTab = value => {tab = value;}, renderLogs = () => {renders++;};
+    ${source.slice(start, end)}
+    renderTimeAllocation();
+    return {click: () => { $('allocation-list').children[0].events.click(); return {allocationSelection, tab, renders}; }};
+  `);
+  const controls = render(id => ids[id], {createElement: element}, snapshot, timeAllocation, projectName, value => `${value}h`, key => key);
+  const rows = ids['allocation-list'].children;
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].children[0].children[0].textContent, '<App> (team-a/app)');
+  assert.equal(rows[0].children[0].children[1].children[0].textContent, '6h');
+  assert.equal(rows[0].children[0].children[1].children[1].textContent, '75%');
+  assert.equal(rows[0].children[0].children[1].children[1].style.backgroundColor, '#eff6ff');
+  assert.equal(rows[0].children[1].children[0].style.width, '75%');
+  assert.equal(rows[0].children[1].children[0].style.backgroundColor, '#3b82f6');
+  assert.equal(rows[1].children[0].children[1].children[0].textContent, '2h');
+  assert.equal(rows[1].children[0].children[1].children[1].textContent, '25%');
+  assert.equal(rows[1].children[1].children[0].style.width, '25%');
+  assert.equal(rows[1].children[1].children[0].style.backgroundColor, '#10b981');
+  assert.equal(ids['allocation-total'].textContent, '8h');
+  assert.equal(ids['allocation-count'].textContent, '2');
+  assert.equal(ids['allocation-count'].hidden, false);
+  assert.deepEqual(controls.click(), {allocationSelection: 'project:team-a/app', tab: 'logs', renders: 1});
+  assert.equal(ids['day-only'].checked, false);
+  assert.equal(ids['logs-search'].value, '');
+  assert.equal(ids['logs-project-filter'].value, '<App> (team-a/app)');
+  assert.equal(ids['logs-project-filter'].focused, true);
+  render(id => ids[id], {createElement: element}, {...snapshot, error: 'Offline'}, timeAllocation, projectName, value => `${value}h`, key => key);
+  assert.equal(ids['allocation-status'].textContent, 'allocation.stale');
 });
 
 test('monthly report renders Excel task totals, ratios and missing estimates safely', () => {

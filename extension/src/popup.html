@@ -732,51 +732,22 @@
           </div>
         </div>
 
-        <div class="report-overview-card">
-          <div class="report-meta-grid">
-            <div class="report-meta-item">
-              <span class="meta-label" data-i18n="report.summary_title">Report month</span>
-              <strong id="report-month-title" class="meta-value">—</strong>
-            </div>
-            <div class="report-meta-item">
-              <span class="meta-label" data-i18n="report.work_hours">Work hours</span>
-              <strong id="report-work-hours" class="meta-value color-blue">—</strong>
-            </div>
-            <div class="report-meta-item">
-              <span class="meta-label" data-i18n="report.leave_hours">Leave hours</span>
-              <strong id="report-leave-hours" class="meta-value color-amber">—</strong>
-            </div>
-            <div class="report-meta-item">
-              <span class="meta-label" data-i18n="report.timelogs_count">Timelog count</span>
-              <strong id="report-log-count" class="meta-value">—</strong>
-            </div>
+        <div class="report-meta-grid">
+          <div class="report-meta-item">
+            <span class="meta-label" data-i18n="report.summary_title">Report month</span>
+            <strong id="report-month-title" class="meta-value">—</strong>
           </div>
-
-          <div class="export-actions-card">
-            <div class="export-buttons-group">
-              <button id="btn-export-excel" class="btn btn-primary btn-large" type="button" data-i18n-title="report.export_excel" title="Export Excel report (.xlsx) with report formulas">
-                <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <line x1="10" y1="9" x2="8" y2="9"></line>
-                </svg>
-                <span id="btn-export-excel-text" data-i18n="report.export_excel">Export Excel report (.xlsx)</span>
-              </button>
-              <button id="export" class="btn btn-outline" type="button" data-i18n-title="report.export_csv" title="Export raw data as CSV">
-                <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                <span data-i18n="report.export_csv">Export CSV</span>
-              </button>
-            </div>
-            <p class="export-note" data-i18n="report.export_note">
-              Excel reports include report formulas, issue/MR links, and leave entries using the <code>work_report.xlsx</code> template.
-            </p>
-            <pre class="code-snippet sr-only" id="report-command-example" hidden></pre>
+          <div class="report-meta-item">
+            <span class="meta-label" data-i18n="report.work_hours">Work hours</span>
+            <strong id="report-work-hours" class="meta-value color-blue">—</strong>
+          </div>
+          <div class="report-meta-item">
+            <span class="meta-label" data-i18n="report.leave_hours">Leave hours</span>
+            <strong id="report-leave-hours" class="meta-value color-amber">—</strong>
+          </div>
+          <div class="report-meta-item">
+            <span class="meta-label" data-i18n="report.timelogs_count">Timelog count</span>
+            <strong id="report-log-count" class="meta-value">—</strong>
           </div>
         </div>
 
@@ -929,6 +900,33 @@
           <div id="report-tasks-footer" class="report-tasks-footer" hidden>
             <span id="report-tasks-filter-count" class="report-tasks-footer-text"></span>
           </div>
+        </div>
+
+        <div class="export-actions-card">
+          <div class="export-buttons-group">
+            <button id="btn-export-excel" class="btn btn-primary btn-large" type="button" data-i18n-title="report.export_excel" title="Export Excel report (.xlsx) with report formulas">
+              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <line x1="10" y1="9" x2="8" y2="9"></line>
+              </svg>
+              <span id="btn-export-excel-text" data-i18n="report.export_excel">Export Excel report (.xlsx)</span>
+            </button>
+            <button id="export" class="btn btn-outline" type="button" data-i18n-title="report.export_csv" title="Export raw data as CSV">
+              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span data-i18n="report.export_csv">Export CSV</span>
+            </button>
+          </div>
+          <p class="export-note" data-i18n="report.export_note">
+            Excel reports include report formulas, issue/MR links, and leave entries using the <code>work_report.xlsx</code> template.
+          </p>
+          <pre class="code-snippet sr-only" id="report-command-example" hidden></pre>
         </div>
       </section>
     </main>

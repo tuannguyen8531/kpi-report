@@ -2480,6 +2480,7 @@ select.select-input:focus {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-top: 14px;
 }
 .export-buttons-group {
   display: flex;
@@ -4052,6 +4053,7 @@ a.breakdown-item-link:hover strong {
     justify-content: space-between;
     gap: 16px;
     padding: 16px 20px;
+    margin-top: 14px;
     margin-bottom: 0;
   }
   #panel-report .export-actions-card .export-note {

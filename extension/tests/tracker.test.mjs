@@ -1156,8 +1156,10 @@ test('missing hours ignores stale or failed syncs and retries after token or not
   assert.equal(local.profiles[profile].lastHoursCheck, undefined);
   const before = fetches.length, permission = chrome.notifications.getPermissionLevel;
   chrome.notifications.getPermissionLevel = async () => 'denied';
+  replyPages.push(page([log('fresh', `${day}T09:00:00+07:00`, 2 * 3600)]));
   try {await remindMissingHours(now);} finally {chrome.notifications.getPermissionLevel = permission;}
-  assert.equal(fetches.length, before);
+  assert.equal(fetches.length, before + 1);
+  assert.equal(Object.values(local.profiles[profile].caches)[0].logs[0].id, 'fresh');
   assert.equal(local.profiles[profile].lastHoursCheck, undefined);
   local.config.language = 'en';
   replyPages.push(page([]));
@@ -1219,6 +1221,84 @@ test('missing hours reuses the periodic sync, accepts enough hours, and catches 
     assert.ok(notifications[0].id.endsWith(':2026-10-02'));
     assert.equal(hoursAlarm.when, RealDate.parse('2026-10-05T18:00:00+07:00'));
   } finally {globalThis.Date = RealDate;}
+});
+
+test('automatic evening checkout also syncs missing hours when its separate alarm is missing', async () => {
+  await connect();
+  local.odooAutomationUnlocked = true;
+  local.odooConfig = {...validateOdooConfig({url: ODOO_URL, autoAttendance: true, reminders: false}), autoEmployeeId: 7};
+  const RealDate = Date, originalFetch = globalThis.fetch;
+  const instant = new RealDate(`${day}T18:00:00+07:00`).getTime();
+  let writes = 0, checkedOut = false;
+  globalThis.Date = class extends RealDate {
+    constructor(...args) {super(...(args.length ? args : [instant]));}
+    static now() {return instant;}
+  };
+  globalThis.fetch = async (url, options) => {
+    if (!url.startsWith(ODOO_URL)) return originalFetch(url, options);
+    if (url.endsWith('/systray_check_in_out')) {writes++; checkedOut = true;}
+    return {ok: true, json: async () => ({result: {
+      id: 7, attendance_state: checkedOut ? 'checked_out' : 'checked_in',
+      last_check_in: '2026-10-01 06:30:00',
+      last_check_out: checkedOut ? '2026-10-01 11:00:00' : false,
+    }})};
+  };
+  const drain = () => new Promise(resolve => events.message({type: 'settings'}, {id: 'test-extension'}, resolve));
+  try {
+    hoursAlarm = undefined;
+    replyPages.push(page([log('checkout', `${day}T09:00:00+07:00`, 3 * 3600)]));
+    const before = fetches.length;
+    events.alarm({name: 'odoo-reminder'});
+    await drain();
+    assert.equal(writes, 1);
+    assert.equal(local.odooData.state, 'checked_out');
+    assert.equal(fetches.length, before + 1);
+    assert.equal(notifications.length, 1);
+    assert.ok(notifications[0].id.startsWith('daily-hours:'));
+    assert.ok(notifications[0].message.includes('3h 00m / 8h'));
+    assert.equal(local.profiles[local.config.profile].lastHoursCheck, day);
+    assert.equal(hoursAlarm.when, RealDate.parse('2026-10-02T18:00:00+07:00'));
+    events.alarm({name: 'daily-hours'});
+    events.alarm({name: 'odoo-reminder'});
+    await drain();
+    assert.equal(writes, 1);
+    assert.equal(fetches.length, before + 1);
+    assert.equal(notifications.length, 1);
+  } finally {globalThis.Date = RealDate; globalThis.fetch = originalFetch;}
+});
+
+test('a fresh service worker restores the checkout alarm and syncs when it fires', async () => {
+  await connect();
+  local.odooConfig = validateOdooConfig({url: ODOO_URL});
+  const RealDate = Date, originalFetch = globalThis.fetch, listeners = {...events};
+  let instant = new RealDate(`${day}T17:59:00+07:00`).getTime();
+  globalThis.Date = class extends RealDate {
+    constructor(...args) {super(...(args.length ? args : [instant]));}
+    static now() {return instant;}
+  };
+  // Attendance availability must not affect the separate GitLab checkout check.
+  globalThis.fetch = (url, options) => url.startsWith(ODOO_URL)
+    ? Promise.reject(new Error('Odoo offline')) : originalFetch(url, options);
+  const drain = () => new Promise(resolve => events.message({type: 'settings'}, {id: 'test-extension'}, resolve));
+  try {
+    hoursAlarm = undefined;
+    await import('../src/background.js?checkout-cold-start');
+    await drain();
+    assert.equal(hoursAlarm.when, RealDate.parse(`${day}T18:00:00+07:00`));
+    const before = fetches.length;
+    instant = hoursAlarm.when;
+    replyPages.push(page([log('checkout', `${day}T09:00:00+07:00`, 2 * 3600)]));
+    events.alarm({name: 'daily-hours'});
+    await drain();
+    assert.equal(fetches.length, before + 1);
+    assert.equal(notifications.length, 1);
+    assert.ok(notifications[0].message.includes('2h 00m / 8h'));
+    assert.equal(local.profiles[local.config.profile].lastHoursCheck, day);
+  } finally {
+    globalThis.Date = RealDate;
+    globalThis.fetch = originalFetch;
+    Object.assign(events, listeners);
+  }
 });
 
 test('daily note reminders respect Vietnam time, catch up once, and open the correct note', async () => {

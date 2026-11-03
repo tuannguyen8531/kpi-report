@@ -62,7 +62,6 @@ export async function remindMissingHours(now = new Date(), snapshot = null) {
   const weekday = parseDay(day).getUTCDay();
   if (weekday === 0 || weekday === 6 || now.getTime() < Date.parse(`${day}T${checkout}:00`) ||
       profiles[config.profile]?.lastHoursCheck === day) return;
-  if (await chrome.notifications.getPermissionLevel() !== 'granted') return;
   snapshot ||= await synchronize(day, true);
   if (!snapshot.configured || snapshot.profile !== config.profile || snapshot.date !== day ||
       snapshot.error || !snapshot.syncedAt || !Number.isFinite(snapshot.day.hours) ||
@@ -70,6 +69,7 @@ export async function remindMissingHours(now = new Date(), snapshot = null) {
   const total = snapshot.day.hours + snapshot.day.leaveHours;
   // Match the dashboard's minute display, including manual work and leave.
   if (Math.round(total * 60) < DAILY_HOURS_TARGET * 60) {
+    if (await chrome.notifications.getPermissionLevel() !== 'granted') return;
     const isEn = (language || config.language) === 'en';
     await chrome.notifications.create(`${HOURS_ALARM}:${encodeURIComponent(config.profile)}:${day}`, {
       type: 'basic', iconUrl: chrome.runtime.getURL('assets/icon.png'),
@@ -635,7 +635,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     return;
   }
   if (alarm.name === ODOO_ALARM || alarm.name === ODOO_REMINDER_ALARM) {
-    void serial(() => refreshOdoo(new Date(), alarm.name === ODOO_REMINDER_ALARM)).catch(console.error);
+    void serial(async () => {
+      await refreshOdoo(new Date(), alarm.name === ODOO_REMINDER_ALARM);
+      await remindMissingHours();
+    }).catch(console.error);
     return;
   }
   if (alarm.name === NOTE_ALARM || alarm.name === ALARM) {

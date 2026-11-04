@@ -17,7 +17,7 @@ A Chrome and Edge extension for tracking GitLab work hours, managing leave, and 
 1. Download or clone this repository.
 2. Open `chrome://extensions` or `edge://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the `extension/` directory containing `manifest.json`.
-4. Pin the extension and open it to complete setup.
+4. Pin the extension and open it. First-time setup opens in a browser tab.
 
 No build step, npm installation, or Python server is required to use the extension. Chrome 120+ or a compatible Chromium-based Edge version is required.
 

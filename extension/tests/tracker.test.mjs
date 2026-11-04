@@ -2003,3 +2003,88 @@ test('ExcelJS is loaded only on export and its module creates valid workbooks', 
     assert.equal(loaded.getWorksheet('Report').getCell('A1').value, 'Ready');
   } finally {globalThis.ExcelJS = previous;}
 });
+
+test('first-run popup opens setup in a tab; existing accounts keep the quick popup', async () => {
+  const source = fs.readFileSync(new URL('../src/popup.js', import.meta.url), 'utf8');
+  const setupSource = source.slice(source.indexOf('async function openSetupTab('), source.indexOf('function openSettingsModal('));
+  const bootSource = source.slice(source.indexOf('  isActionPopup = !(await chrome.tabs.getCurrent());'), source.indexOf('  const initialLang ='));
+  for (const [currentTab, config, expectedTabs] of [[undefined, null, 1], [undefined, {}, 0], [{id: 1}, null, 0]]) {
+    const created = [];
+    let closed = 0;
+    const run = new Function('chrome', 'window', 'send', `
+      let isActionPopup = true;
+      ${setupSource}
+      return (async () => { ${bootSource} })();
+    `);
+    await run({runtime: chrome.runtime, tabs: {
+      async getCurrent() {return currentTab;}, async create(tab) {created.push(tab);},
+    }}, {close() {closed++;}}, async () => ({config}));
+    assert.equal(created.length, expectedTabs);
+    assert.equal(closed, expectedTabs);
+    if (created.length) assert.equal(created[0].url, chrome.runtime.getURL('src/popup.html'));
+  }
+});
+
+test('popup settings route to the requested tab before any form is populated', async () => {
+  const source = fs.readFileSync(new URL('../src/popup.js', import.meta.url), 'utf8');
+  const setupSource = source.slice(source.indexOf('async function openSetupTab('), source.indexOf('function closeSettingsModal('));
+  for (const name of ['general', 'gitlab', 'odoo']) {
+    const created = [];
+    let pending, closed = false;
+    const open = new Function('chrome', 'window', 'act', '$', `
+      let isActionPopup = true;
+      ${setupSource}
+      return openSettingsModal;
+    `)({runtime: chrome.runtime, tabs: {async create(tab) {created.push(tab);}}},
+      {close() {closed = true;}}, fn => {pending = fn();}, () => {throw new Error('Popup must not render connection fields');});
+    open(name);
+    await pending;
+    assert.equal(new URL(created[0].url).searchParams.get('settings'), name);
+    assert.equal(closed, true);
+  }
+});
+
+test('GitLab and Odoo setup preserve inputs on Deny and connect once after Allow', async () => {
+  const source = fs.readFileSync(new URL('../src/popup.js', import.meta.url), 'utf8');
+  for (const [form, start, end, type, urlField, tokenField] of [
+    ['onboarding-form', "$('onboarding-form').addEventListener('submit'", '/* ============================================================\n   SETTINGS MODAL', 'connect', 'onboarding-url', 'onboarding-token'],
+    ['settings-form', "$('settings-form').addEventListener('submit'", '// Disconnect account', 'connect', 'gitlab-url', 'gitlab-token'],
+    ['odoo-form', "$('odoo-form')?.addEventListener('submit'", "$('odoo-lock').addEventListener", 'odoo.connect', 'odoo-url', null],
+  ]) {
+    const fields = new Map(), messages = [];
+    const $ = id => {
+      if (!fields.has(id)) fields.set(id, {value: '', checked: false, hidden: true, addEventListener(event, fn) {this[event] = fn;}});
+      return fields.get(id);
+    };
+    $(urlField).value = type === 'connect' ? config.url : ODOO_URL;
+    if (tokenField) $(tokenField).value = 'test-token';
+    $('anchor').value = day;
+    $('reminder-time').value = '10:00';
+    ODOO_TIMES.forEach((time, i) => $(`odoo-time-${i}`).value = time);
+    let pending, answer, requested = 0;
+    const api = {permissions: {request() {requested++; return new Promise(resolve => {answer = resolve;});}}};
+    const handlerSource = source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
+    new Function('$', 'act', 'chrome', 'send', 'validateConfig', 'validateOdooConfig', 'ODOO_TIMES', `
+      let currentConfig = null, currentLang = 'vi', odooSnapshot = {config: null};
+      const t = key => key, render = () => {}, showToast = () => {}, closeSettingsModal = () => {}, renderOdoo = () => {};
+      ${handlerSource}
+    `)($, fn => {pending = fn();}, api, async message => {messages.push(message); return {username: 'me'};}, validateConfig, validateOdooConfig, ODOO_TIMES);
+    $(form).submit({preventDefault() {}});
+    assert.equal(requested, 1, 'permission request starts in the submit gesture');
+    assert.equal(messages.length, 0);
+    answer(false);
+    await assert.rejects(pending);
+    assert.equal($(urlField).value, type === 'connect' ? config.url : ODOO_URL);
+    if (tokenField) assert.equal($(tokenField).value, 'test-token');
+    assert.equal(messages.length, 0);
+    $(form).submit({preventDefault() {}});
+    answer(true);
+    await pending;
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].type, type);
+    if (tokenField) {
+      assert.equal(messages[0].token, 'test-token');
+      assert.equal($(tokenField).value, '', 'submitted token is cleared after connection');
+    }
+  }
+});

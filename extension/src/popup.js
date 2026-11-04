@@ -117,6 +117,7 @@ let editingLeaveId = null;
 let editingManualId = null;
 let manualProfile = null;
 let busy = false;
+let isActionPopup = true;
 let activeTab = 'calendar';
 let allocationSelection = null;
 const noteDrafts = new Map();
@@ -1666,6 +1667,7 @@ $('onboarding-form').addEventListener('submit', (e) => {
         day: $('anchor').value
       });
 
+      $('onboarding-token').value = '';
       currentConfig = config;
       render(data);
       showToast(t('toast.connected', {username: data.username}), 'success');
@@ -1700,7 +1702,18 @@ function switchSettingsTab(tabName) {
   });
 }
 
+async function openSetupTab(tabName = null) {
+  const url = new URL(chrome.runtime.getURL('src/popup.html'));
+  if (tabName) url.searchParams.set('settings', tabName);
+  await chrome.tabs.create({url: url.href});
+  if (isActionPopup) window.close();
+}
+
 function openSettingsModal(tabName = 'general') {
+  if (isActionPopup) {
+    void act(() => openSetupTab(tabName));
+    return;
+  }
   if (currentConfig) {
     $('gitlab-url').value = currentConfig.url || '';
     $('remember-token').checked = Boolean(currentConfig.rememberToken);
@@ -1832,6 +1845,7 @@ $('settings-form').addEventListener('submit', (e) => {
       day: $('anchor').value
     });
 
+    $('gitlab-token').value = '';
     currentConfig = config;
     closeSettingsModal();
     render(data);
@@ -1849,6 +1863,7 @@ $('btn-disconnect').addEventListener('click', () => act(async () => {
   $('onboarding-token').value = '';
   $('view-dashboard').hidden = true;
   $('view-onboarding').hidden = false;
+  if (isActionPopup) await openSetupTab();
   showToast(t('toast.disconnected'), 'info');
 }));
 
@@ -2142,7 +2157,12 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // Initial boot
 void act(async () => {
   const storedLang = await chrome.storage.local.get(['language']);
+  isActionPopup = !(await chrome.tabs.getCurrent());
   const settings = await send({type: 'settings'});
+  if (isActionPopup && !settings.config) {
+    await openSetupTab();
+    return;
+  }
   const initialLang = storedLang.language || settings.config?.language || 'vi';
   applyI18n(initialLang);
   odooSnapshot = await send({type: 'odoo.settings'});
@@ -2170,6 +2190,8 @@ void act(async () => {
   }
 
   await reload();
+  const requestedSettings = new URLSearchParams(location.search).get('settings');
+  if (!isActionPopup && requestedSettings && settings.config) openSettingsModal(requestedSettings);
   if (odooConfig?.enabled) {
     odooSnapshot = await send({type: 'odoo.refresh'});
     renderOdoo();

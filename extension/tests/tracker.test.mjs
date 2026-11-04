@@ -30,12 +30,12 @@ import {
 const config = {url: 'https://gitlab.example.com', projects: [{project: 'Project A', url: 'group/a'}], rememberToken: false};
 const log = (id, spentAt, seconds = 3600, extra = {}) => ({
   id, spentAt, timeSpent: seconds, user: {username: 'me'}, project: {fullPath: 'group/a'},
-  issue: {iid: 12, title: 'Work item', webUrl: 'https://gitlab.example.com/group/a/-/work_items/12'},
+  issue: {type: 'TASK', iid: 12, title: 'Work item', webUrl: 'https://gitlab.example.com/group/a/-/work_items/12'},
   mergeRequest: null, summary: '', ...extra,
 });
 
-test('timelogs preserve current issue/MR states and whole-task estimates in hours', () => {
-  const issue = {iid: 12, title: 'Work', webUrl: 'https://gitlab.example.com/group/a/-/issues/12'};
+test('timelogs preserve Task/MR states without caching unused estimates', () => {
+  const issue = {type: 'TASK', iid: 12, title: 'Work', webUrl: 'https://gitlab.example.com/group/a/-/issues/12'};
   const inputs = [
     log('open', '2026-10-01T01:00:00Z', 1800, {issue: {...issue, state: 'opened', timeEstimate: 9000}}),
     log('closed', '2026-10-01T01:00:00Z', 3600, {issue: {...issue, state: 'closed', timeEstimate: 0}}),
@@ -46,16 +46,12 @@ test('timelogs preserve current issue/MR states and whole-task estimates in hour
   const rows = normalizeLogs(inputs, config, 'me', '2026-10-01', '2026-11-01');
   const byId = Object.fromEntries(rows.map(row => [row.id, row]));
   assert.equal(byId.open.state, 'opened');
-  assert.equal(byId.open.estimateHours, 2.5);
   assert.equal(byId.open.hours, 0.5);
+  assert.ok(rows.every(row => !Object.hasOwn(row, 'estimateHours')));
   assert.equal(byId.closed.state, 'closed');
-  assert.equal(byId.closed.estimateHours, 0);
   assert.equal(byId.merged.state, 'merged');
-  assert.equal(byId.merged.estimateHours, 2);
   assert.equal(byId.merged.type, 'MR');
   assert.equal(byId.legacy.state, null);
-  assert.equal(byId.legacy.estimateHours, null);
-  assert.equal(byId.invalid.estimateHours, null);
   assert.equal(makeSnapshot('2026-10-01', {logs: rows}, []).day.hours, 4.5);
 });
 
@@ -105,7 +101,7 @@ test('configuration and leave validation; external task links do not become exec
   assert.throws(() => validateConfig({...config, projects: [null]}));
   for (const hours of [0, -1, NaN, Infinity, 25]) assert.throws(() => validateLeave({day: '2026-10-01', hours, reason: 'Off'}));
   assert.throws(() => validateLeave({day: '2026-10-01', hours: 8, reason: ''}));
-  const rows = normalizeLogs([log('unsafe', '2026-10-01T01:00:00Z', 3600, {issue: {iid: 1, title: '<script>', webUrl: 'javascript:alert(1)'}})], config, 'me', '2026-10-01', '2026-11-01');
+  const rows = normalizeLogs([log('unsafe', '2026-10-01T01:00:00Z', 3600, {issue: {type: 'TASK', iid: 1, title: '<script>', webUrl: 'javascript:alert(1)'}})], config, 'me', '2026-10-01', '2026-11-01');
   assert.equal(rows[0].url, null);
 });
 
@@ -1433,6 +1429,8 @@ test('connecting without a project file exports discovered projects with correct
   assert.equal(snapshot.month.hours, 3);
   assert.equal(snapshot.logs.length, 2);
   assert.deepEqual(local.config.projects, []);
+  assert.equal(fetches.at(-1).variables.includeProjectName, true);
+  assert.ok(fetches.at(-1).query.includes('name @include(if: $includeProjectName)'));
   assert.ok(exportCsv(snapshot).includes('App (team-a/app)'));
   replyPages.push(page(logs));
   const report = await handleMessage({type: 'export_excel_data', day});
@@ -1869,4 +1867,48 @@ test('manual work rejects invalid input and stale accounts; backups restore atom
   replyPages.push(page([]));
   assert.equal((await handleMessage({type: 'snapshot', day})).logs.length, 0);
   await assert.rejects(handleMessage({type: 'manual.delete', profile, id: entry.id}));
+});
+
+test('sync excludes Issues and unknown types from totals, CSV and Excel data', async () => {
+  await connect();
+  const task = log('task', '2026-10-01T01:00:00Z', 7200);
+  const inputs = [
+    task,
+    ...['ISSUE', 'INCIDENT', null].map((type, i) => log(`excluded-${i}`, task.spentAt, 36000, {
+      issue: {...task.issue, iid: 20 + i, type},
+    })),
+  ];
+  replyPages.push(page(inputs));
+  const snapshot = await handleMessage({type: 'snapshot', day, force: true});
+  assert.deepEqual(snapshot.logs.map(row => row.id), ['task']);
+  assert.equal(snapshot.day.hours, 2);
+  const grouped = processProjectData(snapshot.logs);
+  assert.equal(grouped.length, 1);
+  assert.equal(grouped[0].Spent, 2);
+  const csv = exportCsv(snapshot);
+  assert.equal(csv.trim().split('\r\n').length, 2);
+  assert.ok(csv.includes('"12","TASK","2"'));
+  assert.ok(fetches.at(-1).query.includes('state type'));
+  assert.ok(!fetches.at(-1).query.includes('timeEstimate'));
+  assert.equal(fetches.at(-1).variables.includeProjectName, false);
+  replyPages.push(page(inputs));
+  const report = await handleMessage({type: 'export_excel_data', day});
+  assert.equal(report.projectBlocks[0].tasks.length, 1);
+  assert.equal(report.projectBlocks[0].tasks[0].Task, '12');
+  assert.equal(report.projectBlocks[0].tasks[0].Spent, 2);
+});
+
+test('legacy caches are not used when refreshing task-only data fails', async () => {
+  await connect();
+  const caches = local.profiles[local.config.profile].caches;
+  for (const cache of Object.values(caches)) delete cache.taskOnly;
+  replyPages.push(new Error('Offline'));
+  const snapshot = await handleMessage({type: 'snapshot', day});
+  assert.equal(snapshot.day.hours, null);
+  assert.deepEqual(snapshot.logs, []);
+  assert.match(snapshot.error, /Offline/);
+  replyPages.push(page([log('verified-task', '2026-10-01T01:00:00Z')]));
+  const refreshed = await handleMessage({type: 'snapshot', day, force: true});
+  assert.equal(refreshed.day.hours, 1);
+  assert.equal(refreshed.logs[0].id, 'verified-task');
 });

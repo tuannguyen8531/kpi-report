@@ -306,7 +306,7 @@ async function synchronize(day, force = false) {
   const profile = profiles[config.profile] || {leaves: [], caches: {}};
   const range = periods(day), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const key = `${timeZone}|${range.start}/${range.end}`;
-  let cache = profile.caches[key];
+  let cache = profile.caches[key]?.taskOnly === true ? profile.caches[key] : undefined;
   const token = await getToken();
   if (force || !cache || Date.now() - Date.parse(cache.attemptedAt || cache.syncedAt || '') >= SYNC_MINUTES * 60000) {
     try {
@@ -317,6 +317,7 @@ async function synchronize(day, force = false) {
         const data = await request(config, token, TIMELOG_QUERY, {
           username: config.username, start: new Date(`${range.start}T00:00:00`).toISOString(),
           end: new Date(`${range.end}T00:00:00`).toISOString(), after,
+          includeProjectName: !config.projects?.length,
         });
         const connection = data.timelogs;
         if (!Array.isArray(connection?.nodes) || !connection.pageInfo) throw new Error('GitLab returned an incomplete timelog list.');
@@ -326,7 +327,7 @@ async function synchronize(day, force = false) {
         if (!after || seen.has(after)) throw new Error('GitLab returned an invalid pagination cursor.');
         seen.add(after);
       }
-      cache = {logs: normalizeLogs(logs, config, config.username, range.start, range.end), syncedAt: new Date().toISOString(), error: null};
+      cache = {taskOnly: true, logs: normalizeLogs(logs, config, config.username, range.start, range.end), syncedAt: new Date().toISOString(), error: null};
     } catch (error) {
       cache = {...cache, error: error instanceof Error ? error.message : 'Unable to connect to GitLab.'};
     }

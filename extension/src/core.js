@@ -22,13 +22,13 @@ export function timeAllocation(snapshot) {
   return {rows, total, hasNegative};
 }
 
-export const TIMELOG_QUERY = `query($username: String!, $start: Time!, $end: Time!, $after: String) {
+export const TIMELOG_QUERY = `query($username: String!, $start: Time!, $end: Time!, $after: String, $includeProjectName: Boolean!) {
   timelogs(username: $username, startTime: $start, endTime: $end, first: 100, after: $after) {
     nodes {
       id spentAt timeSpent summary user { username }
-      project { name fullPath }
-      issue { iid title webUrl state timeEstimate }
-      mergeRequest { iid title webUrl state timeEstimate }
+      project { name @include(if: $includeProjectName) fullPath }
+      issue { iid title webUrl state type }
+      mergeRequest { iid title webUrl state }
     }
     pageInfo { hasNextPage endCursor }
   }
@@ -126,6 +126,7 @@ export function normalizeLogs(logs, config, username, start, end) {
     if (typeof log.spentAt !== 'string') throw new Error('GitLab returned a timelog without a work date.');
     const date = today(new Date(log.spentAt));
     if (date < start || date >= end) continue;
+    if (log.issue && log.issue.type !== 'TASK') continue;
     const item = log.issue || log.mergeRequest;
     if (!item || !log.id || typeof log.timeSpent !== 'number' || !Number.isFinite(log.timeSpent)) {
       throw new Error('GitLab returned an incomplete timelog.');
@@ -136,7 +137,6 @@ export function normalizeLogs(logs, config, username, start, end) {
       id: log.id, date, project, projectPath, task: String(item.iid), type: log.issue ? 'TASK' : 'MR',
       hours: log.timeSpent / 3600, title: String(item.title), url: safeUrl, summary: String(log.summary || ''),
       state: typeof item.state === 'string' ? item.state.toLowerCase() : null,
-      estimateHours: Number.isFinite(item.timeEstimate) && item.timeEstimate >= 0 ? item.timeEstimate / 3600 : null,
     });
   }
   return [...result.values()].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
@@ -164,7 +164,7 @@ export function makeSnapshot(day, cache, leaves, manualEntries = []) {
   const manualLogs = manualEntries.map(entry => ({
     id: `manual-${entry.id}`, manualId: entry.id, date: entry.day,
     project: MANUAL_PROJECT, projectPath: null, task: entry.title, title: entry.title,
-    type: 'MANUAL', hours: entry.hours, url: null, state: null, estimateHours: null, summary: '',
+    type: 'MANUAL', hours: entry.hours, url: null, state: null, summary: '',
   }));
   const rows = [...(cache?.logs || []), ...manualLogs].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
   const total = (start, end) => ({

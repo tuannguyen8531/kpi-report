@@ -327,6 +327,7 @@ async function synchronize(day, force = false) {
         if (!after || seen.has(after)) throw new Error('GitLab returned an invalid pagination cursor.');
         seen.add(after);
       }
+      await chrome.storage.session.remove('reportDataCache');
       cache = {taskOnly: true, logs: normalizeLogs(logs, config, config.username, range.start, range.end), syncedAt: new Date().toISOString(), error: null};
     } catch (error) {
       cache = {...cache, error: error instanceof Error ? error.message : 'Unable to connect to GitLab.'};
@@ -582,12 +583,19 @@ export async function handleMessage(message) {
       return {csv: exportCsv(snapshot), filename: `tasks_${snapshot.date.slice(5, 7)}_${snapshot.date.slice(0, 4)}.csv`};
     }
     case 'export_excel_data': {
-      const snapshot = await synchronize(message.day || today(), true);
+      const day = message.day || today();
+      const {reportDataCache: previous} = await chrome.storage.session.get('reportDataCache');
+      const fresh = previous && Date.now() - previous.createdAt < SYNC_MINUTES * 60000;
+      const snapshot = await synchronize(day, Boolean(message.force) || !fresh);
       if (!snapshot.configured) throw new Error('Connect to GitLab before exporting data.');
       if (snapshot.error) throw new Error(snapshot.error);
       const {config} = await chrome.storage.local.get('config');
       const token = await getToken();
       if (!token) throw new Error('A GitLab token is required to fetch task details.');
+      const key = JSON.stringify([snapshot.profile, day.slice(0, 7), snapshot.range, snapshot.syncedAt,
+        snapshot.manualRevision, snapshot.leaves, config]);
+      const {reportDataCache: cached} = await chrome.storage.session.get('reportDataCache');
+      if (!message.force && fresh && cached?.key === key) return cached.data;
 
       const groupedTasks = processProjectData(snapshot.logs);
       const offEntries = processOffData(snapshot.leaves);
@@ -599,23 +607,22 @@ export async function handleMessage(message) {
       const enrichmentMap = await enrichTasks(request, reportConfig, token, groupedTasks);
       const { projectBlocks, stats } = buildProjectData(groupedTasks, enrichmentMap, reportConfig);
 
-      const day = message.day || today();
       const year = Number(day.slice(0, 4));
       const month = Number(day.slice(5, 7));
       const filename = formatExcelFilename(config?.excelPattern, month, year);
 
-      return {
-        month,
-        year,
-        projectBlocks,
-        offEntries,
-        stats,
-        filename,
-      };
+      const data = {month, year, projectBlocks, offEntries, stats, filename};
+      // Incomplete enrichment must be retried, never reused as a complete report.
+      if (!enrichmentMap.failed) {
+        await chrome.storage.session.set({reportDataCache: {key, createdAt: Date.now(), data}});
+      } else {
+        await chrome.storage.session.remove('reportDataCache');
+      }
+      return data;
     }
     case 'disconnect': {
       await chrome.storage.local.remove(['config', 'token']);
-      await chrome.storage.session.remove('token');
+      await chrome.storage.session.remove(['token', 'reportDataCache']);
       await chrome.alarms.clear(NOTE_ALARM);
       await chrome.alarms.clear(HOURS_ALARM);
       return {disconnected: true};

@@ -1450,7 +1450,7 @@ test('connecting without a project file exports discovered projects with correct
   assert.equal(labels.includes('App (team-a/app)'), false);
   assert.equal(labels.includes('App (team-b/app)'), false);
   replyPages.push(page([]));
-  const empty = await handleMessage({type: 'export_excel_data', day});
+  const empty = await handleMessage({type: 'export_excel_data', day, force: true});
   assert.deepEqual(empty.projectBlocks, []);
 });
 
@@ -1911,4 +1911,95 @@ test('legacy caches are not used when refreshing task-only data fails', async ()
   const refreshed = await handleMessage({type: 'snapshot', day, force: true});
   assert.equal(refreshed.day.hours, 1);
   assert.equal(refreshed.logs[0].id, 'verified-task');
+});
+
+test('summary and Excel reuse fresh report data, invalidate edits, and refresh on demand', async () => {
+  await connect();
+  const entry = log('one', '2026-10-01T01:00:00Z');
+  replyPages.push(page([entry]));
+  const first = await handleMessage({type: 'export_excel_data', day});
+  let count = fetches.length;
+  assert.deepEqual(await handleMessage({type: 'export_excel_data', day}), first);
+  assert.equal(fetches.length, count, 'export after summary makes no GitLab request');
+
+  const profile = local.config.profile;
+  await handleMessage({type: 'manual.save', profile, entry: {day, title: 'Meeting', hours: 2}});
+  const manual = await handleMessage({type: 'export_excel_data', day});
+  assert.equal(manual.stats.totalSpent, first.stats.totalSpent + 2);
+  await handleMessage({type: 'leave.save', entry: {day, hours: 4, reason: 'Leave'}});
+  const leave = await handleMessage({type: 'export_excel_data', day});
+  assert.equal(leave.offEntries.length, 1);
+  local.config.excelPattern = 'new_MM_YYYY.xlsx';
+  assert.equal((await handleMessage({type: 'export_excel_data', day})).filename, 'new_10_2026.xlsx');
+
+  replyPages.push(page([entry]));
+  count = fetches.length;
+  await handleMessage({type: 'export_excel_data', day, force: true});
+  assert.equal(fetches.length, count + 2, 'explicit reload fetches timelogs and task metadata');
+  session.reportDataCache.createdAt -= SYNC_MINUTES * 60000;
+  replyPages.push(page([entry]));
+  count = fetches.length;
+  await handleMessage({type: 'export_excel_data', day});
+  assert.equal(fetches.length, count + 2, 'expired report refreshes GitLab data');
+
+  replyPages.push(page([log('updated', entry.spentAt, 7200)]));
+  await handleMessage({type: 'snapshot', day, force: true});
+  assert.equal(session.reportDataCache, undefined, 'Sync invalidates report even within the same millisecond');
+  replyPages.push(page([log('updated', entry.spentAt, 7200)]));
+  assert.equal((await handleMessage({type: 'export_excel_data', day})).stats.totalSpent, 4);
+
+  const otherDay = '2026-11-04';
+  replyPages.push(page([log('november', '2026-11-04T01:00:00Z', 10800)]));
+  const november = await handleMessage({type: 'export_excel_data', day: otherDay});
+  assert.equal(november.month, 11);
+  assert.equal(november.stats.totalSpent, 3);
+  await handleMessage({type: 'disconnect'});
+  assert.equal(session.reportDataCache, undefined);
+  await assert.rejects(handleMessage({type: 'export_excel_data', day}), /Connect/);
+});
+
+test('failed sync and enrichment never serve or cache a report as fresh', async () => {
+  await connect();
+  const entry = log('one', '2026-10-01T01:00:00Z');
+  replyPages.push(page([entry]));
+  await handleMessage({type: 'export_excel_data', day});
+  replyPages.push(new Error('Offline'));
+  await assert.rejects(handleMessage({type: 'export_excel_data', day, force: true}), /Offline/);
+  await assert.rejects(handleMessage({type: 'export_excel_data', day}), /Offline/);
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    if (JSON.parse(options.body).query.includes('workItem(iid:')) throw new Error('Task unavailable');
+    return originalFetch(url, options);
+  };
+  replyPages.push(page([entry]));
+  try {
+    await handleMessage({type: 'export_excel_data', day, force: true});
+    assert.equal(session.reportDataCache, undefined);
+  } finally {globalThis.fetch = originalFetch;}
+  replyPages.push(page([entry]));
+  const retried = await handleMessage({type: 'export_excel_data', day});
+  assert.equal(retried.projectBlocks[0].tasks[0].Estimate, '4.50');
+});
+
+test('ExcelJS is loaded only on export and its module creates valid workbooks', async () => {
+  const html = fs.readFileSync(new URL('../src/popup.html', import.meta.url), 'utf8');
+  assert.ok(!html.includes('vendor/exceljs.min.js'));
+  const source = fs.readFileSync(new URL('../src/popup.js', import.meta.url), 'utf8');
+  assert.ok(source.indexOf("await import('./vendor/exceljs.min.js')") > source.indexOf('const handleExportExcel'));
+  const previous = globalThis.ExcelJS;
+  delete globalThis.ExcelJS;
+  try {
+    const url = new URL('../src/vendor/exceljs.min.js?lazy-test', import.meta.url).href;
+    await import(url);
+    const first = globalThis.ExcelJS;
+    await import(url);
+    assert.equal(globalThis.ExcelJS, first);
+    const workbook = new first.Workbook();
+    workbook.addWorksheet('Report').getCell('A1').value = 'Ready';
+    const output = await workbook.xlsx.writeBuffer();
+    const loaded = new first.Workbook();
+    await loaded.xlsx.load(output);
+    assert.equal(loaded.getWorksheet('Report').getCell('A1').value, 'Ready');
+  } finally {globalThis.ExcelJS = previous;}
 });

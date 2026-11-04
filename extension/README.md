@@ -53,6 +53,8 @@ Only Task and merge request timelogs belonging to the token owner are counted; I
 
 Sync may be delayed while the browser is closed or the device is asleep. A failed sync preserves cached data and displays an error; exports require a successful sync.
 
+Task summary and Excel export share the latest successfully enriched report in session storage for up to 30 minutes. Exporting immediately after loading the summary reuses that report without additional GitLab requests. Sync invalidates the shared report; changes to the account, report month, settings, manual work or leave prevent reuse of an outdated result. **Reload task summary** explicitly refreshes GitLab data. Failed syncs block export, and reports with enrichment request failures are not cached for reuse. ExcelJS is loaded only when exporting an Excel file, rather than when opening the popup.
+
 ## Work outside GitLab
 
 In **Timelog**, expand **Add work outside GitLab** and enter a date, work name, and hours (greater than 0, up to 24 per entry). Entries have no project, category, estimate, or GitLab status. Use **Edit** / **Delete** on each manual entry to maintain it. They are stored locally per GitLab account/server and can be edited without a token or network connection after setup.

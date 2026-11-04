@@ -1497,7 +1497,7 @@ $('report-load-tasks').addEventListener('click', () => void act(async () => {
   try {
     const day = $('anchor').value;
     const profile = snapshot?.profile;
-    const report = await send({type: 'export_excel_data', day});
+    const report = await send({type: 'export_excel_data', day, force: Boolean(monthlyReport)});
     await reload();
     if (snapshot?.profile === profile && snapshot.date.slice(0, 7) === day.slice(0, 7)) {
       monthlyReport = report;
@@ -1546,6 +1546,7 @@ const handleExportExcel = () => act(async () => {
     if (!resp.ok) throw new Error('Unable to load the bundled Excel template.');
     const templateBuffer = await resp.arrayBuffer();
 
+    await import('./vendor/exceljs.min.js');
     const ExcelJSClass = window.ExcelJS;
     if (!ExcelJSClass) {
       throw new Error('ExcelJS is not available in the extension.');

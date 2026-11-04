@@ -276,6 +276,7 @@ export async function enrichTasks(requestFn, config, token, tasks, onProgress = 
           enrichmentMap.set(key, { start_date: '', due_date: '', closed_date: '', estimate: '' });
         }
       } catch (err) {
+        enrichmentMap.failed = true;
         console.warn(`GitLab enrichment failed for ${item.Project} ${item.Type} #${item.Task}:`, err);
         enrichmentMap.set(key, { start_date: '', due_date: '', closed_date: '', estimate: '' });
       } finally {

@@ -22,7 +22,7 @@ export const TRANSLATIONS = {
 
     // Onboarding
     'onboarding.title': 'Thiết lập kết nối GitLab',
-    'onboarding.subtitle': 'Chào mừng bạn đến với Work Hours Tracker. Vui lòng cung cấp thông tin kết nối GitLab để bắt đầu theo dõi giờ làm việc thời gian thực.',
+    'onboarding.subtitle': 'Chào mừng đến với Work Hours Tracker. Vui lòng cung cấp thông tin kết nối GitLab để bắt đầu theo dõi giờ làm việc thời gian thực.',
     'onboarding.url_label': 'Địa chỉ GitLab (URL)',
     'onboarding.url_placeholder': 'https://gitlab.example.com',
     'onboarding.token_label': 'Personal Access Token (PAT)',
@@ -37,8 +37,9 @@ export const TRANSLATIONS = {
 
     // Navigation Tabs
     'tab.calendar': 'Lịch',
-    'tab.leave': 'Lịch nghỉ',
+    'tab.leave': 'Nghỉ phép',
     'tab.logs': 'Nhật ký',
+    'tab.tasks': 'Công việc',
     'tab.report': 'Báo cáo',
 
     // Metric Cards
@@ -76,7 +77,7 @@ export const TRANSLATIONS = {
     'leave.title': 'Quản lý ngày nghỉ',
     'leave.subtitle': 'Lưu lịch nghỉ trên máy tính này',
     'leave.tab_log': 'Ghi ngày nghỉ',
-    'leave.tab_list': 'Lịch nghỉ trong tháng',
+    'leave.tab_list': 'Nghỉ phép trong tháng',
     'leave.form_title': 'Ghi nhận ngày nghỉ',
     'leave.date_label': 'Ngày nghỉ',
     'leave.hours_label': 'Thời gian nghỉ',
@@ -93,7 +94,7 @@ export const TRANSLATIONS = {
     'leave.reason_personal': 'Việc riêng',
     'leave.save_btn': 'Lưu ngày nghỉ',
     'leave.cancel_btn': 'Hủy',
-    'leave.list_title': 'Lịch nghỉ trong tháng',
+    'leave.list_title': 'Nghỉ phép trong tháng',
     'leave.days_count': '{count} ngày',
     'leave.backup_json': 'Sao lưu JSON',
     'leave.restore_json': 'Khôi phục',
@@ -114,7 +115,7 @@ export const TRANSLATIONS = {
     'manual.cancel': 'Hủy',
     'manual.edit': 'Sửa',
     'manual.delete': 'Xóa',
-    'manual.confirm_delete': 'Bạn có chắc chắn muốn xóa công việc này không?',
+    'manual.confirm_delete': 'Xác nhận xóa công việc này?',
     'manual.delete_success': 'Đã xóa công việc.',
     'manual.editing_title': 'Sửa công việc ngoài GitLab',
     'manual.badge': 'Ngoài GitLab',
@@ -211,7 +212,7 @@ export const TRANSLATIONS = {
     'breakdown.work_card': 'Giờ làm việc',
     'breakdown.work_sub': 'Đã log trên issues / MRs',
     'breakdown.leave_card': 'Giờ nghỉ phép (OFF)',
-    'breakdown.leave_sub': 'Lịch nghỉ đã lưu',
+    'breakdown.leave_sub': 'Nghỉ phép đã lưu',
     'breakdown.no_work': 'Chưa có giờ làm việc nào.',
     'breakdown.no_leave': 'Không có lịch nghỉ phép.',
     'breakdown.close': 'Đóng',
@@ -241,8 +242,8 @@ export const TRANSLATIONS = {
     'toast.excel_success': 'Đã tạo file Excel thành công!',
     'toast.projects_loaded': 'Đã đọc danh sách dự án. Bấm Lưu thay đổi để áp dụng.',
     'toast.invalid_json': 'File JSON không hợp lệ.',
-    'confirm.disconnect': 'Bạn có chắc muốn ngắt kết nối tài khoản GitLab này khỏi tiện ích?',
-    'confirm.delete_leave': 'Bạn có chắc chắn muốn xóa lịch nghỉ ngày {date} không?',
+    'confirm.disconnect': 'Xác nhận ngắt kết nối tài khoản GitLab này khỏi tiện ích?',
+    'confirm.delete_leave': 'Xác nhận xóa lịch nghỉ ngày {date}?',
 
     // Settings Tabs & Odoo
     'settings.tab_general': 'Chung',
@@ -290,7 +291,44 @@ export const TRANSLATIONS = {
     'odoo.unavailable': 'Không đọc được trạng thái Odoo. Hãy kiểm tra kết nối và phiên đăng nhập.',
     'odoo.updated': 'Kiểm tra lúc',
     'toast.odoo_connected': 'Đã kết nối và lưu cấu hình Odoo thành công',
-    'toast.odoo_disconnected': 'Đã ngắt kết nối Odoo'
+    'toast.odoo_disconnected': 'Đã ngắt kết nối Odoo',
+
+    // Tasks Panel
+    'tasks.title': 'Công việc cá nhân',
+    'tasks.subtitle': 'Các công việc đang mở được giao trên GitLab',
+    'tasks.refresh': 'Làm mới',
+    'tasks.refreshing': 'Đang làm mới...',
+    'tasks.search_placeholder': 'Tìm theo tiêu đề, #id, dự án...',
+    'tasks.all_projects': 'Tất cả dự án',
+    'tasks.status_all': 'Tất cả',
+    'tasks.status_overdue': 'Quá hạn',
+    'tasks.status_ready': 'Cần làm',
+    'tasks.status_upcoming': 'Sắp tới',
+    'tasks.status_missing': 'Thiếu thông tin',
+    'tasks.due_label': 'Hạn chót',
+    'tasks.no_due_date': 'Chưa có hạn',
+    'tasks.estimate_label': 'Ước lượng',
+    'tasks.no_estimate': 'Chưa ước lượng',
+    'tasks.start_label': 'Gợi ý bắt đầu',
+    'tasks.no_start_date': 'Chưa xác định',
+    'tasks.synced_at': 'Cập nhật: {time}',
+    'tasks.stale_warning': 'Dữ liệu có thể chưa mới nhất do không thể kết nối GitLab: {error}',
+    'tasks.error_loading': 'Không thể tải danh sách công việc: {error}',
+    'tasks.retry': 'Thử lại',
+    'tasks.loading': 'Đang tải danh sách công việc...',
+    'tasks.not_configured_title': 'Chưa kết nối GitLab',
+    'tasks.not_configured_desc': 'Vui lòng kết nối tài khoản GitLab trong Cài đặt để xem công việc được giao.',
+    'tasks.connect_btn': 'Mở cài đặt GitLab',
+    'tasks.empty_all_title': 'Không có công việc nào đang mở',
+    'tasks.empty_all_desc': 'Tuyệt vời! Hiện tại không có công việc nào đang chờ xử lý trên GitLab.',
+    'tasks.empty_filtered_title': 'Không tìm thấy công việc phù hợp',
+    'tasks.empty_filtered_desc': 'Không có công việc nào khớp với từ khóa tìm kiếm hoặc bộ lọc đã chọn.',
+    'tasks.clear_filters': 'Xóa bộ lọc',
+    'tasks.count_badge': '{count} việc',
+    'tasks.days_overdue': 'Quá hạn {days} ngày',
+    'tasks.days_left': 'Còn {days} ngày',
+    'tasks.due_today': 'Hôm nay',
+    'toast.tasks_refreshed': 'Đã làm mới danh sách công việc'
   },
 
   en: {
@@ -328,6 +366,7 @@ export const TRANSLATIONS = {
     'tab.calendar': 'Calendar',
     'tab.leave': 'Leave',
     'tab.logs': 'Logs',
+    'tab.tasks': 'Tasks',
     'tab.report': 'Report',
 
     // Metric Cards
@@ -579,7 +618,44 @@ export const TRANSLATIONS = {
     'odoo.unavailable': 'Unable to read Odoo attendance. Check your connection and login session.',
     'odoo.updated': 'Checked at',
     'toast.odoo_connected': 'Odoo connected and configured successfully',
-    'toast.odoo_disconnected': 'Odoo disconnected'
+    'toast.odoo_disconnected': 'Odoo disconnected',
+
+    // Tasks Panel
+    'tasks.title': 'Personal tasks',
+    'tasks.subtitle': 'Open GitLab tasks assigned to you',
+    'tasks.refresh': 'Refresh',
+    'tasks.refreshing': 'Refreshing...',
+    'tasks.search_placeholder': 'Search by title, #id, project...',
+    'tasks.all_projects': 'All projects',
+    'tasks.status_all': 'All',
+    'tasks.status_overdue': 'Overdue',
+    'tasks.status_ready': 'Ready to start',
+    'tasks.status_upcoming': 'Upcoming',
+    'tasks.status_missing': 'Missing info',
+    'tasks.due_label': 'Due',
+    'tasks.no_due_date': 'No due date',
+    'tasks.estimate_label': 'Estimate',
+    'tasks.no_estimate': 'No estimate',
+    'tasks.start_label': 'Suggested start',
+    'tasks.no_start_date': 'Not scheduled',
+    'tasks.synced_at': 'Updated: {time}',
+    'tasks.stale_warning': 'Data may be outdated due to GitLab connection error: {error}',
+    'tasks.error_loading': 'Failed to load tasks: {error}',
+    'tasks.retry': 'Retry',
+    'tasks.loading': 'Loading personal tasks...',
+    'tasks.not_configured_title': 'GitLab not connected',
+    'tasks.not_configured_desc': 'Please connect your GitLab account in Settings to view your assigned tasks.',
+    'tasks.connect_btn': 'Open GitLab settings',
+    'tasks.empty_all_title': 'No open tasks',
+    'tasks.empty_all_desc': 'Great job! You have no open tasks assigned to you on GitLab.',
+    'tasks.empty_filtered_title': 'No matching tasks found',
+    'tasks.empty_filtered_desc': 'No tasks match your search query or selected filter criteria.',
+    'tasks.clear_filters': 'Clear filters',
+    'tasks.count_badge': '{count} tasks',
+    'tasks.days_overdue': '{days}d overdue',
+    'tasks.days_left': '{days}d left',
+    'tasks.due_today': 'Today',
+    'toast.tasks_refreshed': 'Tasks list refreshed'
   }
 };
 

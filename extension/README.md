@@ -55,6 +55,12 @@ Sync may be delayed while the browser is closed or the device is asleep. A faile
 
 Task summary and Excel export share the latest successfully enriched report in session storage for up to 30 minutes. Exporting immediately after loading the summary reuses that report without additional GitLab requests. Sync invalidates the shared report; changes to the account, report month, settings, manual work or leave prevent reuse of an outdated result. **Reload task summary** explicitly refreshes GitLab data. Failed syncs block export, and reports with enrichment request failures are not cached for reuse. ExcelJS is loaded only when exporting an Excel file, rather than when opening the popup.
 
+## Personal Tasks
+
+The personal Task list reads open Tasks assigned to the connected GitLab account, including Tasks with no timelogs. Search, filter by project or schedule status, refresh this list independently, and open a Task in GitLab to edit it. The configured project filter applies. Opening the extension or the Tasks tab reads the separately stored cache without calling GitLab or recalculating start dates. Click Refresh Tasks to fetch and calculate updated data, including on first use. Cached Tasks do not expire automatically and do not contribute to hours or exports.
+
+Suggested start dates use 8 hours per weekday and include the due date; weekend deadlines use the preceding Friday. For example, 16h due 09/11/2026 starts 06/11/2026. Missing or zero estimates have no suggested date. Planning is per Task, without subtracting logged hours or allocating other Tasks, holidays or leave. This version displays start-date warnings in the list; it does not schedule desktop reminders.
+
 ## Work outside GitLab
 
 In **Timelog**, expand **Add work outside GitLab** and enter a date, work name, and hours (greater than 0, up to 24 per entry). Entries have no project, category, estimate, or GitLab status. Use **Edit** / **Delete** on each manual entry to maintain it. They are stored locally per GitLab account/server and can be edited without a token or network connection after setup.

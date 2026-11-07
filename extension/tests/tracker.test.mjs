@@ -2088,3 +2088,46 @@ test('GitLab and Odoo setup preserve inputs on Deny and connect once after Allow
     }
   }
 });
+
+test('personal Tasks paginate independently and retain the complete cache on failure', async () => {
+  await connect();
+  const item = {id:'task-1',iid:'1',type:'TASK',state:'opened',title:'Planning',webUrl:config.url+'/group/a/-/work_items/1',reference:'group/a#1',dueDate:'2026-11-09',timeEstimate:57600};
+  const taskPage = (nodes, more=false, cursor=null) => ({data:{issues:{nodes,pageInfo:{hasNextPage:more,endCursor:cursor}}}});
+  const oldCaches=structuredClone(local.profiles[local.config.profile].caches);
+  replyPages.push(taskPage([item],true,'next'),taskPage([{...item,id:'task-2',iid:'2'}]));
+  const result=await handleMessage({type:'tasks.snapshot',force:true});
+  assert.equal(result.items.length,2);
+  assert.equal(result.items[0].startDate,'2026-11-06');
+  assert.equal(fetches.at(-1).variables.after,'next');
+  assert.deepEqual(local.profiles[local.config.profile].caches,oldCaches);
+  const count=fetches.length;
+  await handleMessage({type:'tasks.snapshot'});
+  assert.equal(fetches.length,count);
+  replyPages.push(new Error('Offline'));
+  const failed=await handleMessage({type:'tasks.snapshot',force:true});
+  assert.equal(failed.items.length,2);
+  assert.equal(failed.error,'Offline');
+  replyPages.push(taskPage([]));
+  assert.deepEqual((await handleMessage({type:'tasks.snapshot',force:true})).items,[]);
+});
+
+
+test('opening personal Tasks only reads cache even when missing, expired or offline', async () => {
+  await connect();
+  let count = fetches.length;
+  const empty = await handleMessage({type:'tasks.snapshot'});
+  assert.deepEqual(empty.items, []);
+  assert.equal(empty.syncedAt, null);
+  assert.equal(fetches.length, count);
+  const scope = JSON.stringify([2, local.config.profile, local.config.projects]);
+  const items = [{id:'cached', startDate:'2026-11-06'}];
+  local.personalTaskCache = {scope, items, syncedAt:'2025-01-01T00:00:00Z', attemptedAt:'2025-01-01T00:00:00Z', error:null};
+  delete session.token;
+  const cached = await handleMessage({type:'tasks.snapshot'});
+  assert.deepEqual(cached.items, items);
+  assert.equal(cached.syncedAt, '2025-01-01T00:00:00Z');
+  assert.equal(fetches.length, count);
+  local.config.projects = [{url:'other/project', project:'Other'}];
+  assert.deepEqual((await handleMessage({type:'tasks.snapshot'})).items, []);
+  assert.equal(fetches.length, count);
+});

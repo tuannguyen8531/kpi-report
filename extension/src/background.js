@@ -1,3 +1,4 @@
+import {PERSONAL_TASKS_QUERY, normalizePersonalTasks} from './tasks.js';
 import {SYNC_MINUTES, TIMELOG_QUERY, today, addDays, parseDay, periods, validateConfig, normalizeLogs, validateLeave, validateManualEntry, makeSnapshot, exportCsv} from './core.js';
 import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel.js';
 import {verifyAttendanceCode, validateOdooConfig, readAttendance, changeAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder, formatHoursMinutes} from './odoo.js';
@@ -265,7 +266,7 @@ export async function refreshOdoo(now = new Date(), scheduledCheck = false) {
         title: `Odoo · ${checkIn ? 'Check-in' : 'Check-out'} · ${odooConfig.times[slot]}`,
         message: language === 'en'
           ? checkIn ? 'No check-in recorded for this shift. Open Odoo to review your attendance.' : 'You are still checked in. Open Odoo to review your check-out.'
-          : checkIn ? 'Chưa có check-in cho ca này. Mở Odoo để kiểm tra chấm công.' : 'Bạn vẫn đang check-in. Mở Odoo để kiểm tra check-out.',
+          : checkIn ? 'Chưa có check-in cho ca này. Mở Odoo để kiểm tra chấm công.' : 'Vẫn đang check-in. Mở Odoo để kiểm tra check-out.',
       });
       notified.keys.push(key);
       await chrome.storage.local.set({odooNotified: notified});
@@ -296,6 +297,35 @@ async function getToken() {
   const session = await chrome.storage.session.get('token');
   if (session.token) return session.token;
   return (await chrome.storage.local.get('token')).token;
+}
+
+export async function refreshPersonalTasks(force = false) {
+  const {config} = await chrome.storage.local.get('config');
+  if (!config?.profile) return {configured:false, items:[]};
+  const scope=JSON.stringify([2,config.profile,config.projects]);
+  const stored=await chrome.storage.local.get('personalTaskCache');
+  let cache=stored.personalTaskCache?.scope===scope ? stored.personalTaskCache : null;
+  // Opening the UI only reads stored Tasks; fetching and planning require an explicit refresh.
+  if (force) {
+    try {
+      const token=await getToken();
+      if (!token) throw new Error('Re-enter your GitLab token to sync Tasks.');
+      const items=[], cursors=new Set(); let after=null;
+      while (true) {
+        const {issues}=await request(config,token,PERSONAL_TASKS_QUERY,{username:config.username,after});
+        if (!Array.isArray(issues?.nodes)||!issues.pageInfo) throw new Error('Incomplete GitLab Task list.');
+        items.push(...issues.nodes);
+        if (!issues.pageInfo.hasNextPage) break;
+        after=issues.pageInfo.endCursor;
+        if (!after || cursors.has(after)) throw new Error('Invalid Task pagination cursor.');
+        cursors.add(after);
+      }
+      cache={scope,items:normalizePersonalTasks(items,config),syncedAt:new Date().toISOString(),error:null};
+    } catch(error) { cache={...cache,scope,error:error.message}; }
+    cache.attemptedAt=new Date().toISOString();
+    await chrome.storage.local.set({personalTaskCache:cache});
+  }
+  return {configured:true,profile:config.profile,items:cache?.items||[],syncedAt:cache?.syncedAt||null,error:cache?.error||null};
 }
 
 async function synchronize(day, force = false) {
@@ -351,6 +381,7 @@ async function synchronize(day, force = false) {
 
 export async function handleMessage(message) {
   switch (message.type) {
+    case 'tasks.snapshot': return refreshPersonalTasks(Boolean(message.force));
     case 'odoo.settings': {
       const {odooConfig, odooData} = await chrome.storage.local.get(['odooConfig', 'odooData']);
       const {odooAutomationUnlocked} = await chrome.storage.local.get('odooAutomationUnlocked');
@@ -409,6 +440,7 @@ export async function handleMessage(message) {
       return {config: config ? {...validateConfig(config), username: config.username} : null, hasToken: Boolean(await getToken())};
     }
     case 'connect': {
+      await chrome.storage.local.remove('personalTaskCache');
       const config = validateConfig(message.config);
       const existing = (await chrome.storage.local.get('config')).config;
       const token = String(message.token || (existing?.url === config.url ? await getToken() : '') || '').trim();
@@ -621,6 +653,7 @@ export async function handleMessage(message) {
       return data;
     }
     case 'disconnect': {
+      await chrome.storage.local.remove('personalTaskCache');
       await chrome.storage.local.remove(['config', 'token']);
       await chrome.storage.session.remove(['token', 'reportDataCache']);
       await chrome.alarms.clear(NOTE_ALARM);

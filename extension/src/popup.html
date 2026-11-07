@@ -32,7 +32,7 @@
           <span class="pulse-indicator"></span>
         </div>
         <h1 class="onboarding-title" data-i18n="onboarding.title">Thiết lập kết nối GitLab</h1>
-        <p class="onboarding-subtitle" data-i18n="onboarding.subtitle">Chào mừng bạn đến với Work Hours Tracker. Vui lòng cung cấp thông tin kết nối GitLab để bắt đầu theo dõi giờ làm việc thời gian thực.</p>
+        <p class="onboarding-subtitle" data-i18n="onboarding.subtitle">Chào mừng đến với Work Hours Tracker. Vui lòng cung cấp thông tin kết nối GitLab để bắt đầu theo dõi giờ làm việc thời gian thực.</p>
       </div>
 
       <div id="onboarding-notice" class="notice notice-error" hidden></div>
@@ -369,6 +369,15 @@
         </svg>
         <span data-i18n="tab.logs">Timelog</span>
         <span id="badge-logs-count" class="tab-count" hidden>0</span>
+      </button>
+
+      <button id="tab-nav-tasks" class="tab-button" type="button" data-tab="tasks">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4"></path>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+        </svg>
+        <span data-i18n="tab.tasks">Tasks</span>
+        <span id="badge-tasks-count" class="tab-count" hidden>0</span>
       </button>
 
       <button id="tab-nav-report" class="tab-button" type="button" data-tab="report">
@@ -717,6 +726,120 @@
             <div class="empty-title" data-i18n="logs.empty">No timelogs found</div>
             <div class="empty-desc">No work hours match this period or filter.</div>
           </div>
+        </div>
+      </section>
+
+      <!-- ===================================== -->
+      <!-- Panel: Personal GitLab Tasks          -->
+      <!-- ===================================== -->
+      <section id="panel-tasks" class="dashboard-panel panel-tab-content" aria-labelledby="heading-tasks">
+        <div class="panel-header">
+          <div>
+            <h2 id="heading-tasks" class="panel-title" data-i18n="tasks.title">Personal tasks</h2>
+            <span class="panel-subtitle" data-i18n="tasks.subtitle">Open GitLab tasks assigned to you</span>
+          </div>
+          <div class="panel-header-actions">
+            <span id="tasks-synced-at" class="tasks-synced-text" hidden></span>
+            <button id="btn-tasks-refresh" class="btn btn-secondary btn-sm btn-icon-text" type="button" data-i18n-title="tasks.refresh" title="Refresh">
+              <svg class="btn-mini-icon tasks-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              <span class="btn-refresh-text" data-i18n="tasks.refresh">Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="tasks-stale-banner" class="tasks-alert-banner alert-warning" hidden>
+          <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <div class="alert-content">
+            <span id="tasks-stale-text"></span>
+          </div>
+          <button id="btn-tasks-stale-retry" type="button" class="btn btn-secondary btn-xs" data-i18n="tasks.retry">Retry</button>
+        </div>
+
+        <div id="tasks-error-banner" class="tasks-alert-banner alert-danger" hidden>
+          <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+          <div class="alert-content">
+            <span id="tasks-error-text"></span>
+          </div>
+          <button id="btn-tasks-retry" type="button" class="btn btn-secondary btn-xs" data-i18n="tasks.retry">Retry</button>
+        </div>
+
+        <div class="tasks-filter-bar">
+          <div class="search-input-wrap">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input id="tasks-search" type="search" data-i18n-placeholder="tasks.search_placeholder" placeholder="Search tasks by title, #id, project...">
+          </div>
+          <select id="tasks-project-filter" class="project-select">
+            <option value="" data-i18n="tasks.all_projects">All projects</option>
+          </select>
+        </div>
+
+        <div class="tasks-status-pills" id="tasks-status-pills" role="tablist" aria-label="Task status filters">
+          <button type="button" class="task-pill active" data-status="" role="tab" aria-selected="true">
+            <span data-i18n="tasks.status_all">All</span>
+            <span id="pill-count-all" class="pill-badge">0</span>
+          </button>
+          <button type="button" class="task-pill pill-overdue" data-status="overdue" role="tab" aria-selected="false">
+            <span data-i18n="tasks.status_overdue">Overdue</span>
+            <span id="pill-count-overdue" class="pill-badge">0</span>
+          </button>
+          <button type="button" class="task-pill pill-ready" data-status="ready" role="tab" aria-selected="false">
+            <span data-i18n="tasks.status_ready">Ready</span>
+            <span id="pill-count-ready" class="pill-badge">0</span>
+          </button>
+          <button type="button" class="task-pill pill-upcoming" data-status="upcoming" role="tab" aria-selected="false">
+            <span data-i18n="tasks.status_upcoming">Upcoming</span>
+            <span id="pill-count-upcoming" class="pill-badge">0</span>
+          </button>
+          <button type="button" class="task-pill pill-missing" data-status="missing" role="tab" aria-selected="false">
+            <span data-i18n="tasks.status_missing">Missing info</span>
+            <span id="pill-count-missing" class="pill-badge">0</span>
+          </button>
+        </div>
+
+        <div class="tasks-container">
+          <div id="tasks-loading" class="tasks-loading-state" hidden>
+            <div class="tasks-spinner"></div>
+            <div class="tasks-loading-text" data-i18n="tasks.loading">Loading tasks...</div>
+          </div>
+
+          <div id="tasks-unconfigured" class="empty-state" hidden>
+            <div class="empty-icon">🔌</div>
+            <div class="empty-title" data-i18n="tasks.not_configured_title">GitLab not connected</div>
+            <div class="empty-desc" data-i18n="tasks.not_configured_desc">Please connect your GitLab account in Settings to view your assigned tasks.</div>
+            <button id="btn-tasks-open-settings" type="button" class="btn btn-primary btn-sm btn-icon-text" style="margin-top: 12px;">
+              <span data-i18n="tasks.connect_btn">Open GitLab settings</span>
+            </button>
+          </div>
+
+          <div id="tasks-empty-all" class="empty-state" hidden>
+            <div class="empty-icon">🎉</div>
+            <div class="empty-title" data-i18n="tasks.empty_all_title">No open tasks</div>
+            <div class="empty-desc" data-i18n="tasks.empty_all_desc">Great job! You have no open tasks assigned to you on GitLab.</div>
+          </div>
+
+          <div id="tasks-empty-filtered" class="empty-state" hidden>
+            <div class="empty-icon">🔍</div>
+            <div class="empty-title" data-i18n="tasks.empty_filtered_title">No matching tasks found</div>
+            <div class="empty-desc" data-i18n="tasks.empty_filtered_desc">No tasks match your search query or selected filter criteria.</div>
+            <button id="btn-tasks-clear-filters" type="button" class="btn btn-secondary btn-sm" style="margin-top: 10px;" data-i18n="tasks.clear_filters">Clear filters</button>
+          </div>
+
+          <div id="tasks-list" class="tasks-card-list"></div>
         </div>
       </section>
 

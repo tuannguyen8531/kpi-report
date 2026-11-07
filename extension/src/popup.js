@@ -2,6 +2,7 @@ import {today, parseDay, addDays, validateConfig, projectName, timeAllocation, w
 import {generateExcelWorkbook} from './excel.js';
 import {getLanguage, setLanguage, t} from './i18n.js';
 import {ENTRY_SIZE, ODOO_TIMES, validateOdooConfig, formatHoursMinutes} from './odoo.js';
+import {taskStatus, selectPersonalTasks} from './tasks.js';
 
 // DOM selector helper
 const $ = (id) => document.getElementById(id);
@@ -73,6 +74,7 @@ function applyI18n(lang = currentLang) {
     render(snapshot);
   }
   renderOdoo();
+  renderTasks();
 
   // Refresh active breakdown modal if open
   if (currentBreakdownScope && $('modal-breakdown') && !$('modal-breakdown').hidden) {
@@ -126,6 +128,9 @@ let currentBreakdownScope = null;
 let currentBreakdownDate = null;
 let odooSnapshot = {config: null, data: null};
 const odooControls = ['odoo-save', 'odoo-disconnect', 'odoo-lock', 'odoo-url', 'odoo-reminders', 'odoo-auto-attendance', ...ODOO_TIMES.map((_, i) => `odoo-time-${i}`)];
+let tasksSnapshot = null;
+let tasksLoading = false;
+let tasksFilter = {search: '', project: '', status: ''};
 
 // Initialize default date
 const requestedNote = new URLSearchParams(location.search).get('note');
@@ -179,7 +184,8 @@ async function act(action) {
     'anchor', 'btn-today', 'btn-prev-day', 'btn-next-day',
     'btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'connect',
     'leave-save', 'btn-onboarding-submit', 'day-note-save', 'day-note', 'day-note-clear',
-    'btn-save-general', 'btn-test-notification', 'manual-save', 'manual-delete', ...odooControls
+    'btn-save-general', 'btn-test-notification', 'manual-save', 'manual-delete',
+    'btn-tasks-refresh', ...odooControls
   ];
   for (const id of interactiveElements) {
     const el = $(id);
@@ -201,7 +207,7 @@ async function act(action) {
     }
 
     const isConfigured = Boolean(snapshot?.configured);
-    for (const id of ['btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'leave-save', 'day-note-save', 'day-note', 'day-note-clear']) {
+    for (const id of ['btn-sync', 'btn-export-excel', 'btn-quick-export-excel', 'export', 'leave-save', 'day-note-save', 'day-note', 'day-note-clear', 'btn-tasks-refresh']) {
       const el = $(id);
       if (el) el.disabled = !isConfigured;
     }
@@ -221,6 +227,9 @@ function switchTab(tabId) {
   });
   if (tabId === 'leave' && !editingLeaveId) {
     setLeaveModalView('list');
+  }
+  if (tabId === 'tasks') {
+    void loadTasks(false);
   }
 }
 
@@ -289,11 +298,20 @@ async function restoreMonthlyReportCache(expectedKey) {
 }
 
 function render(data) {
-  if (snapshot?.profile !== data.profile) {
+  const profileChanged = snapshot?.profile !== data.profile;
+  if (profileChanged) {
     resetManualForm();
     allocationSelection = null;
+    tasksSnapshot = null;
+    tasksFilter = {search: '', project: '', status: ''};
+    if ($('tasks-search')) $('tasks-search').value = '';
+    if ($('tasks-project-filter')) $('tasks-project-filter').value = '';
+    setTaskStatusFilter('');
   }
   snapshot = data;
+  if (profileChanged && data.configured) {
+    void loadTasks();
+  }
   const expectedKey = `${data.profile}|${data.date?.slice(0, 7)}|${data.syncedAt}|${data.manualRevision || ''}`;
   if (monthlyReportKey !== expectedKey) {
     monthlyReport = null;
@@ -304,6 +322,12 @@ function render(data) {
 
   // View state: Unconfigured vs Configured
   if (!data.configured) {
+    tasksSnapshot = null;
+    tasksFilter = {search: '', project: '', status: ''};
+    if ($('tasks-search')) $('tasks-search').value = '';
+    if ($('tasks-project-filter')) $('tasks-project-filter').value = '';
+    setTaskStatusFilter('');
+    renderTasks();
     $('view-dashboard').hidden = true;
     $('view-onboarding').hidden = false;
     return;
@@ -1096,6 +1120,396 @@ async function acceptNoteUnlock(result, day, profile, text) {
   showToast(t('odoo.automation_unlocked'), 'success');
 }
 
+/* ============================================================
+   PERSONAL GITLAB TASKS
+   ============================================================ */
+
+function formatTaskEstimate(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return t('tasks.no_estimate');
+  const hours = seconds / 3600;
+  return `${new Intl.NumberFormat(currentLang === 'en' ? 'en-GB' : 'vi-VN', {maximumFractionDigits: 1}).format(hours)}h`;
+}
+
+function setTaskStatusFilter(status) {
+  tasksFilter.status = status || '';
+  document.querySelectorAll('.task-pill').forEach((pill) => {
+    const isActive = (pill.dataset.status || '') === tasksFilter.status;
+    pill.classList.toggle('active', isActive);
+    pill.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  renderTasks();
+}
+
+function taskProjectDisplayName(projectPath, project, allItems) {
+  const base = projectName(project || projectPath);
+  const pathsWithSameName = new Set(
+    allItems
+      .filter((t) => projectName(t.project || t.projectPath) === base)
+      .map((t) => t.projectPath)
+  );
+  if (pathsWithSameName.size > 1 && projectPath) {
+    return `${base} (${projectPath})`;
+  }
+  return base;
+}
+
+function updateTasksProjectOptions(items) {
+  const select = $('tasks-project-filter');
+  if (!select) return;
+  const currentVal = tasksFilter.project;
+  const projects = new Map();
+  for (const item of items) {
+    if (item.projectPath && !projects.has(item.projectPath)) {
+      projects.set(item.projectPath, item.project || item.projectPath);
+    }
+  }
+
+  select.replaceChildren();
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.textContent = t('tasks.all_projects');
+  select.appendChild(defaultOpt);
+
+  const sortedPaths = [...projects.keys()].sort((a, b) => {
+    const nameA = taskProjectDisplayName(a, projects.get(a), items);
+    const nameB = taskProjectDisplayName(b, projects.get(b), items);
+    return nameA.localeCompare(nameB);
+  });
+
+  for (const path of sortedPaths) {
+    const opt = document.createElement('option');
+    opt.value = path;
+    opt.textContent = taskProjectDisplayName(path, projects.get(path), items);
+    select.appendChild(opt);
+  }
+
+  if (projects.has(currentVal)) {
+    select.value = currentVal;
+  } else {
+    tasksFilter.project = '';
+    select.value = '';
+  }
+}
+
+function renderTasks() {
+  const panel = $('panel-tasks');
+  if (!panel) return;
+
+  const isConfigured = Boolean(tasksSnapshot?.configured ?? snapshot?.configured);
+  const unconfiguredEl = $('tasks-unconfigured');
+  const emptyAllEl = $('tasks-empty-all');
+  const emptyFilteredEl = $('tasks-empty-filtered');
+  const listEl = $('tasks-list');
+  const staleBanner = $('tasks-stale-banner');
+  const staleText = $('tasks-stale-text');
+  const errorBanner = $('tasks-error-banner');
+  const errorText = $('tasks-error-text');
+  const syncedAtEl = $('tasks-synced-at');
+  const countBadge = $('badge-tasks-count');
+
+  if (!isConfigured) {
+    if (unconfiguredEl) unconfiguredEl.hidden = false;
+    if (emptyAllEl) emptyAllEl.hidden = true;
+    if (emptyFilteredEl) emptyFilteredEl.hidden = true;
+    if (listEl) listEl.replaceChildren();
+    if (staleBanner) staleBanner.hidden = true;
+    if (errorBanner) errorBanner.hidden = true;
+    if (syncedAtEl) syncedAtEl.hidden = true;
+    if (countBadge) countBadge.hidden = true;
+    return;
+  }
+  if (unconfiguredEl) unconfiguredEl.hidden = true;
+
+  const items = tasksSnapshot?.items || [];
+  const refDay = today();
+
+  // Status pills counts
+  let countOverdue = 0;
+  let countReady = 0;
+  let countUpcoming = 0;
+  let countMissing = 0;
+
+  for (const task of items) {
+    const st = taskStatus(task, refDay);
+    if (st === 'overdue') countOverdue++;
+    else if (st === 'ready') countReady++;
+    else if (st === 'upcoming') countUpcoming++;
+    if (!task.startDate) countMissing++;
+  }
+
+  if ($('pill-count-all')) $('pill-count-all').textContent = items.length;
+  if ($('pill-count-overdue')) $('pill-count-overdue').textContent = countOverdue;
+  if ($('pill-count-ready')) $('pill-count-ready').textContent = countReady;
+  if ($('pill-count-upcoming')) $('pill-count-upcoming').textContent = countUpcoming;
+  if ($('pill-count-missing')) $('pill-count-missing').textContent = countMissing;
+
+  if (countBadge) {
+    countBadge.textContent = items.length;
+    countBadge.hidden = items.length === 0;
+  }
+
+  // Update project dropdown options
+  updateTasksProjectOptions(items);
+
+  // Synced at
+  if (syncedAtEl) {
+    if (tasksSnapshot?.syncedAt) {
+      const timeStr = new Date(tasksSnapshot.syncedAt).toLocaleTimeString(currentLang === 'en' ? 'en-GB' : 'vi-VN', {hour: '2-digit', minute: '2-digit'});
+      syncedAtEl.textContent = t('tasks.synced_at', {time: timeStr});
+      syncedAtEl.hidden = false;
+    } else {
+      syncedAtEl.hidden = true;
+    }
+  }
+
+  // Stale and Error banners
+  if (tasksSnapshot?.error) {
+    if (items.length > 0) {
+      if (staleText) staleText.textContent = t('tasks.stale_warning', {error: tasksSnapshot.error});
+      if (staleBanner) staleBanner.hidden = false;
+      if (errorBanner) errorBanner.hidden = true;
+    } else {
+      if (errorText) errorText.textContent = t('tasks.error_loading', {error: tasksSnapshot.error});
+      if (errorBanner) errorBanner.hidden = false;
+      if (staleBanner) staleBanner.hidden = true;
+    }
+  } else {
+    if (staleBanner) staleBanner.hidden = true;
+    if (errorBanner) errorBanner.hidden = true;
+  }
+
+  // Filter items using selectPersonalTasks
+  const filtered = selectPersonalTasks(items, refDay, {
+    search: tasksFilter.search,
+    project: tasksFilter.project,
+    status: tasksFilter.status
+  });
+
+  if (listEl) listEl.replaceChildren();
+
+  if (items.length === 0) {
+    if (emptyAllEl) emptyAllEl.hidden = Boolean(tasksSnapshot?.error || !tasksSnapshot?.syncedAt);
+    if (emptyFilteredEl) emptyFilteredEl.hidden = true;
+    return;
+  }
+  if (emptyAllEl) emptyAllEl.hidden = true;
+
+  if (filtered.length === 0) {
+    if (emptyFilteredEl) emptyFilteredEl.hidden = false;
+    return;
+  }
+  if (emptyFilteredEl) emptyFilteredEl.hidden = true;
+
+  for (const task of filtered) {
+    const status = taskStatus(task, refDay);
+    const card = document.createElement('article');
+    card.className = `task-card status-border-${status}`;
+
+    // Header: Tags
+    const header = document.createElement('div');
+    header.className = 'task-card-header';
+
+    const tags = document.createElement('div');
+    tags.className = 'task-card-tags';
+
+    const projectTag = document.createElement('span');
+    projectTag.className = 'tag-project';
+    projectTag.textContent = taskProjectDisplayName(task.projectPath, task.project, items);
+    projectTag.title = task.projectPath;
+
+    const iidTag = document.createElement('span');
+    iidTag.className = 'tag-type tag-task';
+    iidTag.textContent = `TASK #${task.iid}`;
+
+    const statusTag = document.createElement('span');
+    statusTag.className = `tag-task-status tag-task-status-${status}`;
+    statusTag.textContent = t(`tasks.status_${status}`);
+
+    tags.append(projectTag, iidTag, statusTag);
+    header.appendChild(tags);
+
+    // Title Row
+    const titleRow = document.createElement('div');
+    titleRow.className = 'task-card-title-row';
+
+    if (task.url) {
+      const link = document.createElement('a');
+      link.href = task.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.className = 'task-card-title';
+
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = task.title || `#${task.iid}`;
+
+      link.appendChild(titleSpan);
+      link.insertAdjacentHTML('beforeend', `<svg class="task-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`);
+
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({url: task.url});
+      });
+      titleRow.appendChild(link);
+    } else {
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'task-card-title';
+      titleSpan.textContent = task.title || `#${task.iid}`;
+      titleRow.appendChild(titleSpan);
+    }
+
+    // Metrics Grid
+    const metricsGrid = document.createElement('div');
+    metricsGrid.className = 'task-metrics-grid';
+
+    // 1. Due date
+    const dueItem = document.createElement('div');
+    dueItem.className = 'task-metric-item';
+    const dueLabel = document.createElement('span');
+    dueLabel.className = 'task-metric-label';
+    dueLabel.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-metric-icon"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>${t('tasks.due_label')}</span>`;
+
+    const dueVal = document.createElement('span');
+    if (task.dueDate) {
+      let extra = '';
+      if (task.dueDate < refDay) {
+        const diff = Math.round((parseDay(refDay) - parseDay(task.dueDate)) / 86400000);
+        extra = ` (${t('tasks.days_overdue', {days: diff})})`;
+        dueVal.className = 'task-metric-val val-overdue';
+      } else if (task.dueDate === refDay) {
+        extra = ` (${t('tasks.due_today')})`;
+        dueVal.className = 'task-metric-val val-ready';
+      } else {
+        const diff = Math.round((parseDay(task.dueDate) - parseDay(refDay)) / 86400000);
+        extra = ` (${t('tasks.days_left', {days: diff})})`;
+        dueVal.className = 'task-metric-val';
+      }
+      dueVal.textContent = `${shortDay(task.dueDate)}/${task.dueDate.slice(0, 4)}${extra}`;
+      dueVal.title = task.dueDate;
+    } else {
+      dueVal.className = 'task-metric-val val-muted';
+      dueVal.textContent = t('tasks.no_due_date');
+    }
+    dueItem.append(dueLabel, dueVal);
+
+    // 2. Estimate
+    const estItem = document.createElement('div');
+    estItem.className = 'task-metric-item';
+    const estLabel = document.createElement('span');
+    estLabel.className = 'task-metric-label';
+    estLabel.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-metric-icon"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg><span>${t('tasks.estimate_label')}</span>`;
+
+    const estVal = document.createElement('span');
+    if (task.estimateSeconds) {
+      estVal.className = 'task-metric-val val-highlight';
+      estVal.textContent = formatTaskEstimate(task.estimateSeconds);
+    } else {
+      estVal.className = 'task-metric-val val-muted';
+      estVal.textContent = t('tasks.no_estimate');
+    }
+    estItem.append(estLabel, estVal);
+
+    // 3. Suggested start
+    const startItem = document.createElement('div');
+    startItem.className = 'task-metric-item';
+    const startLabel = document.createElement('span');
+    startLabel.className = 'task-metric-label';
+    startLabel.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-metric-icon"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg><span>${t('tasks.start_label')}</span>`;
+
+    const startVal = document.createElement('span');
+    if (task.startDate) {
+      let extra = '';
+      if (task.startDate <= refDay) {
+        startVal.className = 'task-metric-val val-ready';
+        if (task.startDate === refDay) extra = ` (${t('tasks.due_today')})`;
+      } else {
+        startVal.className = 'task-metric-val';
+      }
+      startVal.textContent = `${shortDay(task.startDate)}/${task.startDate.slice(0, 4)}${extra}`;
+    } else {
+      startVal.className = 'task-metric-val val-muted';
+      startVal.textContent = t('tasks.no_start_date');
+    }
+    startItem.append(startLabel, startVal);
+
+    metricsGrid.append(dueItem, estItem, startItem);
+
+    card.append(header, titleRow, metricsGrid);
+    if (listEl) listEl.appendChild(card);
+  }
+}
+
+async function loadTasks(force = false) {
+  const expectedProfile = snapshot?.profile || null;
+  if (!expectedProfile) {
+    tasksSnapshot = null;
+    tasksFilter = {search: '', project: '', status: ''};
+    if ($('tasks-search')) $('tasks-search').value = '';
+    if ($('tasks-project-filter')) $('tasks-project-filter').value = '';
+    setTaskStatusFilter('');
+    renderTasks();
+    return;
+  }
+
+  if (tasksLoading) return;
+  tasksLoading = true;
+
+  const refreshBtn = $('btn-tasks-refresh');
+  if (refreshBtn) {
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('is-refreshing');
+  }
+
+  if (!tasksSnapshot?.items?.length) {
+    if ($('tasks-loading')) $('tasks-loading').hidden = false;
+    if ($('tasks-unconfigured')) $('tasks-unconfigured').hidden = true;
+    if ($('tasks-empty-all')) $('tasks-empty-all').hidden = true;
+    if ($('tasks-empty-filtered')) $('tasks-empty-filtered').hidden = true;
+  }
+
+  try {
+    const data = await send({type: 'tasks.snapshot', force: Boolean(force)});
+    if (snapshot?.profile !== expectedProfile) {
+      // Obsolete request after account change or disconnect: reject results
+      return;
+    }
+    tasksSnapshot = data;
+    renderTasks();
+    if (force && !data.error) {
+      showToast(t('toast.tasks_refreshed'), 'success');
+    }
+  } catch (error) {
+    if (snapshot?.profile !== expectedProfile) {
+      // Obsolete request after account change or disconnect: reject results
+      return;
+    }
+    if (tasksSnapshot) {
+      tasksSnapshot = {...tasksSnapshot, error: error.message};
+    } else {
+      tasksSnapshot = {
+        configured: Boolean(snapshot?.configured),
+        profile: expectedProfile,
+        items: [],
+        error: error.message,
+        syncedAt: null
+      };
+    }
+    renderTasks();
+    showToast(error.message, 'error', 4500);
+  } finally {
+    tasksLoading = false;
+    if (refreshBtn) {
+      refreshBtn.disabled = !snapshot?.configured && !tasksSnapshot?.configured;
+      refreshBtn.classList.remove('is-refreshing');
+    }
+    if ($('tasks-loading')) $('tasks-loading').hidden = true;
+
+    // Retry for current profile after obsolete request finishes
+    if (snapshot?.profile && snapshot.profile !== expectedProfile) {
+      void loadTasks(false);
+    }
+  }
+}
+
 $('day-note').addEventListener('input', () => {
   if (!snapshot?.configured || !noteDay) return;
   const text = $('day-note').value, day = noteDay, profile = snapshot.profile;
@@ -1197,6 +1611,67 @@ $('logs-search').addEventListener('input', renderLogs);
 $('logs-project-filter').addEventListener('change', () => {
   allocationSelection = null;
   renderLogs();
+});
+
+// Personal Tasks filters & events
+$('tasks-search')?.addEventListener('input', () => {
+  tasksFilter.search = $('tasks-search').value;
+  renderTasks();
+});
+
+$('tasks-project-filter')?.addEventListener('change', () => {
+  tasksFilter.project = $('tasks-project-filter').value;
+  renderTasks();
+});
+
+document.querySelectorAll('.task-pill').forEach((pill) => {
+  pill.addEventListener('click', () => {
+    setTaskStatusFilter(pill.dataset.status);
+  });
+});
+
+$('tasks-status-pills')?.addEventListener('keydown', (e) => {
+  const pills = Array.from(document.querySelectorAll('.task-pill'));
+  const index = pills.indexOf(document.activeElement);
+  if (index === -1) return;
+  let nextIndex = null;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+    nextIndex = (index + 1) % pills.length;
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    nextIndex = (index - 1 + pills.length) % pills.length;
+  } else if (e.key === 'Home') {
+    nextIndex = 0;
+  } else if (e.key === 'End') {
+    nextIndex = pills.length - 1;
+  }
+  if (nextIndex !== null) {
+    e.preventDefault();
+    pills[nextIndex].focus();
+    setTaskStatusFilter(pills[nextIndex].dataset.status);
+  }
+});
+
+$('btn-tasks-refresh')?.addEventListener('click', () => {
+  void loadTasks(true);
+});
+
+$('btn-tasks-retry')?.addEventListener('click', () => {
+  void loadTasks(true);
+});
+
+$('btn-tasks-stale-retry')?.addEventListener('click', () => {
+  void loadTasks(true);
+});
+
+$('btn-tasks-clear-filters')?.addEventListener('click', () => {
+  tasksFilter = {search: '', project: '', status: ''};
+  if ($('tasks-search')) $('tasks-search').value = '';
+  if ($('tasks-project-filter')) $('tasks-project-filter').value = '';
+  setTaskStatusFilter('');
+});
+
+$('btn-tasks-open-settings')?.addEventListener('click', () => {
+  openSettingsModal('gitlab');
 });
 
 // 7. Leave Form & Modal Controls
@@ -1859,6 +2334,12 @@ $('btn-disconnect').addEventListener('click', () => act(async () => {
   await send({type: 'disconnect'});
   currentConfig = null;
   snapshot = null;
+  tasksSnapshot = null;
+  tasksFilter = {search: '', project: '', status: ''};
+  if ($('tasks-search')) $('tasks-search').value = '';
+  if ($('tasks-project-filter')) $('tasks-project-filter').value = '';
+  setTaskStatusFilter('');
+  renderTasks();
   closeSettingsModal();
   $('onboarding-token').value = '';
   $('view-dashboard').hidden = true;
@@ -2190,6 +2671,7 @@ void act(async () => {
   }
 
   await reload();
+  if (settings.config) void loadTasks();
   const requestedSettings = new URLSearchParams(location.search).get('settings');
   if (!isActionPopup && requestedSettings && settings.config) openSettingsModal(requestedSettings);
   if (odooConfig?.enabled) {
@@ -2264,11 +2746,16 @@ $('odoo-disconnect')?.addEventListener('click', () => void act(async () => {
   showToast(t('toast.odoo_disconnected'), 'info');
 }));
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && (changes.odooData || changes.odooConfig || changes.odooAutomationUnlocked)) {
-    void send({type: 'odoo.settings'}).then((data) => {
-      odooSnapshot = data;
-      renderOdooAutomation(Boolean(changes.odooConfig || changes.odooAutomationUnlocked));
-      renderOdoo();
-    }).catch(console.error);
+  if (area === 'local') {
+    if (changes.personalTaskCache) {
+      void loadTasks(false);
+    }
+    if (changes.odooData || changes.odooConfig || changes.odooAutomationUnlocked) {
+      void send({type: 'odoo.settings'}).then((data) => {
+        odooSnapshot = data;
+        renderOdooAutomation(Boolean(changes.odooConfig || changes.odooAutomationUnlocked));
+        renderOdoo();
+      }).catch(console.error);
+    }
   }
 });

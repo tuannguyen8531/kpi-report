@@ -69,9 +69,9 @@ export function dailyReport(snapshot, personalTasks = []) {
   for (const [key, group] of groups) {
     const tasks = [...group.tasks].filter(([, task]) => task.hours > 0);
     if (!tasks.length) continue;
-    completed.set(key, {...group, tasks: new Map(tasks.map(([id, task]) => [id, {...task, priority: '__%'}]))});
+    completed.set(key, {...group, tasks: new Map(tasks.map(([id, task]) => [id, {...task, priority: '%'}]))});
     if (tasks.some(([, task]) => task.type === 'MR') && !tasks.some(([, task]) => task.title === 'Review code')) {
-      completed.get(key).tasks.set('review', {title: 'Review code', priority: '__%'});
+      completed.get(key).tasks.set('review', {title: 'Review code', priority: '%'});
     }
     const open = tasks.filter(([, task]) => task.open);
     if (open.length) planned.set(key, {...group, tasks: new Map(open.map(([id, task]) => [id, {...task, priority: 'HIGH'}]))});

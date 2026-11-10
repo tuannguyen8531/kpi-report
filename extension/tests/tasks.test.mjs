@@ -43,11 +43,11 @@ test('daily template uses only net positive work for the selected day, with manu
 
 ▼ What did I do today?
 - D-System
-  + Hỗ trợ xử lý server [__%]
-  + Merged change [__%]
-  + Review code [__%]
+  + Hỗ trợ xử lý server [%]
+  + Merged change [%]
+  + Review code [%]
 - Nghiên cứu
-  + Reading [__%]
+  + Reading [%]
 
 ▼ What will I do Tomorrow?
 - D-System
@@ -60,7 +60,7 @@ test('daily template uses only net positive work for the selected day, with manu
   const duplicate = dailyReport({date: day, logs: [log(), log({projectPath: 'group/other', project: 'D-System (group/other)'})]});
   assert.ok(duplicate.includes('- D-System (group/d)'));
   assert.ok(duplicate.includes('- D-System (group/other)'));
-  assert.ok(dailyReport({date: day, logs: [log({title: 'Title\n- injected section'})]}).includes('  + Title - injected section [__%]'));
+  assert.ok(dailyReport({date: day, logs: [log({title: 'Title\n- injected section'})]}).includes('  + Title - injected section [%]'));
 });
 
 test('Review code appears once per project with net positive MR work', () => {
@@ -126,7 +126,7 @@ test('daily editor restores per-account/day drafts, preserves edits on sync, cop
   `)($, chrome, navigator, dailyReport, value => toasts.push(value), () => confirmReplace, async () => tasksData);
   const data = {configured: true, profile: 'a', date: day, username: 'Tuan', syncedAt: 'now', logs: [log()]};
   await ui.render(data);
-  assert.ok($('daily-report-text').value.includes('Hỗ trợ xử lý server [__%]'));
+  assert.ok($('daily-report-text').value.includes('Hỗ trợ xử lý server [%]'));
   assert.ok($('daily-report-text').value.includes('Assigned work [HIGH]'));
   const edited = 'Tuan Daily Report 06/11/2026\nEdited [30%]';
   $('daily-report-text').value = edited;
@@ -156,7 +156,7 @@ test('daily editor restores per-account/day drafts, preserves edits on sync, cop
   tasksData = {...tasksData, error: 'Offline', items: [task({title: 'Updated cached task'})]};
   await $('daily-report-generate').click();
   await ui.flush();
-  assert.ok(saved[`daily-report:a:${day}`].includes('[__%]'));
+  assert.ok(saved[`daily-report:a:${day}`].includes('[%]'));
   assert.ok(saved[`daily-report:a:${day}`].includes('Updated cached task [HIGH]'));
   assert.equal($('daily-report-tasks-warning').textContent, 'daily.tasks_stale');
   for (let i = 1; i <= 35; i++) saved[`daily-report:old:2025-01-${String(i).padStart(2, '0')}`] = 'Old';

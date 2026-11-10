@@ -39,7 +39,7 @@ test('daily template uses only net positive work for the selected day, with manu
     log({project: 'Nghiên cứu', projectPath: null, task: 'Reading', title: 'Reading', type: 'MANUAL', state: null}),
     log({type: 'OFF', title: 'Leave'}), log({hours: NaN, title: 'Invalid'}),
   ]});
-  assert.equal(text, `Tuan Daily Report 06/11/2026
+  assert.equal(text, `Daily Report 06/11/2026
 
 ▼ What did I do today?
 - D-System
@@ -87,7 +87,7 @@ test('plans include assigned tasks without timelogs, map schedule priorities, an
     task({iid: '4', title: 'Missing schedule', startDate: null, dueDate: null}),
     task({project: 'Other', projectPath: 'other/project', title: 'No logs yet'}),
   ]);
-  assert.ok(text.startsWith('GitlabUser Daily Report 06/11/2026'));
+  assert.ok(text.startsWith('Daily Report 06/11/2026'));
   const [completed, planned] = text.split('▼ What will I do Tomorrow?');
   assert.ok(!completed.includes('No logs yet'));
   assert.equal(planned.match(/Hỗ trợ xử lý server/g).length, 1);
@@ -128,7 +128,7 @@ test('daily editor restores per-account/day drafts, preserves edits on sync, cop
   await ui.render(data);
   assert.ok($('daily-report-text').value.includes('Hỗ trợ xử lý server [%]'));
   assert.ok($('daily-report-text').value.includes('Assigned work [HIGH]'));
-  const edited = 'Tuan Daily Report 06/11/2026\nEdited [30%]';
+  const edited = 'Daily Report 06/11/2026\nEdited [30%]';
   $('daily-report-text').value = edited;
   $('daily-report-text').input();
   await ui.flush();
@@ -180,9 +180,9 @@ test('daily editor restores per-account/day drafts, preserves edits on sync, cop
   assert.ok($('daily-report-copy').disabled);
 });
 
-test('daily report formats the username in the heading', () => {
-  assert.ok(dailyReport({date: '2026-11-10', username: 'tuan.nguyen', logs: []}).startsWith('TuanNguyen Daily Report 10/11/2026\n'));
-  assert.ok(dailyReport({date: day, logs: []}).startsWith('User Daily Report'));
+test('daily report heading contains only the title and date', () => {
+  assert.ok(dailyReport({date: '2026-11-10', username: 'tuan.nguyen', logs: []}).startsWith('Daily Report 10/11/2026\n'));
+  assert.ok(dailyReport({date: day, logs: []}).startsWith('Daily Report'));
 });
 
 test('plans mark deadlines through tomorrow as MUST DONE relative to the report date', () => {

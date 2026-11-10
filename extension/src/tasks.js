@@ -95,6 +95,5 @@ export function dailyReport(snapshot, personalTasks = []) {
     return lines.length ? lines.join('\n') : '- None';
   };
   const date = snapshot.date.split('-').reverse().join('/');
-  const username = clean(snapshot.username).split(/[.\s_-]+/).filter(Boolean).map(part => part[0].toUpperCase() + part.slice(1)).join('') || 'User';
-  return `${username} Daily Report ${date}\n\n▼ What did I do today?\n${section(completed)}\n\n▼ What will I do Tomorrow?\n${section(planned)}\n\n▼ What problems are hindering my progress?\n- None`;
+  return `Daily Report ${date}\n\n▼ What did I do today?\n${section(completed)}\n\n▼ What will I do Tomorrow?\n${section(planned)}\n\n▼ What problems are hindering my progress?\n- None`;
 }

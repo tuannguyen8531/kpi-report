@@ -1,5 +1,5 @@
-import {PERSONAL_TASKS_QUERY, normalizePersonalTasks} from './tasks.js';
-import {SYNC_MINUTES, TIMELOG_QUERY, today, addDays, parseDay, periods, validateConfig, normalizeLogs, validateLeave, validateManualEntry, makeSnapshot, exportCsv} from './core.js';
+import {PERSONAL_TASKS_QUERY, TASK_PROJECTS_QUERY, normalizePersonalTasks} from './tasks.js';
+import {SYNC_MINUTES, TIMELOG_QUERY, today, addDays, parseDay, periods, validateConfig, projectName, normalizeLogs, validateLeave, validateManualEntry, makeSnapshot, exportCsv} from './core.js';
 import {processProjectData, processOffData, enrichTasks, buildProjectData, formatExcelFilename} from './excel.js';
 import {verifyAttendanceCode, validateOdooConfig, readAttendance, changeAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder, formatHoursMinutes} from './odoo.js';
 
@@ -302,7 +302,7 @@ async function getToken() {
 export async function refreshPersonalTasks(force = false) {
   const {config} = await chrome.storage.local.get('config');
   if (!config?.profile) return {configured:false, items:[]};
-  const scope=JSON.stringify([2,config.profile,config.projects]);
+  const scope=JSON.stringify([3,config.profile,config.projects]);
   const stored=await chrome.storage.local.get('personalTaskCache');
   let cache=stored.personalTaskCache?.scope===scope ? stored.personalTaskCache : null;
   // Opening the UI only reads stored Tasks; fetching and planning require an explicit refresh.
@@ -320,7 +320,35 @@ export async function refreshPersonalTasks(force = false) {
         if (!after || cursors.has(after)) throw new Error('Invalid Task pagination cursor.');
         cursors.add(after);
       }
-      cache={scope,items:normalizePersonalTasks(items,config),syncedAt:new Date().toISOString(),error:null};
+      const tasks=normalizePersonalTasks(items,config);
+      if (!config.projects?.length) {
+        const {profiles}=await chrome.storage.local.get('profiles');
+        const names=new Map();
+        const timelogCaches=Object.values(profiles?.[config.profile]?.caches || {})
+          .sort((a,b)=>(a.syncedAt || '').localeCompare(b.syncedAt || ''));
+        for (const timelogCache of timelogCaches) {
+          for (const log of timelogCache.logs || []) {
+            if (log.projectPath && typeof log.project==='string' && log.project!==log.projectPath) {
+              const name=projectName(log.project).trim();
+              if (name) names.set(log.projectPath,name);
+            }
+          }
+        }
+        const paths=[...new Set(tasks.map(task=>task.projectPath))].filter(path=>!names.has(path));
+        // GitLab accepts at most 50 full paths per projects query.
+        for (let offset=0; offset<paths.length; offset+=50) {
+          const {projects}=await request(config,token,TASK_PROJECTS_QUERY,{paths:paths.slice(offset,offset+50)});
+          if (!Array.isArray(projects?.nodes)) throw new Error('Incomplete GitLab project names.');
+          for (const project of projects.nodes) {
+            if (typeof project?.name==='string' && project.name.trim()) names.set(project.fullPath,project.name.trim());
+          }
+        }
+        for (const task of tasks) {
+          if (!names.has(task.projectPath)) throw new Error(`GitLab did not return a name for project ${task.projectPath}.`);
+          task.project=names.get(task.projectPath);
+        }
+      }
+      cache={scope,items:tasks,syncedAt:new Date().toISOString(),error:null};
     } catch(error) { cache={...cache,scope,error:error.message}; }
     cache.attemptedAt=new Date().toISOString();
     await chrome.storage.local.set({personalTaskCache:cache});

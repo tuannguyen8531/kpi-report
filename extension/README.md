@@ -11,6 +11,7 @@ A Chrome and Edge extension for tracking GitLab work hours, managing leave, and 
 - Direct Excel export with KPI formulas, plus CSV export for the [Python CLI](../README.md).
 - Compact popup and full-tab dashboard, with automatic sync every 30 minutes and manual refresh.
 - Monthly time allocation by project, with hours, percentages, and links to filtered timelogs.
+- Editable daily reports from the selected day's actual work, with local drafts and one-click copy.
 
 ## Installation
 
@@ -54,6 +55,14 @@ Only Task and merge request timelogs belonging to the token owner are counted; I
 Sync may be delayed while the browser is closed or the device is asleep. A failed sync preserves cached data and displays an error; exports require a successful sync.
 
 Task summary and Excel export share the latest successfully enriched report in session storage for up to 30 minutes. Exporting immediately after loading the summary reuses that report without additional GitLab requests. Sync invalidates the shared report; changes to the account, report month, settings, manual work or leave prevent reuse of an outdated result. **Reload task summary** explicitly refreshes GitLab data. Failed syncs block export, and reports with enrichment request failures are not cached for reuse. ExcelJS is loaded only when exporting an Excel file, rather than when opening the popup.
+
+## Daily reports
+
+In **Report & Export → Daily report**, the date navigator selects the report day (today by default). The template follows `username_Daily_Report DD/MM/YYYY`, using the connected GitLab username automatically, and the three English sections for today's work, tomorrow's plan and blockers. Tasks/MRs are grouped by project and repeated timelogs are combined; manual work appears under **Nghiên cứu**. Projects with MR work also get one **Review code** line, alongside the MR titles. Only work with positive net hours on that date is included; leave is excluded. Projects with identical names include their paths.
+
+Replace `[__%]` with your own completion percentage directly in the editor. Tomorrow's plan combines open tasks/MRs worked on that day with the cached assigned Tasks used by the **Tasks** tab, including Tasks without timelogs. Tasks overdue or due today or tomorrow (relative to the report date) receive `[MUST DONE]`; other **Ready to start** Tasks receive `[HIGH]`; **Upcoming** and **Missing info** Tasks receive `[MEDIUM]`, using the report date to evaluate their schedule. Matching project/type/task IDs are combined, with the assigned Task's schedule determining priority. Existing open work not matched to an assigned Task keeps `[HIGH]`. Suggestions use the full cached list, independent of search and filters in the Tasks tab. Review suggestions and replace `None` with any blockers before clicking **Copy report**. No progress percentage is inferred from hours or estimates. If automatic copying is unavailable, the editor selects the text for Ctrl+C / ⌘C.
+
+Edits are saved automatically on this device, separately per GitLab account/server and date, and restored when you return. Each save keeps only the 30 most recently saved drafts across accounts; older drafts are deleted. Existing drafts without save history are ordered by report date. Sync does not replace a draft. **Regenerate from data** replaces the draft after confirmation using currently available work and Task data. Sync timelogs and click **Refresh Tasks** in the Tasks tab first for the latest GitLab changes, then regenerate the report. Report generation only reads the Tasks cache and makes no extra GitLab requests. Warnings indicate missing or failed timelog/Task syncs. Daily report drafts are local only and are not included in JSON backups or Excel exports.
 
 ## Personal Tasks
 

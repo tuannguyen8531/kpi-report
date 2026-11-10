@@ -4,6 +4,7 @@ import path from 'node:path';
 import {test, beforeEach} from 'node:test';
 import '../src/vendor/exceljs.min.js';
 import {SYNC_MINUTES, today, periods, parseDay, normalizeLogs, makeSnapshot, validateConfig, validateLeave, exportCsv, projectName, timeAllocation, workProjectKey} from '../src/core.js';
+import {dailyReport} from '../src/tasks.js';
 import {verifyAttendanceCode, ODOO_TIMES, validateOdooConfig, parseAttendance, readAttendance, attendanceReminder, attendanceWindow, nextAttendanceReminder, formatHoursMinutes} from '../src/odoo.js';
 
 // Existing fixtures use Vietnam time; timezone-specific cases override it explicitly.
@@ -2098,6 +2099,8 @@ test('personal Tasks paginate independently and retain the complete cache on fai
   const result=await handleMessage({type:'tasks.snapshot',force:true});
   assert.equal(result.items.length,2);
   assert.equal(result.items[0].startDate,'2026-11-06');
+  assert.equal(result.items[0].project,'Project A');
+  assert.ok(!fetches.some(fetch=>fetch.query.includes('query TaskProjects')), 'configured names need no project lookup');
   assert.equal(fetches.at(-1).variables.after,'next');
   assert.deepEqual(local.profiles[local.config.profile].caches,oldCaches);
   const count=fetches.length;
@@ -2111,6 +2114,63 @@ test('personal Tasks paginate independently and retain the complete cache on fai
   assert.deepEqual((await handleMessage({type:'tasks.snapshot',force:true})).items,[]);
 });
 
+test('personal Tasks reuse current profile timelog names and query only missing names', async () => {
+  await connect();
+  local.config.projects=[];
+  local.profiles[local.config.profile].caches={
+    newer:{syncedAt:'2026-11-10',logs:[{projectPath:'group/a',project:'Current (group/a)'}]},
+    older:{syncedAt:'2026-11-01',logs:[{projectPath:'group/a',project:'Old (group/a)'},{projectPath:'group/b',project:'group/b'}]},
+  };
+  local.profiles.other={caches:{month:{logs:[{projectPath:'group/b',project:'Wrong account'}]}}};
+  const items=['a','b'].map(name=>({id:name,iid:'1',type:'TASK',state:'opened',title:name,
+    reference:`group/${name}#1`,webUrl:`${config.url}/group/${name}/-/work_items/1`}));
+  const page=nodes=>({data:{issues:{nodes,pageInfo:{hasNextPage:false,endCursor:null}}}});
+  replyPages.push(page(items),{data:{projects:{nodes:[{fullPath:'group/b',name:'Fetched'}]}}});
+  const result=await handleMessage({type:'tasks.snapshot',force:true});
+  assert.equal(result.error,null);
+  assert.deepEqual(result.items.map(item=>item.project),['Current','Fetched']);
+  assert.deepEqual(fetches.at(-1).variables.paths,['group/b']);
+  const count=fetches.length;
+  replyPages.push(page([items[0]]));
+  const cached=await handleMessage({type:'tasks.snapshot',force:true});
+  assert.equal(cached.error,null);
+  assert.equal(cached.items[0].project,'Current');
+  assert.equal(fetches.length,count+1,'only the Tasks query is needed');
+});
+
+test('personal Tasks load GitLab names in batches, reuse them in reports, and retain named cache if lookup fails', async () => {
+  await connect();
+  local.config.projects=[];
+  const taskPage=nodes=>({data:{issues:{nodes,pageInfo:{hasNextPage:false,endCursor:null}}}});
+  const items=Array.from({length:51},(_,i)=>({id:`task-${i}`,iid:'1',type:'TASK',state:'opened',title:`Work ${i}`,
+    reference:`group/sub/project-${i}#1`,webUrl:`${config.url}/group/sub/project-${i}/-/work_items/1`,dueDate:'2026-11-09',timeEstimate:57600}));
+  const names=items.map((_,i)=>({fullPath:`group/sub/project-${i}`,name:`Friendly ${i}`}));
+  replyPages.push(taskPage([...items,{...items[0],id:'another-task',iid:'2',reference:'group/sub/project-0#2'}]),
+    {data:{projects:{nodes:names.slice(0,50)}}}, {data:{projects:{nodes:names.slice(50)}}});
+  const result=await handleMessage({type:'tasks.snapshot',force:true});
+  assert.equal(result.error,null);
+  assert.equal(result.items.length,52);
+  assert.equal(result.items[0].project,'Friendly 0');
+  assert.equal(result.items[0].projectPath,'group/sub/project-0');
+  assert.equal(result.items.at(-1).project,'Friendly 0');
+  const requests=fetches.filter(fetch=>fetch.query.includes('query TaskProjects'));
+  assert.deepEqual(requests.map(fetch=>fetch.variables.paths.length),[50,1]);
+  assert.equal(new Set(requests.flatMap(fetch=>fetch.variables.paths)).size,51);
+  const report=dailyReport({date:'2026-11-06',username:'me',logs:[]},result.items);
+  assert.ok(report.includes('- Friendly 0\n'));
+  assert.ok(!report.includes('- group/sub/project-'));
+  const count=fetches.length;
+  assert.deepEqual((await handleMessage({type:'tasks.snapshot'})).items,result.items);
+  assert.equal(fetches.length,count,'reading named cache makes no GitLab requests');
+  for (const reply of [new Error('Project names offline'),{data:{projects:{nodes:[]}}}]) {
+    replyPages.push(taskPage([items[0]]),reply);
+    const failed=await handleMessage({type:'tasks.snapshot',force:true});
+    assert.ok(failed.error);
+    assert.deepEqual(failed.items,result.items);
+    assert.equal(failed.syncedAt,result.syncedAt);
+  }
+});
+
 
 test('opening personal Tasks only reads cache even when missing, expired or offline', async () => {
   await connect();
@@ -2119,13 +2179,16 @@ test('opening personal Tasks only reads cache even when missing, expired or offl
   assert.deepEqual(empty.items, []);
   assert.equal(empty.syncedAt, null);
   assert.equal(fetches.length, count);
-  const scope = JSON.stringify([2, local.config.profile, local.config.projects]);
+  const scope = JSON.stringify([3, local.config.profile, local.config.projects]);
   const items = [{id:'cached', startDate:'2026-11-06'}];
   local.personalTaskCache = {scope, items, syncedAt:'2025-01-01T00:00:00Z', attemptedAt:'2025-01-01T00:00:00Z', error:null};
   delete session.token;
   const cached = await handleMessage({type:'tasks.snapshot'});
   assert.deepEqual(cached.items, items);
   assert.equal(cached.syncedAt, '2025-01-01T00:00:00Z');
+  assert.equal(fetches.length, count);
+  local.personalTaskCache.scope=JSON.stringify([2,local.config.profile,local.config.projects]);
+  assert.deepEqual((await handleMessage({type:'tasks.snapshot'})).items, [], 'old path-only cache requires an explicit refresh');
   assert.equal(fetches.length, count);
   local.config.projects = [{url:'other/project', project:'Other'}];
   assert.deepEqual((await handleMessage({type:'tasks.snapshot'})).items, []);

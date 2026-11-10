@@ -2,7 +2,7 @@ import {today, parseDay, addDays, validateConfig, projectName, timeAllocation, w
 import {generateExcelWorkbook} from './excel.js';
 import {getLanguage, setLanguage, t} from './i18n.js';
 import {ENTRY_SIZE, ODOO_TIMES, validateOdooConfig, formatHoursMinutes} from './odoo.js';
-import {taskStatus, selectPersonalTasks} from './tasks.js';
+import {taskStatus, selectPersonalTasks, dailyReport} from './tasks.js';
 
 // DOM selector helper
 const $ = (id) => document.getElementById(id);
@@ -124,6 +124,8 @@ let activeTab = 'calendar';
 let allocationSelection = null;
 const noteDrafts = new Map();
 let noteDay = null;
+let dailyReportKey = null;
+let dailyReportSave = Promise.resolve();
 let currentBreakdownScope = null;
 let currentBreakdownDate = null;
 let odooSnapshot = {config: null, data: null};
@@ -309,6 +311,7 @@ function render(data) {
     setTaskStatusFilter('');
   }
   snapshot = data;
+  void renderDailyReport(data);
   if (profileChanged && data.configured) {
     void loadTasks();
   }
@@ -2757,5 +2760,93 @@ chrome.storage.onChanged.addListener((changes, area) => {
         renderOdoo();
       }).catch(console.error);
     }
+  }
+});
+
+async function generateDailyReport(data, key) {
+  let tasks;
+  try {
+    tasks = await send({type: 'tasks.snapshot'});
+    if (tasks.profile !== data.profile) tasks = null;
+  } catch {
+    tasks = null;
+  }
+  if (dailyReportKey !== key) return null;
+  const warning = tasks?.error ? t('daily.tasks_stale') : !tasks?.syncedAt ? t('daily.tasks_pending') : '';
+  $('daily-report-tasks-warning').textContent = warning;
+  $('daily-report-tasks-warning').hidden = !warning;
+  return dailyReport(data, tasks?.items || []);
+}
+
+async function renderDailyReport(data) {
+  const key = data.configured ? `daily-report:${data.profile}:${data.date}` : null;
+  const warning = data.error ? t('allocation.stale') : !data.syncedAt ? t('allocation.pending') : '';
+  $('daily-report-warning').textContent = warning;
+  $('daily-report-warning').hidden = !warning;
+  $('daily-report-date').textContent = data.date ? fullDayLabel(data.date) : '';
+  if (key === dailyReportKey) return;
+  dailyReportKey = key;
+  $('daily-report-tasks-warning').hidden = true;
+  $('daily-report-text').value = '';
+  $('daily-report-status').textContent = '';
+  for (const id of ['daily-report-text', 'daily-report-copy', 'daily-report-generate']) $(id).disabled = true;
+  if (!key) return;
+  try {
+    await dailyReportSave.catch(() => {});
+    const stored = await chrome.storage.local.get(key);
+    const generated = await generateDailyReport(data, key);
+    if (dailyReportKey !== key) return;
+    $('daily-report-text').value = typeof stored[key] === 'string' ? stored[key] : generated;
+    $('daily-report-status').textContent = typeof stored[key] === 'string' ? t('daily.saved') : '';
+    for (const id of ['daily-report-text', 'daily-report-copy', 'daily-report-generate']) $(id).disabled = false;
+  } catch (error) {
+    if (dailyReportKey !== key) return;
+    dailyReportKey = null;
+    showToast(error.message, 'error');
+  }
+}
+
+function saveDailyReport() {
+  const key = dailyReportKey, text = $('daily-report-text').value;
+  if (!key) return;
+  $('daily-report-status').textContent = t('daily.saving');
+  dailyReportSave = dailyReportSave.catch(() => {}).then(async () => {
+    const stored = await chrome.storage.local.get(null);
+    const drafts = Object.keys(stored).filter(name => name.startsWith('daily-report:'));
+    const previous = Array.isArray(stored.dailyReportOrder) ? stored.dailyReportOrder : [];
+    const order = [...new Set([key, ...previous.filter(name => drafts.includes(name)),
+      ...drafts.sort((a, b) => b.slice(-10).localeCompare(a.slice(-10)))])];
+    await chrome.storage.local.set({[key]: text, dailyReportOrder: order.slice(0, 30)});
+    if (order.length > 30) await chrome.storage.local.remove(order.slice(30));
+  });
+  const pending = dailyReportSave;
+  void pending.then(() => {
+    if (dailyReportKey === key && dailyReportSave === pending) $('daily-report-status').textContent = t('daily.saved');
+  }, () => {
+    if (dailyReportKey === key && dailyReportSave === pending) $('daily-report-status').textContent = t('daily.save_failed');
+  });
+}
+
+$('daily-report-text').addEventListener('input', saveDailyReport);
+$('daily-report-generate').addEventListener('click', async () => {
+  if (!snapshot?.configured || !confirm(t('daily.replace'))) return;
+  const key = dailyReportKey;
+  $('daily-report-generate').disabled = true;
+  $('daily-report-text').disabled = true;
+  const generated = await generateDailyReport(snapshot, key);
+  if (dailyReportKey !== key) return;
+  $('daily-report-generate').disabled = false;
+  $('daily-report-text').disabled = false;
+  $('daily-report-text').value = generated;
+  saveDailyReport();
+});
+$('daily-report-copy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('daily-report-text').value);
+    showToast(t('daily.copied'), 'success');
+  } catch {
+    $('daily-report-text').focus();
+    $('daily-report-text').select();
+    showToast(t('daily.copy_failed'), 'error');
   }
 });

@@ -105,9 +105,9 @@ test('plans include assigned tasks without timelogs, map schedule priorities, an
 
 test('daily editor restores per-account/day drafts, preserves edits on sync, copies exact text and handles storage/clipboard failures', async () => {
   const source = fs.readFileSync(new URL('../src/popup.js', import.meta.url), 'utf8');
-  const fields = new Map(), saved = {}, toasts = [], copied = [];
+  const fields = new Map(), saved = {}, toasts = [], copied = [], requests = [];
   const $ = id => {
-    if (!fields.has(id)) fields.set(id, {value: '', addEventListener(event, fn) {this[event] = fn;}, focus() {this.focused = true;}, select() {this.selected = true;}});
+    if (!fields.has(id)) fields.set(id, {value: '', dataset: {}, addEventListener(event, fn) {this[event] = fn;}, focus() {this.focused = true;}, select() {this.selected = true;}});
     return fields.get(id);
   };
   let failSave = false, failCopy = false, confirmReplace = false;
@@ -123,7 +123,7 @@ test('daily editor restores per-account/day drafts, preserves edits on sync, cop
     const t = key => key, fullDayLabel = day => day;
     ${source.slice(source.indexOf('async function generateDailyReport('))}
     return {async render(data) {snapshot = data; await renderDailyReport(data);}, flush() {return dailyReportSave.catch(() => {});}};
-  `)($, chrome, navigator, dailyReport, value => toasts.push(value), () => confirmReplace, async () => tasksData);
+  `)($, chrome, navigator, dailyReport, value => toasts.push(value), () => confirmReplace, async message => {requests.push(message); return tasksData;});
   const data = {configured: true, profile: 'a', date: day, username: 'Tuan', syncedAt: 'now', logs: [log()]};
   await ui.render(data);
   assert.ok($('daily-report-text').value.includes('Hỗ trợ xử lý server [%]'));
@@ -133,6 +133,7 @@ test('daily editor restores per-account/day drafts, preserves edits on sync, cop
   $('daily-report-text').input();
   await ui.flush();
   assert.equal(saved[`daily-report:a:${day}`], edited);
+  assert.equal($('daily-report-status').dataset.i18n, 'daily.saved');
   await ui.render({...data, error: 'Offline'});
   assert.equal($('daily-report-text').value, edited);
   assert.equal($('daily-report-warning').textContent, 'allocation.stale');
@@ -152,10 +153,12 @@ test('daily editor restores per-account/day drafts, preserves edits on sync, cop
   assert.equal($('daily-report-text').value, edited);
   await $('daily-report-generate').click();
   assert.equal($('daily-report-text').value, edited);
+  assert.ok(requests.every(message => !message.force), 'opening and cancelling do not refresh Tasks');
   confirmReplace = true;
   tasksData = {...tasksData, error: 'Offline', items: [task({title: 'Updated cached task'})]};
   await $('daily-report-generate').click();
   await ui.flush();
+  assert.deepEqual(requests.at(-1), {type: 'tasks.snapshot', force: true});
   assert.ok(saved[`daily-report:a:${day}`].includes('[%]'));
   assert.ok(saved[`daily-report:a:${day}`].includes('Updated cached task [HIGH]'));
   assert.equal($('daily-report-tasks-warning').textContent, 'daily.tasks_stale');
@@ -175,9 +178,11 @@ test('daily editor restores per-account/day drafts, preserves edits on sync, cop
   await ui.flush();
   assert.equal($('daily-report-text').value, edited);
   assert.equal($('daily-report-status').textContent, 'daily.save_failed');
+  assert.equal($('daily-report-status').dataset.i18n, 'daily.save_failed');
   await ui.render({configured: false});
   assert.equal($('daily-report-text').value, '');
   assert.ok($('daily-report-copy').disabled);
+  assert.equal($('daily-report-status').dataset.i18n, undefined);
 });
 
 test('daily report heading contains only the title and date', () => {

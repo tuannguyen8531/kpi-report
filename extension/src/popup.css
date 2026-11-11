@@ -4475,6 +4475,10 @@ a.breakdown-item-link:hover strong {
 
 /* Small Screens (e.g. extension popup window < 820px) */
 @media (max-width: 819px) {
+  .dashboard-workspace:not(:has(> #panel-report.active)) > .daily-report-card {
+    display: none;
+  }
+
   .toolbar-quick-actions {
     display: none !important;
   }
@@ -4565,12 +4569,21 @@ a.breakdown-item-link:hover strong {
     width: 100%;
   }
 
-  /* Row 1: Full-width spacious Calendar */
+  /* Row 1: Prominent Daily Report Card */
+  .dashboard-workspace > .daily-report-card {
+    margin-bottom: 0;
+    padding: 16px 20px;
+  }
+  .dashboard-workspace > .daily-report-card .daily-report-title {
+    font-size: 14.5px;
+  }
+
+  /* Row 2: Full-width spacious Calendar */
   #panel-calendar {
     width: 100%;
   }
 
-  /* Row 2: Leave Management section right below calendar */
+  /* Row 3: Leave Management section right below calendar */
   #panel-leave {
     width: 100%;
   }
@@ -4589,7 +4602,7 @@ a.breakdown-item-link:hover strong {
     max-height: 440px;
   }
 
-  /* Row 3: Expanded Timelog details spanning full width */
+  /* Row 4: Expanded Timelog details spanning full width */
   #panel-logs {
     width: 100%;
   }
@@ -4607,7 +4620,7 @@ a.breakdown-item-link:hover strong {
     padding: 4px 10px;
   }
 
-  /* Row 4: Personal GitLab Tasks */
+  /* Row 5: Personal GitLab Tasks */
   #panel-tasks {
     width: 100%;
   }
@@ -4622,7 +4635,7 @@ a.breakdown-item-link:hover strong {
     gap: 16px;
   }
 
-  /* Row 5: Report & Export banner at the bottom */
+  /* Row 6: Report & Export banner at the bottom */
   #panel-report {
     width: 100%;
   }
@@ -4687,5 +4700,15 @@ a.breakdown-item-link:hover strong {
 
   #btn-expand {
     display: none; /* Already expanded */
+  }
+}
+
+@media (min-width: 820px) {
+  .dashboard-workspace > .daily-report-card {
+    margin-bottom: 0;
+  }
+
+  .dashboard-workspace > .daily-report-card textarea {
+    min-height: 360px;
   }
 }

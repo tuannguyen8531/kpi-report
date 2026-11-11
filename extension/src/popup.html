@@ -394,6 +394,57 @@
 
     <!-- Main Workspace Panels -->
     <main class="dashboard-workspace">
+      <section class="daily-report-card" aria-labelledby="daily-report-title">
+        <div class="daily-report-header">
+          <div class="daily-report-header-left">
+            <div class="daily-report-icon-wrap" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="daily-report-card-icon">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </div>
+            <div class="daily-report-header-text">
+              <h3 id="daily-report-title" class="daily-report-title" data-i18n="daily.title">Daily report</h3>
+              <p class="daily-report-hint" data-i18n="daily.hint">Fill in completion %, edit and copy.</p>
+            </div>
+          </div>
+          <div class="daily-report-header-right">
+            <label for="daily-report-text" id="daily-report-date" class="daily-report-date-chip"></label>
+          </div>
+        </div>
+
+        <p id="daily-report-warning" class="daily-report-warning-banner" role="status" hidden></p>
+        <p id="daily-report-tasks-warning" class="daily-report-warning-banner" role="status" hidden></p>
+
+        <div class="daily-report-editor-surface">
+          <textarea id="daily-report-text" rows="16" spellcheck="false" aria-describedby="daily-report-status" disabled></textarea>
+        </div>
+
+        <div class="daily-report-actions">
+          <span id="daily-report-status" class="daily-report-status" role="status"></span>
+          <div class="daily-report-btn-group">
+            <button id="daily-report-generate" type="button" class="btn btn-secondary btn-sm" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon-svg" aria-hidden="true">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              <span data-i18n="daily.generate">Regenerate from data</span>
+            </button>
+            <button id="daily-report-copy" type="button" class="btn btn-primary btn-sm" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon-svg" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span data-i18n="daily.copy">Copy report</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       <!-- ===================================== -->
       <!-- Panel 1: Interactive Calendar         -->
       <!-- ===================================== -->
@@ -853,57 +904,6 @@
             <span class="panel-subtitle" data-i18n="report.subtitle">Export monthly work and leave reports</span>
           </div>
         </div>
-
-        <section class="daily-report-card" aria-labelledby="daily-report-title">
-          <div class="daily-report-header">
-            <div class="daily-report-header-left">
-              <div class="daily-report-icon-wrap" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="daily-report-card-icon">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
-              </div>
-              <div class="daily-report-header-text">
-                <h3 id="daily-report-title" class="daily-report-title" data-i18n="daily.title">Daily report</h3>
-                <p class="daily-report-hint" data-i18n="daily.hint">Generated from timelogs and tasks. Fill in % complete, edit and copy. Saved automatically on this device.</p>
-              </div>
-            </div>
-            <div class="daily-report-header-right">
-              <label for="daily-report-text" id="daily-report-date" class="daily-report-date-chip"></label>
-            </div>
-          </div>
-
-          <p id="daily-report-warning" class="daily-report-warning-banner" role="status" hidden></p>
-          <p id="daily-report-tasks-warning" class="daily-report-warning-banner" role="status" hidden></p>
-
-          <div class="daily-report-editor-surface">
-            <textarea id="daily-report-text" rows="16" spellcheck="false" aria-describedby="daily-report-status" disabled></textarea>
-          </div>
-
-          <div class="daily-report-actions">
-            <span id="daily-report-status" class="daily-report-status" role="status"></span>
-            <div class="daily-report-btn-group">
-              <button id="daily-report-generate" type="button" class="btn btn-secondary btn-sm" disabled>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon-svg" aria-hidden="true">
-                  <polyline points="23 4 23 10 17 10"></polyline>
-                  <polyline points="1 20 1 14 7 14"></polyline>
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                </svg>
-                <span data-i18n="daily.generate">Regenerate from data</span>
-              </button>
-              <button id="daily-report-copy" type="button" class="btn btn-primary btn-sm" disabled>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon-svg" aria-hidden="true">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                <span data-i18n="daily.copy">Copy report</span>
-              </button>
-            </div>
-          </div>
-        </section>
 
         <div class="report-meta-grid">
           <div class="report-meta-item">

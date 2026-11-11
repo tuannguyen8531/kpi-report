@@ -2763,10 +2763,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-async function generateDailyReport(data, key) {
+async function generateDailyReport(data, key, force = false) {
   let tasks;
   try {
-    tasks = await send({type: 'tasks.snapshot'});
+    tasks = await send({type: 'tasks.snapshot', force});
     if (tasks.profile !== data.profile) tasks = null;
   } catch {
     tasks = null;
@@ -2776,6 +2776,13 @@ async function generateDailyReport(data, key) {
   $('daily-report-tasks-warning').textContent = warning;
   $('daily-report-tasks-warning').hidden = !warning;
   return dailyReport(data, tasks?.items || []);
+}
+
+function setDailyReportStatus(key) {
+  const status = $('daily-report-status');
+  if (key) status.dataset.i18n = key;
+  else delete status.dataset.i18n;
+  status.textContent = key ? t(key) : '';
 }
 
 async function renderDailyReport(data) {
@@ -2788,7 +2795,7 @@ async function renderDailyReport(data) {
   dailyReportKey = key;
   $('daily-report-tasks-warning').hidden = true;
   $('daily-report-text').value = '';
-  $('daily-report-status').textContent = '';
+  setDailyReportStatus('');
   for (const id of ['daily-report-text', 'daily-report-copy', 'daily-report-generate']) $(id).disabled = true;
   if (!key) return;
   try {
@@ -2797,7 +2804,7 @@ async function renderDailyReport(data) {
     const generated = await generateDailyReport(data, key);
     if (dailyReportKey !== key) return;
     $('daily-report-text').value = typeof stored[key] === 'string' ? stored[key] : generated;
-    $('daily-report-status').textContent = typeof stored[key] === 'string' ? t('daily.saved') : '';
+    setDailyReportStatus(typeof stored[key] === 'string' ? 'daily.saved' : '');
     for (const id of ['daily-report-text', 'daily-report-copy', 'daily-report-generate']) $(id).disabled = false;
   } catch (error) {
     if (dailyReportKey !== key) return;
@@ -2809,7 +2816,7 @@ async function renderDailyReport(data) {
 function saveDailyReport() {
   const key = dailyReportKey, text = $('daily-report-text').value;
   if (!key) return;
-  $('daily-report-status').textContent = t('daily.saving');
+  setDailyReportStatus('daily.saving');
   dailyReportSave = dailyReportSave.catch(() => {}).then(async () => {
     const stored = await chrome.storage.local.get(null);
     const drafts = Object.keys(stored).filter(name => name.startsWith('daily-report:'));
@@ -2821,9 +2828,9 @@ function saveDailyReport() {
   });
   const pending = dailyReportSave;
   void pending.then(() => {
-    if (dailyReportKey === key && dailyReportSave === pending) $('daily-report-status').textContent = t('daily.saved');
+    if (dailyReportKey === key && dailyReportSave === pending) setDailyReportStatus('daily.saved');
   }, () => {
-    if (dailyReportKey === key && dailyReportSave === pending) $('daily-report-status').textContent = t('daily.save_failed');
+    if (dailyReportKey === key && dailyReportSave === pending) setDailyReportStatus('daily.save_failed');
   });
 }
 
@@ -2833,7 +2840,7 @@ $('daily-report-generate').addEventListener('click', async () => {
   const key = dailyReportKey;
   $('daily-report-generate').disabled = true;
   $('daily-report-text').disabled = true;
-  const generated = await generateDailyReport(snapshot, key);
+  const generated = await generateDailyReport(snapshot, key, true);
   if (dailyReportKey !== key) return;
   $('daily-report-generate').disabled = false;
   $('daily-report-text').disabled = false;

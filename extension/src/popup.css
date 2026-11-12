@@ -1069,12 +1069,128 @@ select.select-input:focus {
   width: 14px;
   height: 14px;
 }
-.date-picker-wrap input[type="date"] {
-  padding: 4px 8px;
+.date-picker-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.date-picker-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
   font-size: 12px;
   font-weight: 600;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  width: auto;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  min-width: 98px;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.date-picker-icon {
+  width: 13px;
+  height: 13px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.date-picker-wrap input[type="date"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+  padding: 0;
+  margin: 0;
+  border: none;
+  outline: none;
+}
+.date-picker-wrap input[type="date"]:focus,
+.date-picker-wrap input[type="date"]:focus-visible {
+  outline: none;
+}
+.date-picker-wrap input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.date-picker-wrap:hover .date-picker-display {
+  background: #f1f5f9;
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+.date-picker-wrap:focus-within .date-picker-display,
+.date-picker-wrap input[type="date"]:focus-visible + .date-picker-display {
+  outline: none;
+}
+
+/* Modal Form Custom Date Picker Wrappers */
+.form-date-wrap {
+  position: relative;
+  width: 100%;
+}
+.form-date-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 38px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: #f8fafc;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  transition: all 0.15s ease;
+}
+.form-date-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.form-date-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+.form-date-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.form-date-wrap:hover .form-date-display {
+  border-color: var(--primary-border);
+  background: #ffffff;
+}
+.form-date-wrap:focus-within .form-date-display,
+.form-date-input:focus-visible + .form-date-display {
+  background: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  outline: none;
 }
 
 /* Work Hours Metrics Grid */

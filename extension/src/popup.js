@@ -24,6 +24,24 @@ const fullDayLabel = (dateStr) => {
   }
 };
 
+const formatDisplayDate = (val) => (val && typeof val === 'string' && val.length >= 10) ? `${val.slice(8, 10)}/${val.slice(5, 7)}/${val.slice(0, 4)}` : '—';
+
+function updateDateDisplays() {
+  try {
+    const anchorVal = $('anchor')?.value;
+    const anchorText = document.querySelector?.('#anchor-display .date-picker-text');
+    if (anchorText) anchorText.textContent = formatDisplayDate(anchorVal);
+
+    const leaveVal = $('leave-day')?.value;
+    const leaveText = document.querySelector?.('#leave-day-display .form-date-text');
+    if (leaveText) leaveText.textContent = formatDisplayDate(leaveVal);
+
+    const manualVal = $('manual-day')?.value;
+    const manualText = document.querySelector?.('#manual-day-display .form-date-text');
+    if (manualText) manualText.textContent = formatDisplayDate(manualVal);
+  } catch (_) {}
+}
+
 function applyI18n(lang = currentLang) {
   currentLang = setLanguage(lang);
   document.documentElement.lang = currentLang;
@@ -140,6 +158,7 @@ const initialToday = requestedNote && /^\d{4}-\d{2}-\d{2}$/.test(requestedNote) 
 $('anchor').value = initialToday;
 $('leave-day').value = initialToday;
 $('manual-day').value = initialToday;
+updateDateDisplays();
 
 /**
  * Toast Notification system
@@ -247,6 +266,7 @@ function selectDay(dayStr) {
   if (!editingManualId && $('manual-day')) {
     $('manual-day').value = dayStr;
   }
+  updateDateDisplays();
   void act(() => reload());
 }
 
@@ -256,6 +276,7 @@ function selectDay(dayStr) {
 function resetLeaveForm() {
   editingLeaveId = null;
   $('leave-day').value = $('anchor').value;
+  updateDateDisplays();
   $('leave-hours').value = 8;
   $('leave-form-title').textContent = t('leave.form_title');
   $('leave-save').querySelector('.btn-text').textContent = t('leave.save_btn');
@@ -358,6 +379,7 @@ function render(data) {
   }
 
   // Selected Day info
+  updateDateDisplays();
   $('selected-day-text').textContent = fullDayLabel(data.date);
   if ($('selected-day-note-badge')) {
     const hasNote = Boolean(data.notes?.[data.date]);
@@ -705,6 +727,7 @@ function resetManualForm() {
   manualProfile = null;
   $('manual-form')?.reset();
   if ($('manual-day')) $('manual-day').value = $('anchor')?.value || today();
+  updateDateDisplays();
   const summaryTitle = $('manual-summary-title');
   if (summaryTitle) summaryTitle.textContent = t('manual.add');
   const saveText = $('manual-save-text');
@@ -721,6 +744,7 @@ $('manual-editor')?.addEventListener('toggle', () => {
   if ($('manual-editor').open && !editingManualId) {
     manualProfile = snapshot?.profile;
     $('manual-day').value = $('anchor').value;
+    updateDateDisplays();
   }
 });
 
@@ -906,6 +930,7 @@ function renderLogs() {
         if ($('manual-day')) $('manual-day').value = log.date;
         if ($('manual-title')) $('manual-title').value = log.title;
         if ($('manual-hours')) $('manual-hours').value = log.hours;
+        updateDateDisplays();
         const val = String(log.hours);
         document.querySelectorAll('.preset-chip-sm').forEach(b => {
           b.classList.toggle('active', b.dataset.hours === val);
@@ -1031,6 +1056,7 @@ function renderLeaves(data) {
     editBtn.addEventListener('click', () => {
       editingLeaveId = entry.id;
       $('leave-day').value = entry.day;
+      updateDateDisplays();
       $('leave-hours').value = entry.hours;
       $('leave-reason').value = entry.reason;
       $('leave-form-title').textContent = `${currentLang === 'en' ? 'Edit leave for' : 'Sửa ngày nghỉ'} ${shortDay(entry.day)}`;
@@ -1564,6 +1590,25 @@ $('day-note-form').addEventListener('submit', (event) => {
    ============================================================ */
 
 // 1. Date toolbar navigation
+for (const id of ['anchor', 'leave-day', 'manual-day']) {
+  const el = $(id);
+  if (!el) continue;
+  el.addEventListener('input', updateDateDisplays);
+  el.addEventListener('change', () => {
+    updateDateDisplays();
+    el.blur();
+  });
+  el.addEventListener('click', () => {
+    try {
+      if (typeof el.showPicker === 'function') el.showPicker();
+    } catch (_) {}
+  });
+}
+document.addEventListener('pointerdown', (e) => {
+  if (!e.target?.closest?.('.date-picker-wrap')) {
+    $('anchor')?.blur();
+  }
+});
 $('anchor').addEventListener('change', () => selectDay($('anchor').value));
 $('btn-today').addEventListener('click', () => selectDay(today()));
 $('btn-prev-day').addEventListener('click', () => {

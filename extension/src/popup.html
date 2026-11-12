@@ -196,6 +196,15 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </button>
         <div class="date-picker-wrap">
+          <span id="anchor-display" class="date-picker-display" aria-hidden="true">
+            <svg class="date-picker-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span class="date-picker-text">—</span>
+          </span>
           <input id="anchor" type="date" required title="Select a date">
         </div>
         <button id="btn-next-day" class="nav-arrow" type="button" title="Next day">
@@ -550,7 +559,18 @@
                       </svg>
                       <span data-i18n="leave.date_label">Leave date</span>
                     </label>
-                    <input id="leave-day" type="date" required class="input-field">
+                    <div class="form-date-wrap">
+                      <span id="leave-day-display" class="form-date-display" aria-hidden="true">
+                        <svg class="form-date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                          <line x1="16" y1="2" x2="16" y2="6"></line>
+                          <line x1="8" y1="2" x2="8" y2="6"></line>
+                          <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <span class="form-date-text">—</span>
+                      </span>
+                      <input id="leave-day" type="date" required class="input-field form-date-input">
+                    </div>
                   </div>
                   <div class="form-group">
                     <label for="leave-hours">
@@ -713,7 +733,18 @@
                   </svg>
                   <span data-i18n="manual.day">Date</span>
                 </label>
-                <input id="manual-day" type="date" required class="input-field">
+                <div class="form-date-wrap">
+                  <span id="manual-day-display" class="form-date-display" aria-hidden="true">
+                    <svg class="form-date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span class="form-date-text">—</span>
+                  </span>
+                  <input id="manual-day" type="date" required class="input-field form-date-input">
+                </div>
               </div>
 
               <div class="form-group">

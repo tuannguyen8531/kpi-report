@@ -939,6 +939,17 @@ test('date formatters and parsers convert correctly between ISO and MM/DD/YYYY',
   assert.equal(parseMonthDayYear('invalid'), null);
 });
 
+test('date picker overlay formats ISO dates as DD/MM/YYYY', () => {
+  const source = fs.readFileSync(new URL('../src/popup.js', import.meta.url), 'utf8');
+  const fnMatch = source.match(/const formatDisplayDate = ([^;]+);/);
+  assert.ok(fnMatch);
+  const formatDisplayDate = new Function(`return (${fnMatch[1]})`)();
+  assert.equal(formatDisplayDate('2026-11-12'), '12/11/2026');
+  assert.equal(formatDisplayDate('2026-05-09'), '09/05/2026');
+  assert.equal(formatDisplayDate(''), '—');
+  assert.equal(formatDisplayDate(null), '—');
+});
+
 test('processProjectData groups by project/task/type, sums hours and finds earliest date', () => {
   const sampleLogs = [
     { project: 'Project A', task: '12', type: 'TASK', hours: 2.5, date: '2026-10-05' },

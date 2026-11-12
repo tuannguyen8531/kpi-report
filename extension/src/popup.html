@@ -1529,5 +1529,30 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- 5. CUSTOM CONFIRMATION MODAL               -->
+  <!-- ========================================== -->
+  <div id="modal-confirm" class="modal-backdrop modal-confirm-backdrop" hidden>
+    <div class="modal-dialog modal-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message">
+      <div class="modal-confirm-body">
+        <div class="modal-confirm-icon-wrap" id="confirm-icon-wrap">
+          <svg class="modal-confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </div>
+        <div class="modal-confirm-text-wrap">
+          <h3 id="confirm-dialog-title" class="modal-confirm-title">Xác nhận</h3>
+          <p id="confirm-dialog-message" class="modal-confirm-message"></p>
+        </div>
+      </div>
+      <div class="modal-confirm-footer">
+        <button id="confirm-btn-cancel" type="button" class="btn btn-secondary">Hủy</button>
+        <button id="confirm-btn-ok" type="button" class="btn btn-danger">Xóa</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

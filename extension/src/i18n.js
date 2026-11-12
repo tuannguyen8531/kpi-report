@@ -254,6 +254,10 @@ export const TRANSLATIONS = {
     'toast.excel_success': 'Đã tạo file Excel thành công!',
     'toast.projects_loaded': 'Đã đọc danh sách dự án. Bấm Lưu thay đổi để áp dụng.',
     'toast.invalid_json': 'File JSON không hợp lệ.',
+    'confirm.title': 'Xác nhận',
+    'confirm.ok': 'Đồng ý',
+    'confirm.delete': 'Xóa',
+    'confirm.cancel': 'Hủy',
     'confirm.disconnect': 'Xác nhận ngắt kết nối tài khoản GitLab này khỏi tiện ích?',
     'confirm.delete_leave': 'Xác nhận xóa lịch nghỉ ngày {date}?',
 
@@ -593,6 +597,10 @@ export const TRANSLATIONS = {
     'toast.excel_success': 'Excel file generated successfully!',
     'toast.projects_loaded': 'Projects loaded. Click Save changes to apply.',
     'toast.invalid_json': 'Invalid JSON file.',
+    'confirm.title': 'Confirm action',
+    'confirm.ok': 'Confirm',
+    'confirm.delete': 'Delete',
+    'confirm.cancel': 'Cancel',
     'confirm.disconnect': 'Disconnect this GitLab account from the extension?',
     'confirm.delete_leave': 'Are you sure you want to delete leave on {date}?',
 

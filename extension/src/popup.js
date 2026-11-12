@@ -181,6 +181,82 @@ function showToast(message, type = 'info', duration = 3500) {
 }
 
 /**
+ * Modern custom confirmation dialog returning Promise<boolean>
+ */
+function confirmDialog(message, {
+  title = t('confirm.title') || 'Xác nhận',
+  okText = t('confirm.ok') || 'Đồng ý',
+  cancelText = t('confirm.cancel') || 'Hủy',
+  danger = true,
+} = {}) {
+  const modal = $('modal-confirm');
+  if (!modal) {
+    return Promise.resolve(typeof confirm === 'function' ? confirm(message) : true);
+  }
+
+  return new Promise((resolve) => {
+    const titleEl = $('confirm-dialog-title');
+    const msgEl = $('confirm-dialog-message');
+    const okBtn = $('confirm-btn-ok');
+    const cancelBtn = $('confirm-btn-cancel');
+    const iconWrap = $('confirm-icon-wrap');
+
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl) msgEl.textContent = message;
+    if (cancelBtn) cancelBtn.textContent = cancelText;
+
+    if (okBtn) {
+      okBtn.textContent = okText;
+      okBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
+    }
+
+    if (iconWrap) {
+      iconWrap.className = danger ? 'modal-confirm-icon-wrap' : 'modal-confirm-icon-wrap is-primary';
+    }
+
+    modal.hidden = false;
+    okBtn?.focus();
+
+    const cleanup = () => {
+      modal.hidden = true;
+      okBtn?.removeEventListener('click', onOk);
+      cancelBtn?.removeEventListener('click', onCancel);
+      modal.removeEventListener('click', onBackdrop);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+
+    const onOk = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    const onCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+
+    const onBackdrop = (e) => {
+      if (e.target === modal) {
+        onCancel();
+      }
+    };
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      }
+    };
+
+    okBtn?.addEventListener('click', onOk);
+    cancelBtn?.addEventListener('click', onCancel);
+    modal.addEventListener('click', onBackdrop);
+    window.addEventListener('keydown', onKeyDown);
+  });
+}
+globalThis.confirmDialog = confirmDialog;
+
+/**
  * Send message to Chrome extension runtime background
  */
 async function send(message) {
@@ -752,10 +828,15 @@ $('manual-cancel')?.addEventListener('click', resetManualForm);
 
 $('manual-delete')?.addEventListener('click', () => {
   if (!editingManualId || busy) return;
-  if (typeof confirm === 'function' && !confirm(t('manual.confirm_delete'))) return;
-  const idToDelete = editingManualId;
-  const profile = manualProfile || snapshot?.profile;
   void act(async () => {
+    const ok = await confirmDialog(t('manual.confirm_delete'), {
+      title: t('confirm.title'),
+      okText: t('confirm.delete'),
+      danger: true,
+    });
+    if (!ok) return;
+    const idToDelete = editingManualId;
+    const profile = manualProfile || snapshot?.profile;
     await send({type: 'manual.delete', id: idToDelete, profile});
     resetManualForm();
     await reload();
@@ -1074,7 +1155,12 @@ function renderLeaves(data) {
     removeBtn.title = t('leave.delete_title');
     removeBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-mini-icon"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>${currentLang === 'en' ? 'Delete' : 'Xóa'}</span>`;
     removeBtn.addEventListener('click', () => act(async () => {
-      if (!confirm(t('confirm.delete_leave', {date: shortDay(entry.day)}))) return;
+      const ok = await confirmDialog(t('confirm.delete_leave', {date: shortDay(entry.day)}), {
+        title: t('confirm.title'),
+        okText: t('confirm.delete'),
+        danger: true,
+      });
+      if (!ok) return;
       await send({type: 'leave.delete', id: entry.id});
       if (editingLeaveId === entry.id) resetLeaveForm();
       await reload();
@@ -2377,8 +2463,13 @@ $('settings-form').addEventListener('submit', (e) => {
 });
 
 // Disconnect account
-$('btn-disconnect').addEventListener('click', () => act(async () => {
-  if (!confirm(t('confirm.disconnect'))) return;
+$('btn-disconnect')?.addEventListener('click', () => act(async () => {
+  const ok = await confirmDialog(t('confirm.disconnect'), {
+    title: t('confirm.title'),
+    okText: t('confirm.ok'),
+    danger: true,
+  });
+  if (!ok) return;
   await send({type: 'disconnect'});
   currentConfig = null;
   snapshot = null;
@@ -2895,7 +2986,14 @@ function saveDailyReport() {
 
 $('daily-report-text').addEventListener('input', saveDailyReport);
 $('daily-report-generate').addEventListener('click', async () => {
-  if (!snapshot?.configured || !confirm(t('daily.replace'))) return;
+  const confirmed = typeof confirmDialog === 'function'
+    ? await confirmDialog(t('daily.replace'), {
+        title: t('confirm.title'),
+        okText: t('confirm.ok'),
+        danger: false,
+      })
+    : (typeof confirm === 'function' ? confirm(t('daily.replace')) : true);
+  if (!snapshot?.configured || !confirmed) return;
   const key = dailyReportKey;
   $('daily-report-generate').disabled = true;
   $('daily-report-text').disabled = true;

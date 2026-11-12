@@ -2694,14 +2694,6 @@ void act(async () => {
   }
   const initialLang = storedLang.language || settings.config?.language || 'vi';
   applyI18n(initialLang);
-  odooSnapshot = await send({type: 'odoo.settings'});
-  renderOdooAutomation(true);
-  const odooConfig = odooSnapshot.config;
-  $('odoo-url').value = odooConfig?.url || '';
-  $('odoo-reminders').checked = odooConfig?.reminders ?? true;
-  $('odoo-auto-attendance').checked = odooConfig?.autoAttendance === true;
-  (odooConfig?.times || ODOO_TIMES).forEach((time, i) => {$(`odoo-time-${i}`).value = time;});
-  renderOdoo();
 
   if (settings.config) {
     currentConfig = settings.config;
@@ -2718,13 +2710,35 @@ void act(async () => {
     }
   }
 
-  await reload();
+  // Load Odoo settings and the initial snapshot concurrently to eliminate sequential network/IPC wait
+  const [odooSettingsRes, snapshotData] = await Promise.all([
+    send({type: 'odoo.settings'}),
+    send({type: 'snapshot', day: $('anchor').value, force: false}),
+  ]);
+
+  odooSnapshot = odooSettingsRes;
+  renderOdooAutomation(true);
+  const odooConfig = odooSnapshot.config;
+  $('odoo-url').value = odooConfig?.url || '';
+  $('odoo-reminders').checked = odooConfig?.reminders ?? true;
+  $('odoo-auto-attendance').checked = odooConfig?.autoAttendance === true;
+  (odooConfig?.times || ODOO_TIMES).forEach((time, i) => {$(`odoo-time-${i}`).value = time;});
+  renderOdoo();
+
+  if ($('anchor').value === initialToday) {
+    render(snapshotData);
+  }
+
   if (settings.config) void loadTasks();
   const requestedSettings = new URLSearchParams(location.search).get('settings');
   if (!isActionPopup && requestedSettings && settings.config) openSettingsModal(requestedSettings);
+
+  // Refresh Odoo in the background without blocking the UI
   if (odooConfig?.enabled) {
-    odooSnapshot = await send({type: 'odoo.refresh'});
-    renderOdoo();
+    void send({type: 'odoo.refresh'}).then((refreshed) => {
+      odooSnapshot = refreshed;
+      renderOdoo();
+    }).catch(() => {});
   }
   setLeaveModalView('list');
   if (requestedNote && snapshot?.configured) openBreakdownModal('day', initialToday);

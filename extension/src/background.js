@@ -172,7 +172,10 @@ async function initialize() {
   }
   await remindDailyNote();
   await remindMissingHours();
-  const {odooConfig, language} = await chrome.storage.local.get(['odooConfig', 'language']);
+  const {odooConfig, language, defaultView} = await chrome.storage.local.get(['odooConfig', 'language', 'defaultView']);
+  if (defaultView === 'immersive' && chrome.action?.setPopup) {
+    await chrome.action.setPopup({popup: ''});
+  }
   if (odooConfig?.enabled) {
     const odooAlarm = await chrome.alarms.get(ODOO_ALARM);
     if (!odooAlarm || odooAlarm.periodInMinutes !== SYNC_MINUTES) {
@@ -404,7 +407,7 @@ async function synchronize(day, force = false) {
   const snapshot = makeSnapshot(day, cache?.syncedAt ? cache : null, profile.leaves, profile.manualEntries);
   snapshot.error = cache?.error || null;
   const notes = Object.fromEntries(Object.entries(profile.notes || {}).filter(([date]) => date >= range.monthStart && date < range.monthEnd));
-  return {...snapshot, notes, manualRevision: profile.manualRevision || '', profile: config.profile, configured: true, username: config.username, needsToken: !token};
+  return {...snapshot, notes, manualRevision: profile.manualRevision || '', profile: config.profile, configured: true, username: config.username, name: config.name || config.username, needsToken: !token};
 }
 
 export async function handleMessage(message) {
@@ -465,7 +468,23 @@ export async function handleMessage(message) {
     }
     case 'settings': {
       const {config} = await chrome.storage.local.get('config');
-      return {config: config ? {...validateConfig(config), username: config.username} : null, hasToken: Boolean(await getToken())};
+      return {config: config ? {...validateConfig(config), username: config.username, name: config.name || config.username} : null, hasToken: Boolean(await getToken())};
+    }
+    case 'user.profile': {
+      const {config} = await chrome.storage.local.get('config');
+      if (!config) return null;
+      if (config.name && config.name !== config.username) return {username: config.username, name: config.name};
+      const token = await getToken();
+      if (!token) return {username: config.username, name: config.name || config.username};
+      try {
+        const user = (await request(config, token, 'query { currentUser { username name } }')).currentUser;
+        if (user?.name) {
+          config.name = user.name;
+          await chrome.storage.local.set({config});
+          return {username: config.username, name: user.name};
+        }
+      } catch {}
+      return {username: config.username, name: config.name || config.username};
     }
     case 'connect': {
       await chrome.storage.local.remove('personalTaskCache');
@@ -473,9 +492,10 @@ export async function handleMessage(message) {
       const existing = (await chrome.storage.local.get('config')).config;
       const token = String(message.token || (existing?.url === config.url ? await getToken() : '') || '').trim();
       if (!token) throw new Error('Enter a GitLab token with the read_api scope.');
-      const user = (await request(config, token, 'query { currentUser { username } }')).currentUser;
+      const user = (await request(config, token, 'query { currentUser { username name } }')).currentUser;
       if (!user?.username) throw new Error('GitLab could not identify the account for this token.');
       config.username = user.username;
+      config.name = user.name || user.username;
       config.profile = `${config.url}|${user.username}`;
       const {profiles = {}} = await chrome.storage.local.get('profiles');
       for (const profile of Object.values(profiles)) profile.caches = {};
@@ -688,6 +708,14 @@ export async function handleMessage(message) {
       await chrome.alarms.clear(HOURS_ALARM);
       return {disconnected: true};
     }
+    case 'view.set_default': {
+      const mode = message.mode === 'immersive' ? 'immersive' : 'popup';
+      await chrome.storage.local.set({defaultView: mode});
+      if (chrome.action?.setPopup) {
+        await chrome.action.setPopup({popup: mode === 'immersive' ? '' : 'src/popup.html'});
+      }
+      return {defaultView: mode};
+    }
     default: throw new Error('This action is not supported.');
   }
 }
@@ -734,6 +762,11 @@ chrome.notifications.onClicked.addListener((id) => {
     if (encodeURIComponent(config?.profile) !== match[1]) return;
     await chrome.tabs.create({url: chrome.runtime.getURL(`src/popup.html?note=${match[2]}`)});
     await chrome.notifications.clear(id);
+  }).catch(console.error);
+});
+chrome.action?.onClicked?.addListener?.(() => {
+  void serial(async () => {
+    await chrome.tabs.create({url: chrome.runtime.getURL('src/immersive.html')});
   }).catch(console.error);
 });
 const start = () => void serial(initialize).catch(console.error);

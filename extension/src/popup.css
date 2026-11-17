@@ -1038,7 +1038,7 @@ select.select-input:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 8px 14px;
   background: #ffffff;
   border-bottom: 1px solid var(--border);
   gap: 8px;
@@ -1047,6 +1047,13 @@ select.select-input:focus {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
+}
+.toolbar-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 .nav-arrow {
   display: flex;
@@ -1060,12 +1067,21 @@ select.select-input:focus {
   color: var(--ink-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
+  padding: 0;
 }
 .nav-arrow:hover {
   background: #f1f5f9;
   color: var(--ink);
 }
 .nav-arrow svg {
+  width: 14px;
+  height: 14px;
+}
+.nav-arrow.btn-icon {
+  width: 28px;
+  height: 28px;
+}
+.nav-arrow.btn-icon svg {
   width: 14px;
   height: 14px;
 }
@@ -4595,8 +4611,9 @@ a.breakdown-item-link:hover strong {
     display: none;
   }
 
-  .toolbar-quick-actions {
-    display: none !important;
+  .toolbar-section {
+    padding: 8px 12px;
+    gap: 6px;
   }
   .leave-modal-view-toggle {
     display: flex;
@@ -4606,6 +4623,12 @@ a.breakdown-item-link:hover strong {
   }
   .backup-tools-bar {
     justify-content: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  #btn-quick-export-excel span {
+    display: none;
   }
 }
 
@@ -4901,4 +4924,18 @@ a.breakdown-item-link:hover strong {
 }
 .modal-confirm-footer .btn {
   min-width: 80px;
+}
+
+/* Sparkle button to launch Immersive V2 */
+.btn-icon-sparkle {
+  color: #a855f7 !important;
+  background: rgba(168, 85, 247, 0.1) !important;
+  border: 1px solid rgba(168, 85, 247, 0.25) !important;
+  transition: all 0.2s ease;
+}
+.btn-icon-sparkle:hover {
+  color: #fff !important;
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%) !important;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.5) !important;
+  transform: scale(1.08);
 }

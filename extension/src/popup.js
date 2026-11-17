@@ -437,7 +437,7 @@ function render(data) {
   $('view-dashboard').hidden = false;
 
   // User & Status header
-  $('user-name').textContent = data.username || 'GitLab';
+  $('user-name').textContent = data.name || data.username || 'GitLab';
   const statusDot = $('status-dot');
   const statusText = $('status-text');
 
@@ -1727,7 +1727,10 @@ $('btn-sync').addEventListener('click', () => act(async () => {
   }
 }));
 
-// 3. Expand into tab
+// 3. Expand into tab & Open Immersive V2
+$('btn-open-immersive')?.addEventListener('click', () => {
+  chrome.tabs.create({url: chrome.runtime.getURL('src/immersive.html')});
+});
 $('btn-expand').addEventListener('click', () => {
   chrome.tabs.create({url: chrome.runtime.getURL('src/popup.html')});
 });

@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KPI Studio • Work Hours Tracker</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icon-v2.svg">
+  <link rel="stylesheet" href="immersive.css">
+  <script type="module" src="immersive.js"></script>
+</head>
+<body class="theme-sakura">
+  <!-- Atmospheric Canvas VFX Engine -->
+  <canvas id="vfx-canvas" class="vfx-canvas" aria-hidden="true"></canvas>
+
+  <div class="studio-app">
+    <!-- Top Command Navigation Bar -->
+    <header class="studio-topbar">
+      <div class="topbar-left">
+        <div class="brand-hologram">
+          <img src="../assets/icon-v2.svg" width="44" height="44" alt="KPI Studio Logo" class="brand-logo">
+          <div class="brand-titles">
+            <div class="brand-name">
+              <span>KPI STUDIO</span>
+              <span class="brand-badge-v2">V2 ULTRA</span>
+            </div>
+            <div class="brand-subtitle" id="user-greeting">Đang tải không gian làm việc...</div>
+          </div>
+        </div>
+
+        <div class="live-clock-card">
+          <div class="live-clock-time" id="clock-time">--:--:--</div>
+          <div class="live-clock-date" id="clock-date">--/--/----</div>
+        </div>
+      </div>
+
+      <!-- Center: Date Navigator -->
+      <div class="topbar-center">
+        <div class="date-nav-dock">
+          <button id="btn-prev-day" class="nav-arrow-btn" type="button" title="Ngày trước">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          
+          <div class="date-picker-wrap">
+            <input type="date" id="anchor-date" class="date-native-input">
+            <button type="button" id="date-display-btn" class="date-display-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chip-icon"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <span id="date-display-text">--/--/----</span>
+            </button>
+          </div>
+
+          <button id="btn-next-day" class="nav-arrow-btn" type="button" title="Ngày tiếp">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+
+          <button id="btn-today" class="btn-today-pill" type="button">Hôm nay</button>
+          <button id="btn-open-calendar-modal" class="btn-calendar-pill" type="button" title="Mở bảng lịch tháng toàn cảnh (Dương lịch & Âm lịch)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span>Bảng Lịch</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: VFX Selector & Quick Actions -->
+      <div class="topbar-right">
+        <!-- VFX Themes Menu -->
+        <div class="vfx-theme-selector" id="vfx-theme-selector" role="group" aria-label="Cảnh quan thời tiết" aria-expanded="false">
+          <button class="vfx-btn active" data-theme="sakura" title="Hoa Anh Đào rơi">🌸</button>
+          <button class="vfx-btn" data-theme="rain" title="Mưa Đêm Neon">🌧️</button>
+          <button class="vfx-btn" data-theme="sun" title="Kim Dương Tỏa Sáng">☀️</button>
+          <button class="vfx-btn" data-theme="aurora" title="Cực Quang Dạ Nguyệt">🌌</button>
+          <button class="vfx-btn" data-theme="off" title="Tắt hiệu ứng">🚫</button>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="btn-sync" class="action-btn action-btn-sync" type="button" title="Đồng bộ GitLab ngay">
+            <svg class="icon-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span class="btn-label">Đồng bộ</span>
+          </button>
+
+          <button id="btn-open-classic" class="action-btn action-btn-classic" type="button" title="Mở phiên bản Popup Cổ Điển">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
+            </svg>
+            <span class="btn-label">Bản Cổ Điển</span>
+          </button>
+
+          <button id="btn-open-settings" class="action-btn action-btn-icon" type="button" title="Cài đặt">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Bento Grid -->
+    <main class="studio-grid">
+      <!-- ROW 1: 4 HERO METRIC CARDS -->
+
+      <!-- Card 1: Daily Target Gauge (Span 3) -->
+      <section class="bento-card card-daily-gauge" id="card-daily-gauge">
+        <div class="card-glow-bg"></div>
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-tag">HÔM NAY</span>
+            <h2 class="card-title">Chỉ Tiêu Giờ Làm</h2>
+          </div>
+          <span class="status-indicator-chip" id="daily-status-chip">Đang tính</span>
+        </div>
+
+        <div class="gauge-container">
+          <div class="radial-ring-wrap">
+            <svg class="radial-ring-svg" viewBox="0 0 160 160">
+              <circle class="ring-bg" cx="80" cy="80" r="68"></circle>
+              <circle class="ring-progress" id="daily-gauge-circle" cx="80" cy="80" r="68" stroke-dasharray="427" stroke-dashoffset="427"></circle>
+            </svg>
+            <div class="ring-content">
+              <div class="ring-hours" id="daily-gauge-hours">0.0<span class="unit">h</span></div>
+              <div class="ring-subtext" id="daily-gauge-percent">0% của 8.0h</div>
+            </div>
+          </div>
+
+          <div class="gauge-breakdown">
+            <div class="breakdown-stat">
+              <span class="stat-dot dot-gitlab"></span>
+              <span class="stat-label">GitLab:</span>
+              <span class="stat-val" id="stat-gitlab-hours">0.0h</span>
+            </div>
+            <div class="breakdown-stat">
+              <span class="stat-dot dot-manual"></span>
+              <span class="stat-label">Việc ngoài:</span>
+              <span class="stat-val" id="stat-manual-hours">0.0h</span>
+            </div>
+            <div class="breakdown-stat">
+              <span class="stat-dot dot-leave"></span>
+              <span class="stat-label">Nghỉ phép:</span>
+              <span class="stat-val" id="stat-leave-hours">0.0h</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Card 2: Monthly Progress Orbit (Span 3) -->
+      <section class="bento-card card-monthly-kpi" id="card-monthly-kpi">
+        <div class="card-glow-bg"></div>
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-tag">THÁNG NÀY</span>
+            <h2 class="card-title" id="monthly-title">Tiến Độ Tháng</h2>
+          </div>
+          <span class="card-sub-badge" id="monthly-badge">Mục tiêu</span>
+        </div>
+
+        <div class="monthly-content">
+          <div class="monthly-hero-stat">
+            <div class="big-metric" id="monthly-total-hours">0.0<span class="unit">h</span></div>
+            <div class="metric-caption" id="monthly-target-caption">/ 0.0h định mức chuẩn</div>
+          </div>
+
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" id="monthly-progress-fill" style="width: 0%"></div>
+            </div>
+            <div class="progress-labels">
+              <span id="monthly-percent-label">0% hoàn thành</span>
+              <span id="monthly-remaining-label">Còn 0 ngày làm</span>
+            </div>
+          </div>
+
+          <div class="monthly-stats-row">
+            <div class="mini-stat-box">
+              <div class="mini-stat-title">Tuần này</div>
+              <div class="mini-stat-val" id="week-hours-val">0.0h</div>
+            </div>
+            <div class="mini-stat-box">
+              <div class="mini-stat-title">Nghỉ phép</div>
+              <div class="mini-stat-val" id="month-leave-val">0.0h</div>
+            </div>
+            <div class="mini-stat-box">
+              <div class="mini-stat-title">Trung bình/ngày</div>
+              <div class="mini-stat-val" id="month-avg-val">0.0h</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Card 3: Odoo Attendance Live Card (Span 3) -->
+      <section class="bento-card card-odoo" id="card-odoo">
+        <div class="card-glow-bg"></div>
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-tag">ODOO</span>
+            <h2 class="card-title">Điểm Danh Realtime</h2>
+          </div>
+          <div class="card-header-actions">
+            <span id="odoo-status-pill" class="odoo-pill pill-disconnected">Chưa kết nối</span>
+          </div>
+        </div>
+
+        <div class="odoo-body">
+          <div class="odoo-status-banner" id="odoo-banner">
+            <div class="odoo-banner-info">
+              <div class="odoo-state-title" id="odoo-state-title">Đang kết nối...</div>
+              <div class="odoo-state-time" id="odoo-state-time">--:--</div>
+            </div>
+          </div>
+
+          <div class="odoo-timer-box">
+            <div class="timer-label">Thời gian làm việc hôm nay:</div>
+            <div class="timer-display-wrap">
+              <span class="timer-display" id="odoo-timer-display">—</span>
+            </div>
+          </div>
+
+          <div class="odoo-actions">
+            <button id="btn-odoo-action" class="btn-odoo-primary" type="button">
+              <span id="btn-odoo-action-text">Đồng bộ Odoo</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Card 4: Tasks Pulse Radar (Span 3) -->
+      <section class="bento-card card-tasks-pulse" id="card-tasks-pulse">
+        <div class="card-glow-bg"></div>
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-tag">TASKS RADAR</span>
+            <h2 class="card-title">Nhiệm Vụ Mở</h2>
+          </div>
+          <div class="card-header-actions" style="display: flex; align-items: center; gap: 8px;">
+            <span class="badge-count" id="tasks-total-badge">0 tasks</span>
+            <button id="btn-tasks-radar-refresh" class="btn-icon-ghost" type="button" title="Làm mới danh sách task từ GitLab">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sync-icon">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="tasks-pulse-body">
+          <div class="pulse-metrics-grid">
+            <div class="pulse-metric-card metric-urgent" id="card-metric-overdue" title="Click để lọc task Quá hạn" style="cursor: pointer;">
+              <div class="metric-num" id="tasks-overdue-count">0</div>
+              <div class="metric-txt">Quá hạn</div>
+            </div>
+            <div class="pulse-metric-card metric-ready" id="card-metric-ready" title="Click để lọc task Cần làm ngay" style="cursor: pointer;">
+              <div class="metric-num" id="tasks-ready-count">0</div>
+              <div class="metric-txt">Cần làm</div>
+            </div>
+            <div class="pulse-metric-card metric-upcoming" id="card-metric-upcoming" title="Click để lọc task Sắp tới" style="cursor: pointer;">
+              <div class="metric-num" id="tasks-upcoming-count">0</div>
+              <div class="metric-txt">Sắp tới</div>
+            </div>
+            <div class="pulse-metric-card metric-missing" id="card-metric-missing" title="Click để lọc task Chưa có kế hoạch" style="cursor: pointer;">
+              <div class="metric-num" id="tasks-missing-count">0</div>
+              <div class="metric-txt">Chưa kế hoạch</div>
+            </div>
+          </div>
+
+          <div class="tasks-quick-actions">
+            <button id="btn-quick-add-manual" class="btn-ghost-action" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>+ Ghi nhận việc ngoài</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROW 2: TIME ALLOCATION (Span 4) + ACTIVE TASKS STREAM (Span 8) -->
+
+      <!-- Card 5: Project Time Allocation (Span 4) -->
+      <section class="bento-card card-allocation" id="card-allocation">
+        <div class="card-glow-bg"></div>
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-tag">PHÂN BỔ</span>
+            <h2 class="card-title">Thời Gian Dự Án</h2>
+          </div>
+          <span class="allocation-total-chip" id="allocation-total-chip">0h tổng</span>
+        </div>
+
+        <div class="allocation-body">
+          <!-- Multi-segment stacked visual bar -->
+          <div class="stacked-bar-container" id="allocation-stacked-bar"></div>
+
+          <!-- Project Breakdown List -->
+          <div class="project-list-scroll" id="allocation-project-list">
+            <div class="empty-state-muted">Chưa có dữ liệu phân bổ cho ngày đã chọn</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Card 6: Interactive Personal Tasks Board (Span 8) -->
+      <section class="bento-card card-tasks-board" id="card-tasks-board">
+        <div class="card-glow-bg"></div>
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-tag">BẢNG CÔNG VIỆC</span>
+            <h2 class="card-title">GitLab Tasks Được Giao</h2>
+          </div>
+
+          <!-- Filter Toolbar -->
+          <div class="tasks-filter-bar">
+            <div class="search-input-wrap">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="tasks-search-input" placeholder="Tìm kiếm task..." class="search-field">
+            </div>
+
+            <div class="custom-select-wrap" id="tasks-project-select-wrap">
+              <select id="tasks-project-select" class="filter-select-hidden sr-only" tabindex="-1">
+                <option value="">Tất cả dự án</option>
+              </select>
+              <button type="button" class="custom-select-trigger" id="tasks-project-select-trigger" aria-haspopup="listbox" aria-expanded="false" title="Lọc theo dự án">
+                <span class="custom-select-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                </span>
+                <span class="custom-select-text" id="tasks-project-select-label">Tất cả dự án</span>
+                <svg class="custom-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+              <div class="custom-select-menu" id="tasks-project-select-menu" role="listbox">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <div class="status-tab-group" role="group">
+              <button class="status-tab-btn active" data-filter="all">Tất cả</button>
+              <button class="status-tab-btn" data-filter="overdue">Quá hạn</button>
+              <button class="status-tab-btn" data-filter="ready">Cần làm</button>
+              <button class="status-tab-btn" data-filter="upcoming">Sắp tới</button>
+              <button class="status-tab-btn" data-filter="missing">Chưa kế hoạch</button>
+            </div>
+
+            <button id="btn-tasks-refresh" class="btn-refresh-pill" type="button" title="Đồng bộ riêng các task từ GitLab">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sync-icon">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              <span>Làm mới Task</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="tasks-board-body">
+          <div class="tasks-scroll-container" id="tasks-items-list">
+            <div class="empty-state-muted">Đang tải danh sách công việc...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROW 3: DAILY REPORT STUDIO (Span 7) + WORKSTREAM LOGS & NOTES (Span 5) -->
+
+      <!-- Card 7: Daily Report Studio (Span 7) -->
+      <section class="bento-card card-daily-studio" id="card-daily-studio">
+        <div class="card-glow-bg"></div>
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-tag">REPORT STUDIO</span>
+            <h2 class="card-title">Báo Cáo Hàng Ngày</h2>
+          </div>
+
+          <div class="studio-header-tools">
+            <span class="save-status-badge" id="report-save-status">Đã lưu tự động</span>
+            <button id="btn-generate-report" class="btn-neon-action" type="button" title="Tự động tạo báo cáo từ dữ liệu ngày">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              <span>Sinh Báo Cáo</span>
+            </button>
+            <button id="btn-copy-report" class="btn-copy-action" type="button" title="Sao chép nội dung">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Sao Chép</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="studio-editor-wrap">
+          <textarea id="daily-report-editor" class="studio-textarea" placeholder="Nhấn 'Sinh Báo Cáo' để tự động tạo báo cáo theo chuẩn phong cách cá nhân..."></textarea>
+          <div class="editor-footer-bar">
+            <span class="editor-info" id="report-char-count">0 ký tự</span>
+            <span class="editor-hint">Nội dung được lưu tự động theo từng ngày và tài khoản</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Card 8: Workstream Logs & Notes (Span 5) -->
+      <section class="bento-card card-stream-notes" id="card-stream-notes">
+        <div class="card-glow-bg"></div>
+        <div class="card-header">
+          <div class="stream-tabs-nav">
+            <button class="stream-tab-btn active" data-tab="logs" id="tab-btn-logs">Nhật Ký Hôm Nay</button>
+            <button class="stream-tab-btn" data-tab="notes" id="tab-btn-notes">Ghi Chú Ngày</button>
+          </div>
+          <span class="stream-count-badge" id="stream-count-badge">0 mục</span>
+        </div>
+
+        <div class="stream-content-area">
+          <!-- Pane 1: Timelogs Stream -->
+          <div class="stream-pane active" id="pane-logs">
+            <div class="logs-feed-scroll" id="timelogs-feed-list">
+              <div class="empty-state-muted">Chưa có giờ làm việc ghi nhận cho ngày này</div>
+            </div>
+          </div>
+
+          <!-- Pane 2: Daily Note Editor -->
+          <div class="stream-pane" id="pane-notes">
+            <div class="note-editor-container">
+              <div class="note-lock-bar" id="note-lock-bar" hidden>
+                <span>🔒 Ghi chú được mã hóa bảo vệ</span>
+                <button id="btn-unlock-note" class="btn-sm btn-ghost" type="button">Mở khóa</button>
+              </div>
+              <textarea id="daily-note-text" class="daily-note-textarea" placeholder="Ghi chú nhanh việc quan trọng trong ngày..."></textarea>
+              <div class="note-footer">
+                <span id="note-save-status" class="note-save-label">Tự động lưu</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROW 4: COMMAND DOCK & EXPORT CENTER (Span 12) -->
+      <section class="bento-card card-dock" id="card-dock">
+        <div class="card-glow-bg"></div>
+        <div class="dock-container">
+          <div class="dock-group-left">
+            <button id="btn-export-excel-month" class="dock-btn dock-btn-primary" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              <span>Xuất Excel Tháng Này</span>
+            </button>
+
+            <button id="btn-export-excel-day" class="dock-btn dock-btn-secondary" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <span>Xuất Excel Ngày Này</span>
+            </button>
+
+            <button id="btn-open-manual-modal" class="dock-btn dock-btn-tertiary" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+              <span>+ Việc Ngoài</span>
+            </button>
+
+            <button id="btn-open-leave-modal" class="dock-btn dock-btn-tertiary" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
+              <span>Quản Lý Nghỉ Phép</span>
+            </button>
+          </div>
+
+          <div class="dock-group-right">
+            <!-- Default View Mode Switcher -->
+            <label class="dock-toggle-label" title="Khi bật, nhấn icon tiện ích sẽ luôn mở thẳng màn hình rộng này">
+              <input type="checkbox" id="chk-default-immersive" class="dock-checkbox">
+              <span class="dock-toggle-custom"></span>
+              <span class="dock-toggle-text">Mặc định mở Màn Hình Rộng</span>
+            </label>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 1: THÊM / SỬA VIỆC THỦ CÔNG          -->
+  <!-- ========================================== -->
+  <div id="modal-manual-work" class="studio-modal-backdrop" hidden>
+    <div class="studio-modal-dialog">
+      <div class="studio-modal-header">
+        <h3 class="studio-modal-title">Ghi Nhận Việc Ngoài / Nghiên Cứu</h3>
+        <button id="btn-close-manual" class="btn-modal-close" type="button">&times;</button>
+      </div>
+      <form id="form-manual-work" class="studio-modal-form">
+        <div class="form-row">
+          <label for="manual-day">Ngày thực hiện</label>
+          <div class="form-date-wrap">
+            <span id="manual-day-display" class="form-date-display" aria-hidden="true">
+              <svg class="form-date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <span class="form-date-text">--/--/----</span>
+            </span>
+            <input type="date" id="manual-day" required class="form-date-input" title="Chọn ngày thực hiện">
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="manual-title">Nội dung công việc</label>
+          <input type="text" id="manual-title" placeholder="VD: Nghiên cứu kiến trúc microservices" required class="studio-input">
+        </div>
+        <div class="form-row">
+          <label for="manual-hours">Số giờ làm (h)</label>
+          <div class="cyber-stepper" title="Số giờ làm việc">
+            <button type="button" class="stepper-btn" id="btn-manual-hours-dec" title="Giảm 0.5h">−</button>
+            <div class="stepper-value-wrap">
+              <input type="number" id="manual-hours" step="0.25" min="0.25" max="24" value="2.0" required class="stepper-num-input">
+              <span class="stepper-unit">h</span>
+            </div>
+            <button type="button" class="stepper-btn" id="btn-manual-hours-inc" title="Tăng 0.5h">+</button>
+          </div>
+        </div>
+        <div class="studio-modal-actions">
+          <button type="button" id="btn-cancel-manual" class="btn-secondary">Hủy</button>
+          <button type="submit" class="btn-primary">Lưu công việc</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 2: QUẢN LÝ NGHỈ PHÉP                 -->
+  <!-- ========================================== -->
+  <!-- ========================================== -->
+  <!-- MODAL: QUẢN LÝ LỊCH NGHỈ PHÉP              -->
+  <!-- ========================================== -->
+  <div id="modal-leave" class="studio-modal-backdrop" hidden>
+    <div class="studio-modal-dialog studio-modal-lg">
+      <div class="studio-modal-header">
+        <div class="studio-modal-title-wrap">
+          <h3 class="studio-modal-title">Quản Lý Lịch Nghỉ Phép</h3>
+          <span class="badge-count" id="leave-modal-badge">0 ngày</span>
+        </div>
+        <button id="btn-close-leave" class="btn-modal-close" type="button">&times;</button>
+      </div>
+      <div class="studio-modal-body">
+        <!-- Leave Form Box -->
+        <div class="leave-form-container">
+          <div class="leave-form-header">
+            <span class="leave-form-title" id="leave-form-title">➕ Thêm Ngày Nghỉ Phép Mới</span>
+          </div>
+          <form id="form-leave" class="leave-quick-form">
+            <!-- Row 1: Date & Duration Stepper + Presets -->
+            <div class="leave-form-row leave-form-row-top">
+              <div class="leave-field-group leave-field-date">
+                <label class="leave-field-label" for="leave-day">Ngày nghỉ</label>
+                <div class="form-date-wrap">
+                  <span id="leave-day-display" class="form-date-display" aria-hidden="true">
+                    <svg class="form-date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span class="form-date-text">--/--/----</span>
+                  </span>
+                  <input type="date" id="leave-day" required class="form-date-input" title="Chọn ngày nghỉ">
+                </div>
+              </div>
+
+              <div class="leave-field-group leave-field-hours">
+                <label class="leave-field-label">Thời lượng nghỉ</label>
+                <div class="leave-hours-ctrl-group">
+                  <!-- Custom Cyber Stepper for Hours -->
+                  <div class="cyber-stepper" title="Số giờ nghỉ (tối đa 8h)">
+                    <button type="button" class="stepper-btn" id="btn-leave-hours-dec" title="Giảm 0.5h">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="leave-hours" step="0.5" min="0.5" max="8" value="8" required class="stepper-num-input" title="Số giờ nghỉ">
+                      <span class="stepper-unit">h</span>
+                    </div>
+                    <button type="button" class="stepper-btn" id="btn-leave-hours-inc" title="Tăng 0.5h">+</button>
+                  </div>
+
+                  <!-- Quick Presets -->
+                  <div class="leave-preset-chips">
+                    <button type="button" class="leave-preset-chip active" data-hours="8">8h (Cả ngày)</button>
+                    <button type="button" class="leave-preset-chip" data-hours="4">4h (Nửa ngày)</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 2: Reason & Inline Action Buttons -->
+            <div class="leave-form-row leave-form-row-bottom">
+              <div class="leave-field-group leave-field-reason">
+                <label class="leave-field-label" for="leave-reason">Lý do nghỉ</label>
+                <input type="text" id="leave-reason" placeholder="VD: Nghỉ phép năm, Việc gia đình..." required class="studio-input leave-reason-input">
+              </div>
+
+              <div class="leave-form-actions-wrap">
+                <button type="submit" class="btn-primary btn-leave-submit" id="btn-leave-submit">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Thêm Lịch</span>
+                </button>
+                <button type="button" class="btn-secondary btn-leave-cancel" id="btn-leave-cancel-edit" hidden>Hủy Sửa</button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Filter tabs: Tháng này / Tất cả -->
+        <div class="leave-filter-tabs">
+          <button type="button" class="leave-filter-btn active" data-filter="month" id="btn-leave-filter-month">Tháng Này</button>
+          <button type="button" class="leave-filter-btn" data-filter="all" id="btn-leave-filter-all">Tất Cả Lịch Nghỉ</button>
+        </div>
+
+        <!-- Leave List Container -->
+        <div class="leave-list-wrap">
+          <div class="leave-table-container" id="leave-table-container">
+            <div class="empty-state-muted">Đang tải danh sách ngày nghỉ...</div>
+          </div>
+        </div>
+      </div>
+      <div class="studio-modal-actions">
+        <button type="button" id="btn-done-leave" class="btn-secondary">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: CÀI ĐẶT HỆ THỐNG & KẾT NỐI          -->
+  <!-- ========================================== -->
+  <div id="modal-settings" class="studio-modal-backdrop" hidden>
+    <div class="studio-modal-dialog studio-modal-lg">
+      <div class="studio-modal-header">
+        <div class="studio-modal-title-wrap">
+          <h3 class="studio-modal-title">Cài Đặt Hệ Thống</h3>
+        </div>
+        <button id="btn-close-settings" class="btn-modal-close" type="button">&times;</button>
+      </div>
+
+      <!-- Settings Segmented Tabs -->
+      <div class="settings-tab-nav" role="tablist">
+        <button type="button" class="settings-nav-btn active" data-tab="general" id="btn-tab-general">Cài Đặt Chung</button>
+        <button type="button" class="settings-nav-btn" data-tab="gitlab" id="btn-tab-gitlab">Kết Nối GitLab</button>
+        <button type="button" class="settings-nav-btn" data-tab="odoo" id="btn-tab-odoo">Chấm Công Odoo</button>
+      </div>
+
+      <div class="settings-tab-content">
+        <!-- TAB 1: GENERAL -->
+        <form id="form-settings-general" class="settings-tab-pane active" data-pane="general">
+          <div class="form-row">
+            <label for="excel-pattern">Mẫu tên file Excel (.xlsx)</label>
+            <input type="text" id="excel-pattern" class="studio-input" placeholder="report_MM_YYYY.xlsx">
+            <span class="field-hint">Dùng <code>MM</code> cho tháng (01–12) và <code>YYYY</code> cho năm. Mặc định: <code>report_MM_YYYY.xlsx</code></span>
+          </div>
+
+          <div class="settings-card-box">
+            <div class="settings-card-header">
+              <strong class="box-title">Nhắc nhở ghi chú hàng ngày</strong>
+              <label class="dock-toggle-label">
+                <input type="checkbox" id="reminder-enabled" class="dock-checkbox" checked>
+                <span class="dock-toggle-custom"></span>
+              </label>
+            </div>
+            <div class="form-row" style="margin-top: 10px;">
+              <label for="reminder-time">Giờ nhắc nhở</label>
+              <input type="time" id="reminder-time" class="studio-input" value="10:00" style="max-width: 140px;">
+            </div>
+          </div>
+
+          <div class="settings-card-box">
+            <strong class="box-title">Sao lưu & Khôi phục dữ liệu</strong>
+            <p class="field-hint">Sao lưu ngày nghỉ, công việc ngoài, ghi chú ngày và cài đặt ra file JSON.</p>
+            <div class="backup-actions-row">
+              <button id="btn-backup-json" type="button" class="btn-secondary">Tải file Backup (.json)</button>
+              <label class="btn-secondary file-upload-label">
+                <span>Khôi phục từ file JSON</span>
+                <input type="file" id="input-restore-json" accept="application/json,.json" style="display:none;">
+              </label>
+            </div>
+          </div>
+
+          <div class="studio-modal-actions">
+            <button type="button" class="btn-secondary btn-close-settings-modal">Đóng</button>
+            <button type="submit" class="btn-primary">Lưu Cài Đặt Chung</button>
+          </div>
+        </form>
+
+        <!-- TAB 2: GITLAB -->
+        <form id="form-settings-gitlab" class="settings-tab-pane" data-pane="gitlab">
+          <div class="form-row">
+            <label for="gitlab-url">GitLab Server URL</label>
+            <input type="url" id="gitlab-url" class="studio-input" placeholder="https://gitlab.example.com" required>
+          </div>
+
+          <div class="form-row">
+            <label for="gitlab-token">Personal Access Token</label>
+            <input type="password" id="gitlab-token" class="studio-input" placeholder="Nhập token mới (để trống nếu muốn giữ token cũ)">
+            <span class="field-hint">Cần quyền <code>read_api</code> (hoặc <code>api</code>) để lấy dữ liệu timelogs và tasks.</span>
+          </div>
+
+          <div class="settings-card-box">
+            <label class="dock-toggle-label">
+              <input type="checkbox" id="remember-token" class="dock-checkbox">
+              <span class="dock-toggle-custom"></span>
+              <span class="dock-toggle-text">Lưu token trên trình duyệt này (không hỏi lại)</span>
+            </label>
+          </div>
+
+          <div class="form-row">
+            <div class="label-with-action">
+              <label for="gitlab-projects">Danh sách dự án (JSON tùy chọn)</label>
+              <label class="btn-link-action">
+                <span>Chọn file projects.json</span>
+                <input type="file" id="input-projects-file" accept="application/json,.json" style="display:none;">
+              </label>
+            </div>
+            <textarea id="gitlab-projects" class="studio-textarea" style="height: 110px;" placeholder='[{"project":"Project A","url":"group/project-a"}]'></textarea>
+            <span class="field-hint">Để trống để tự động nhận diện tất cả dự án từ timelogs GitLab.</span>
+          </div>
+
+          <div class="studio-modal-actions">
+            <button type="button" id="btn-disconnect-gitlab" class="btn-danger">Ngắt kết nối</button>
+            <button type="button" class="btn-secondary btn-close-settings-modal">Đóng</button>
+            <button type="submit" class="btn-primary">Lưu Kết Nối GitLab</button>
+          </div>
+        </form>
+
+        <!-- TAB 3: ODOO -->
+        <form id="form-settings-odoo" class="settings-tab-pane" data-pane="odoo">
+          <div class="form-row">
+            <label for="odoo-url">Địa chỉ Odoo Server URL</label>
+            <input type="url" id="odoo-url" class="studio-input" placeholder="https://odoo.example.com" required>
+            <span class="field-hint">Dùng phiên đăng nhập Odoo sẵn có trên trình duyệt này.</span>
+          </div>
+
+          <div class="settings-card-box">
+            <label class="dock-toggle-label">
+              <input type="checkbox" id="odoo-reminders" class="dock-checkbox" checked>
+              <span class="dock-toggle-custom"></span>
+              <span class="dock-toggle-text">Bật thông báo nhắc nhở điểm danh</span>
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>Khung giờ các ca làm việc (HH:mm)</label>
+            <div class="odoo-times-grid">
+              <div class="time-field">
+                <span>Sáng vào:</span>
+                <input type="time" id="odoo-time-0" class="studio-input" value="08:30" required>
+              </div>
+              <div class="time-field">
+                <span>Sáng ra:</span>
+                <input type="time" id="odoo-time-1" class="studio-input" value="12:00" required>
+              </div>
+              <div class="time-field">
+                <span>Chiều vào:</span>
+                <input type="time" id="odoo-time-2" class="studio-input" value="13:30" required>
+              </div>
+              <div class="time-field">
+                <span>Chiều ra:</span>
+                <input type="time" id="odoo-time-3" class="studio-input" value="18:00" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="studio-modal-actions">
+            <button type="button" id="btn-disconnect-odoo" class="btn-danger">Ngắt kết nối Odoo</button>
+            <button type="button" class="btn-secondary btn-close-settings-modal">Đóng</button>
+            <button type="submit" class="btn-primary">Lưu & Kết Nối Odoo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: BẢNG LỊCH THÁNG TOÀN CẢNH (CALENDAR) -->
+  <!-- ========================================== -->
+  <div id="modal-calendar" class="studio-modal-backdrop" hidden>
+    <div class="studio-modal-dialog modal-calendar-dialog">
+      <div class="studio-modal-header">
+        <div class="cal-modal-title-wrap">
+          <div class="card-title-wrap">
+            <span class="card-tag">CALENDAR MATRIX</span>
+            <h3 class="studio-modal-title">Lịch Tháng Toàn Cảnh</h3>
+          </div>
+          <div class="cal-modal-nav">
+            <button id="btn-cal-modal-prev" class="nav-arrow-btn" type="button" title="Tháng trước">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <span id="cal-modal-month-label" class="cal-modal-month-label">Tháng --/----</span>
+            <button id="btn-cal-modal-next" class="nav-arrow-btn" type="button" title="Tháng tiếp">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            <button id="btn-cal-modal-today" class="btn-today-pill" type="button">Tháng này</button>
+          </div>
+        </div>
+        <button id="btn-close-calendar-modal" class="btn-modal-close" type="button">&times;</button>
+      </div>
+
+      <div class="cal-modal-legend">
+        <div class="legend-item"><span class="legend-dot dot-work"></span><span>Giờ làm việc</span></div>
+        <div class="legend-item"><span class="legend-dot dot-leave"></span><span>Nghỉ phép</span></div>
+        <div class="legend-item"><span class="legend-dot dot-note"></span><span>Ghi chú</span></div>
+      </div>
+
+      <div class="cal-modal-body">
+        <div class="cal-weekdays-header">
+          <div class="cal-weekday">Thứ 2</div>
+          <div class="cal-weekday">Thứ 3</div>
+          <div class="cal-weekday">Thứ 4</div>
+          <div class="cal-weekday">Thứ 5</div>
+          <div class="cal-weekday">Thứ 6</div>
+          <div class="cal-weekday cal-weekday-weekend">Thứ 7</div>
+          <div class="cal-weekday cal-weekday-weekend">Chủ Nhật</div>
+        </div>
+
+        <div id="cal-modal-grid" class="cal-days-grid">
+          <!-- Dynamically populated 35/42 day cells -->
+        </div>
+      </div>
+
+      <div class="cal-modal-footer">
+        <div class="cal-footer-hint">💡 Nhấp vào bất kỳ ngày nào để chuyển nhanh không gian làm việc sang ngày đó</div>
+        <button type="button" id="btn-done-calendar-modal" class="btn-secondary">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 3: CUSTOM CONFIRMATION DIALOG        -->
+  <!-- ========================================== -->
+  <div id="modal-confirm" class="studio-modal-backdrop modal-confirm-backdrop" hidden>
+    <div class="studio-modal-dialog modal-confirm-dialog" role="alertdialog" aria-modal="true">
+      <div class="modal-confirm-body">
+        <div class="modal-confirm-icon-wrap" id="confirm-icon-wrap">
+          <svg class="modal-confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </div>
+        <div class="modal-confirm-text-wrap">
+          <h3 id="confirm-dialog-title" class="modal-confirm-title">Xác nhận</h3>
+          <p id="confirm-dialog-message" class="modal-confirm-message"></p>
+        </div>
+      </div>
+      <div class="modal-confirm-footer">
+        <button id="confirm-btn-cancel" type="button" class="btn btn-secondary">Hủy</button>
+        <button id="confirm-btn-ok" type="button" class="btn btn-danger">Đồng ý</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="studio-toast-container" aria-live="polite"></div>
+</body>
+</html>

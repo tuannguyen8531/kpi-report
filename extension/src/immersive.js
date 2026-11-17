@@ -56,11 +56,18 @@ let leaveFilterMode = 'month';
 // 1. ATMOSPHERIC CANVAS VFX ENGINE
 // ==========================================================================
 const VFX_THEME_NAMES = {
-  sakura: 'Hoa Anh Đào rơi',
-  rain: 'Mưa Đêm Neon',
-  sun: 'Kim Dương Tỏa Sáng',
-  aurora: 'Cực Quang Dạ Nguyệt',
-  off: 'Tắt hiệu ứng'
+  sakura: 'Xuân Sắc Anh Đào (Sáng)',
+  cyber: 'Cyberpunk Neon (Tối)',
+  rain: 'Cyberpunk Neon (Tối)',
+  bamboo: 'Thanh Trúc Thúy Lộc (Sáng)',
+  sun: 'Thanh Trúc Thúy Lộc (Sáng)',
+  aurora: 'Dạ Nguyệt Cực Quang (Đêm)',
+  off: 'Tối Giản / Stealth (Tắt hiệu ứng)'
+};
+
+const THEME_ALIASES = {
+  rain: 'cyber',
+  sun: 'bamboo'
 };
 
 class VFXEngine {
@@ -98,17 +105,19 @@ class VFXEngine {
   }
 
   setTheme(theme) {
-    this.theme = theme;
-    document.body.className = `theme-${theme}`;
+    const resolvedTheme = THEME_ALIASES[theme] || theme;
+    this.theme = resolvedTheme;
+    document.body.className = `theme-${resolvedTheme}`;
     document.querySelectorAll('.vfx-btn').forEach(btn => {
-      const isActive = btn.dataset.theme === theme;
+      const btnTheme = btn.dataset.theme;
+      const isActive = btnTheme === resolvedTheme || btnTheme === theme;
       btn.classList.toggle('active', isActive);
-      const name = VFX_THEME_NAMES[btn.dataset.theme] || '';
-      btn.title = isActive ? `${name} (Nhấp để đổi hiệu ứng)` : name;
+      const name = VFX_THEME_NAMES[btnTheme] || '';
+      btn.title = isActive ? `${name} (Đang kích hoạt)` : name;
     });
-    chrome.storage.local.set({ immersive_theme: theme }).catch(() => {});
+    chrome.storage.local.set({ immersive_theme: resolvedTheme }).catch(() => {});
 
-    if (theme === 'off') {
+    if (resolvedTheme === 'off') {
       this.stop();
       this.ctx.clearRect(0, 0, this.width, this.height);
     } else {
@@ -138,7 +147,7 @@ class VFXEngine {
           isNear,
         });
       }
-    } else if (this.theme === 'rain') {
+    } else if (this.theme === 'cyber' || this.theme === 'rain') {
       const count = Math.min(130, Math.floor(this.width / 12));
       for (let i = 0; i < count; i++) {
         this.particles.push({
@@ -151,31 +160,29 @@ class VFXEngine {
         });
       }
       this.ripples = [];
-    } else if (this.theme === 'sun') {
-      const count = Math.min(50, Math.floor(this.width / 26));
+    } else if (this.theme === 'bamboo' || this.theme === 'sun') {
+      const count = Math.min(45, Math.floor(this.width / 30));
+      const bambooColors = ['#059669', '#10b981', '#34d399', '#15803d', '#65a30d', '#4ade80'];
       for (let i = 0; i < count; i++) {
+        const isNear = Math.random() > 0.65;
         this.particles.push({
           x: Math.random() * this.width,
           y: Math.random() * this.height,
-          radius: Math.random() * 3.5 + 1.5,
-          speedY: -(Math.random() * 0.45 + 0.15),
-          speedX: (Math.random() - 0.5) * 0.4,
-          baseAlpha: Math.random() * 0.5 + 0.25,
-          pulseSpeed: Math.random() * 0.03 + 0.015,
-          phase: Math.random() * Math.PI * 2,
-          colorType: Math.random() > 0.35 ? 'gold' : 'amber',
+          length: isNear ? (Math.random() * 10 + 26) : (Math.random() * 8 + 18),
+          width: isNear ? (Math.random() * 3 + 7) : (Math.random() * 2 + 5),
+          speedY: isNear ? (Math.random() * 0.8 + 1.1) : (Math.random() * 0.6 + 0.7),
+          speedX: isNear ? (Math.random() * 1.2 + 0.8) : (Math.random() * 0.8 + 0.5),
+          angle: Math.random() * Math.PI * 2,
+          angularSpeed: (Math.random() - 0.5) * 0.03,
+          flip: Math.random() * Math.PI,
+          flipSpeed: Math.random() * 0.025 + 0.012,
+          swayPhase: Math.random() * Math.PI * 2,
+          swaySpeed: Math.random() * 0.02 + 0.01,
+          opacity: isNear ? (Math.random() * 0.25 + 0.68) : (Math.random() * 0.25 + 0.48),
+          color: bambooColors[Math.floor(Math.random() * bambooColors.length)],
+          isNear,
         });
       }
-      this.sunSparkles = [];
-      this.sunTime = 0;
-      this.rays = [
-        { angle: 0.22, width: 0.18, speed: 0.0007, phase: 0.0, alpha: 0.15 },
-        { angle: 0.52, width: 0.22, speed: 0.0011, phase: 1.2, alpha: 0.18 },
-        { angle: 0.82, width: 0.16, speed: 0.0008, phase: 2.5, alpha: 0.16 },
-        { angle: 1.12, width: 0.24, speed: 0.0013, phase: 3.8, alpha: 0.17 },
-        { angle: 1.42, width: 0.19, speed: 0.0009, phase: 5.1, alpha: 0.13 },
-        { angle: 1.72, width: 0.22, speed: 0.0006, phase: 0.7, alpha: 0.14 },
-      ];
     } else if (this.theme === 'aurora') {
       this.stars = [];
       const starCount = Math.min(85, Math.floor(this.width / 18));
@@ -219,10 +226,10 @@ class VFXEngine {
 
     if (this.theme === 'sakura') {
       this.renderSakura();
-    } else if (this.theme === 'rain') {
+    } else if (this.theme === 'cyber' || this.theme === 'rain') {
       this.renderRain();
-    } else if (this.theme === 'sun') {
-      this.renderSun();
+    } else if (this.theme === 'bamboo' || this.theme === 'sun') {
+      this.renderBamboo();
     } else if (this.theme === 'aurora') {
       this.renderAurora();
     }
@@ -320,156 +327,55 @@ class VFXEngine {
     }
   }
 
-  renderSun() {
+  renderBamboo() {
     const ctx = this.ctx;
-    this.sunTime += 0.016;
-
-    const sunX = Math.min(180, this.width * 0.12);
-    const sunY = Math.min(110, this.height * 0.1);
-    const maxDist = Math.max(this.width, this.height) * 1.4;
-
-    // 1. Radiant Solar Aura & Volumetric God Rays
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-
-    // Pulsating warm golden sun corona
-    const pulse = Math.sin(this.sunTime * 1.2) * 8;
-    const auraGrad = ctx.createRadialGradient(sunX, sunY, 12, sunX, sunY, 280 + pulse);
-    auraGrad.addColorStop(0, 'rgba(255, 255, 235, 0.85)');
-    auraGrad.addColorStop(0.18, 'rgba(253, 224, 71, 0.48)');
-    auraGrad.addColorStop(0.42, 'rgba(245, 158, 11, 0.22)');
-    auraGrad.addColorStop(0.78, 'rgba(217, 119, 6, 0.06)');
-    auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = auraGrad;
-    ctx.beginPath();
-    ctx.arc(sunX, sunY, 280 + pulse, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Subtle horizontal anamorphic flare streak across the sun
-    const flareGrad = ctx.createLinearGradient(sunX - 240, sunY, sunX + 240, sunY);
-    flareGrad.addColorStop(0, 'rgba(253, 224, 71, 0)');
-    flareGrad.addColorStop(0.5, 'rgba(255, 255, 240, 0.65)');
-    flareGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
-    ctx.fillStyle = flareGrad;
-    ctx.beginPath();
-    ctx.ellipse(sunX, sunY, 240, 2.8, Math.PI / 14, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Volumetric sweeping God Rays
-    for (const r of this.rays) {
-      r.angle += r.speed;
-      const rayAlpha = r.alpha * (0.68 + Math.sin(this.sunTime * 0.8 + r.phase) * 0.32);
-      const halfW = r.width * 0.5;
-
-      const a1 = r.angle - halfW;
-      const a2 = r.angle + halfW;
-
-      const rayGrad = ctx.createRadialGradient(sunX, sunY, 20, sunX, sunY, maxDist);
-      rayGrad.addColorStop(0, `rgba(254, 240, 138, ${rayAlpha})`);
-      rayGrad.addColorStop(0.38, `rgba(245, 158, 11, ${rayAlpha * 0.65})`);
-      rayGrad.addColorStop(0.78, `rgba(217, 119, 6, ${rayAlpha * 0.15})`);
-      rayGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-      ctx.beginPath();
-      ctx.moveTo(sunX, sunY);
-      ctx.lineTo(sunX + Math.cos(a1) * maxDist, sunY + Math.sin(a1) * maxDist);
-      ctx.lineTo(sunX + Math.cos(a2) * maxDist, sunY + Math.sin(a2) * maxDist);
-      ctx.closePath();
-      ctx.fillStyle = rayGrad;
-      ctx.fill();
-    }
-
-    // Cinematic lens flare ghosts along the light vector
-    const axisAngle = Math.PI * 0.28;
-    const ghostDists = [130, 280, 440];
-    const ghostSizes = [16, 26, 42];
-    const ghostColors = [
-      'rgba(253, 224, 71, 0.12)',
-      'rgba(147, 197, 253, 0.08)',
-      'rgba(245, 158, 11, 0.09)'
-    ];
-    for (let i = 0; i < ghostDists.length; i++) {
-      const gx = sunX + Math.cos(axisAngle) * ghostDists[i];
-      const gy = sunY + Math.sin(axisAngle) * ghostDists[i];
-      ctx.beginPath();
-      ctx.arc(gx, gy, ghostSizes[i], 0, Math.PI * 2);
-      ctx.fillStyle = ghostColors[i];
-      ctx.fill();
-    }
-    ctx.restore();
-
-    // 2. Floating Golden Solar Dust Motes
     for (const p of this.particles) {
-      p.x += p.speedX + Math.sin(this.sunTime + p.phase) * 0.35;
       p.y += p.speedY;
-      p.phase += p.pulseSpeed;
+      p.swayPhase += p.swaySpeed;
+      p.x += Math.sin(p.swayPhase) * 1.35 + p.speedX;
+      p.angle += p.angularSpeed;
+      p.flip += p.flipSpeed;
 
-      if (p.y < -15) {
-        p.y = this.height + 15;
-        p.x = Math.random() * this.width;
+      if (p.y > this.height + 35) {
+        p.y = -35;
+        p.x = Math.random() * (this.width + 100) - 50;
       }
-      if (p.x < -15) p.x = this.width + 15;
-      if (p.x > this.width + 15) p.x = -15;
-
-      const alpha = p.baseAlpha * (0.65 + Math.sin(p.phase) * 0.35);
+      if (p.x > this.width + 35) {
+        p.x = -35;
+      }
 
       ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angle);
+      ctx.scale(1, Math.cos(p.flip));
+      ctx.globalAlpha = p.opacity;
+
+      // Soft shadow for foreground depth illusion
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.16)';
+      ctx.shadowBlur = p.isNear ? 5 : 2.5;
+      ctx.shadowOffsetY = p.isNear ? 2.5 : 1;
+
+      // Slender, tapered bamboo leaf silhouette
+      const L = p.length;
+      const W = p.width;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-      ctx.fillStyle = p.colorType === 'gold'
-        ? `rgba(254, 240, 138, ${alpha})`
-        : `rgba(251, 191, 36, ${alpha})`;
-      ctx.shadowColor = 'rgba(251, 191, 36, 0.75)';
-      ctx.shadowBlur = p.radius * 2.5;
+      ctx.moveTo(0, -L * 0.5); // Tip
+      ctx.bezierCurveTo(W * 0.65, -L * 0.2, W * 0.65, L * 0.25, 0, L * 0.5); // Right curve to base
+      ctx.bezierCurveTo(-W * 0.65, L * 0.25, -W * 0.65, -L * 0.2, 0, -L * 0.5); // Left curve to tip
+      ctx.closePath();
+
+      ctx.fillStyle = p.color;
       ctx.fill();
+
+      // Delicate central leaf vein
+      ctx.beginPath();
+      ctx.moveTo(0, -L * 0.45);
+      ctx.lineTo(0, L * 0.45);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
       ctx.restore();
-    }
-
-    // 3. Spontaneous Prismatic Sun Sparkles (4-pointed star diamond glints)
-    if (Math.random() < 0.05 && this.sunSparkles.length < 8) {
-      this.sunSparkles.push({
-        x: Math.random() * this.width,
-        y: Math.random() * (this.height * 0.85),
-        size: Math.random() * 8 + 6,
-        life: 0,
-        maxLife: Math.random() * 40 + 30,
-      });
-    }
-
-    for (let i = this.sunSparkles.length - 1; i >= 0; i--) {
-      const sp = this.sunSparkles[i];
-      sp.life++;
-      const progress = sp.life / sp.maxLife;
-      const spAlpha = Math.sin(progress * Math.PI); // Smooth fade in and out
-
-      if (spAlpha > 0.01) {
-        ctx.save();
-        ctx.translate(sp.x, sp.y);
-        ctx.globalAlpha = spAlpha * 0.85;
-        ctx.fillStyle = '#fffef0';
-        ctx.shadowColor = 'rgba(253, 224, 71, 0.9)';
-        ctx.shadowBlur = 10;
-
-        const r = sp.size;
-        ctx.beginPath();
-        ctx.moveTo(0, -r);
-        ctx.quadraticCurveTo(0, 0, r, 0);
-        ctx.quadraticCurveTo(0, 0, 0, r);
-        ctx.quadraticCurveTo(0, 0, -r, 0);
-        ctx.quadraticCurveTo(0, 0, 0, -r);
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-
-        ctx.restore();
-      }
-
-      if (sp.life >= sp.maxLife) {
-        this.sunSparkles.splice(i, 1);
-      }
     }
   }
 

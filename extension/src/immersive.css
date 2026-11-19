@@ -293,7 +293,7 @@ html.theme-sun {
     radial-gradient(ellipse 70% 55% at 90% 90%, rgba(204, 251, 241, 0.75) 0%, transparent 60%),
     linear-gradient(145deg, #f8fdfb 0%, #f0fcf6 35%, #f2fbf7 70%, #f0fcf9 100%);
   background-attachment: fixed;
-  color: #0f2e22;
+  color: #1e293b;
 
   --primary: #10b981;
   --primary-glow: rgba(16, 185, 129, 0.28);
@@ -309,10 +309,10 @@ html.theme-sun {
   --glass-border: rgba(16, 185, 129, 0.22);
   --glass-border-hover: rgba(5, 150, 105, 0.45);
 
-  --text-title: #064e3b;
-  --text-main: #0f2e22;
-  --text-muted: #335343;
-  --text-sub: #52796f;
+  --text-title: #0f172a;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --text-sub: #94a3b8;
 
   --card-subtle-bg: rgba(16, 185, 129, 0.04);
   --card-subtle-hover: rgba(16, 185, 129, 0.08);
@@ -321,8 +321,8 @@ html.theme-sun {
 
   --input-bg: rgba(255, 255, 255, 0.92);
   --input-border: rgba(16, 185, 129, 0.25);
-  --input-text: #064e3b;
-  --input-placeholder: #52796f;
+  --input-text: #0f172a;
+  --input-placeholder: #94a3b8;
 
   --dock-bg: rgba(255, 255, 255, 0.94);
   --dock-border: rgba(16, 185, 129, 0.25);
@@ -334,7 +334,7 @@ html.theme-sun {
   --modal-bg: #ffffff;
   --modal-border: rgba(16, 185, 129, 0.28);
   --modal-shadow: 0 25px 60px -10px rgba(16, 185, 129, 0.12), 0 0 25px rgba(5, 150, 105, 0.08);
-  --modal-backdrop: rgba(6, 78, 59, 0.35);
+  --modal-backdrop: rgba(15, 23, 42, 0.4);
 
   /* Scrollbars in Bamboo Light Theme */
   --scrollbar-track: rgba(16, 185, 129, 0.06);
@@ -3893,13 +3893,13 @@ body.theme-bamboo .date-display-chip,
 body.theme-sun .date-display-chip {
   background: rgba(16, 185, 129, 0.12);
   border-color: rgba(16, 185, 129, 0.35);
-  color: #064e3b;
+  color: var(--text-title);
 }
 body.theme-bamboo .date-display-chip:hover,
 body.theme-sun .date-display-chip:hover {
   background: rgba(16, 185, 129, 0.22);
   border-color: #059669;
-  color: #064e3b;
+  color: var(--text-title);
   box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
 }
 
@@ -3945,7 +3945,7 @@ body.theme-bamboo .btn-calendar-pill:hover,
 body.theme-sun .btn-calendar-pill:hover {
   background: rgba(16, 185, 129, 0.25);
   border-color: #059669;
-  color: #064e3b;
+  color: #047857;
 }
 
 body.theme-sakura .action-btn-sync {

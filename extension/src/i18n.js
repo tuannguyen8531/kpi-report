@@ -136,7 +136,7 @@ export const TRANSLATIONS = {
     // Report & Export Panel
     'daily.title': 'Báo cáo cuối ngày',
     'daily.hint': 'Điền tỷ lệ hoàn thành, chỉnh sửa và sao chép.',
-    'daily.include_missing': 'Kèm task thiếu thông tin',
+    'daily.include_missing': 'Kèm task chưa kế hoạch',
     'daily.include_missing_hint': 'Thêm các task chưa có ngày đến hạn (due date) hoặc thời gian ước lượng (estimate) vào kế hoạch ngày mai',
     'daily.tasks_pending': 'Chưa có dữ liệu Công việc. Bấm Làm mới tại tab Công việc rồi tạo lại báo cáo để bổ sung task cho ngày mai.',
     'daily.tasks_stale': 'Lần tải Công việc gặp lỗi; kế hoạch đang dùng dữ liệu có sẵn. Hãy làm mới Công việc rồi tạo lại báo cáo.',
@@ -322,7 +322,7 @@ export const TRANSLATIONS = {
     'tasks.status_overdue': 'Quá hạn',
     'tasks.status_ready': 'Cần làm',
     'tasks.status_upcoming': 'Sắp tới',
-    'tasks.status_missing': 'Thiếu thông tin',
+    'tasks.status_missing': 'Chưa kế hoạch',
     'tasks.due_label': 'Hạn chót',
     'tasks.no_due_date': 'Chưa có hạn',
     'tasks.estimate_label': 'Ước lượng',

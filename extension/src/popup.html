@@ -443,7 +443,7 @@
             <label class="daily-report-toggle-label" title="Thêm các task chưa có ngày đến hạn (due date) hoặc thời gian ước lượng (estimate) vào kế hoạch ngày mai" data-i18n-title="daily.include_missing_hint">
               <input type="checkbox" id="daily-report-include-missing" class="daily-report-toggle-checkbox" checked>
               <span class="daily-report-toggle-switch" aria-hidden="true"></span>
-              <span class="daily-report-toggle-text" data-i18n="daily.include_missing">Kèm task thiếu thông tin</span>
+              <span class="daily-report-toggle-text" data-i18n="daily.include_missing">Kèm task chưa kế hoạch</span>
             </label>
             <button id="daily-report-generate" type="button" class="btn btn-secondary btn-sm" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon-svg" aria-hidden="true">
@@ -707,8 +707,9 @@
           <summary class="manual-summary">
             <div class="manual-summary-left">
               <span class="manual-summary-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="summary-svg">
-                  <path d="M12 5v14M5 12h14"></path>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="summary-svg">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                 </svg>
               </span>
               <strong id="manual-summary-title" class="manual-summary-text" data-i18n="manual.add">Add work outside GitLab</strong>

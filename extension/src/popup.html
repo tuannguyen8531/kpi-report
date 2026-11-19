@@ -440,6 +440,11 @@
         <div class="daily-report-actions">
           <span id="daily-report-status" class="daily-report-status" role="status"></span>
           <div class="daily-report-btn-group">
+            <label class="daily-report-toggle-label" title="Thêm các task chưa có ngày đến hạn (due date) hoặc thời gian ước lượng (estimate) vào kế hoạch ngày mai" data-i18n-title="daily.include_missing_hint">
+              <input type="checkbox" id="daily-report-include-missing" class="daily-report-toggle-checkbox" checked>
+              <span class="daily-report-toggle-switch" aria-hidden="true"></span>
+              <span class="daily-report-toggle-text" data-i18n="daily.include_missing">Kèm task thiếu thông tin</span>
+            </label>
             <button id="daily-report-generate" type="button" class="btn btn-secondary btn-sm" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon-svg" aria-hidden="true">
                 <polyline points="23 4 23 10 17 10"></polyline>

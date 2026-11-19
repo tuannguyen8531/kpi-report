@@ -2154,6 +2154,45 @@ body.theme-sun .vfx-canvas {
   gap: 8px;
 }
 
+.studio-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.2s ease;
+}
+
+.studio-toggle-label:hover {
+  color: var(--text-title, #fff);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--primary-glow);
+}
+
+.studio-toggle-label .dock-toggle-custom {
+  width: 30px;
+  height: 17px;
+  border-radius: 10px;
+}
+
+.studio-toggle-label .dock-toggle-custom::after {
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+}
+
+.studio-toggle-label .dock-checkbox:checked + .dock-toggle-custom::after {
+  transform: translateX(13px);
+}
+
 .save-status-badge {
   font-size: 11px;
   color: var(--neon-emerald);
@@ -4875,12 +4914,15 @@ body.theme-sun .btn-leave-delete:hover {
 body.theme-sakura .btn-secondary,
 body.theme-sakura .dock-btn-secondary,
 body.theme-sakura .btn-copy-action,
+body.theme-sakura .studio-toggle-label,
 body.theme-bamboo .btn-secondary,
 body.theme-bamboo .dock-btn-secondary,
 body.theme-bamboo .btn-copy-action,
+body.theme-bamboo .studio-toggle-label,
 body.theme-sun .btn-secondary,
 body.theme-sun .dock-btn-secondary,
-body.theme-sun .btn-copy-action {
+body.theme-sun .btn-copy-action,
+body.theme-sun .studio-toggle-label {
   background: rgba(0, 0, 0, 0.05);
   border-color: rgba(0, 0, 0, 0.12);
   color: var(--text-title);
@@ -4889,12 +4931,15 @@ body.theme-sun .btn-copy-action {
 body.theme-sakura .btn-secondary:hover,
 body.theme-sakura .dock-btn-secondary:hover,
 body.theme-sakura .btn-copy-action:hover,
+body.theme-sakura .studio-toggle-label:hover,
 body.theme-bamboo .btn-secondary:hover,
 body.theme-bamboo .dock-btn-secondary:hover,
 body.theme-bamboo .btn-copy-action:hover,
+body.theme-bamboo .studio-toggle-label:hover,
 body.theme-sun .btn-secondary:hover,
 body.theme-sun .dock-btn-secondary:hover,
-body.theme-sun .btn-copy-action:hover {
+body.theme-sun .btn-copy-action:hover,
+body.theme-sun .studio-toggle-label:hover {
   background: rgba(0, 0, 0, 0.09);
   color: var(--text-title);
 }

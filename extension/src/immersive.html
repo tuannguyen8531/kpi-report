@@ -374,7 +374,11 @@
           </div>
 
           <div class="studio-header-tools">
-            <span class="save-status-badge" id="report-save-status">Đã lưu tự động</span>
+            <label class="dock-toggle-label studio-toggle-label" title="Thêm các task chưa có ngày đến hạn (due date) hoặc thời gian ước lượng (estimate) vào kế hoạch ngày mai">
+              <input type="checkbox" id="chk-report-include-missing" class="dock-checkbox" checked>
+              <span class="dock-toggle-custom"></span>
+              <span class="dock-toggle-text">Kèm task thiếu thông tin</span>
+            </label>
             <button id="btn-generate-report" class="btn-neon-action" type="button" title="Tự động tạo báo cáo từ dữ liệu ngày">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
               <span>Sinh Báo Cáo</span>
@@ -390,7 +394,7 @@
           <textarea id="daily-report-editor" class="studio-textarea" placeholder="Nhấn 'Sinh Báo Cáo' để tự động tạo báo cáo theo chuẩn phong cách cá nhân..."></textarea>
           <div class="editor-footer-bar">
             <span class="editor-info" id="report-char-count">0 ký tự</span>
-            <span class="editor-hint">Nội dung được lưu tự động theo từng ngày và tài khoản</span>
+            <span class="save-status-badge" id="report-save-status">Đã lưu tự động</span>
           </div>
         </div>
       </section>

@@ -103,6 +103,28 @@ test('plans include assigned tasks without timelogs, map schedule priorities, an
   assert.ok(!medium.includes('Hỗ trợ xử lý server [HIGH]'));
 });
 
+test('dailyReport toggles inclusion of tasks missing due date or estimate', () => {
+  const items = [
+    task({iid: '1', title: 'Scheduled work', startDate: day, dueDate: '2026-11-10'}),
+    task({iid: '2', title: 'Missing due date', startDate: null, dueDate: null}),
+    task({iid: '3', title: 'Missing estimate', startDate: null, dueDate: '2026-11-20'}),
+  ];
+  const withMissing = dailyReport({date: day, logs: []}, items, {includeMissing: true});
+  assert.ok(withMissing.includes('Scheduled work [HIGH]'));
+  assert.ok(withMissing.includes('Missing due date [MEDIUM]'));
+  assert.ok(withMissing.includes('Missing estimate [MEDIUM]'));
+
+  const withoutMissing = dailyReport({date: day, logs: []}, items, {includeMissing: false});
+  assert.ok(withoutMissing.includes('Scheduled work [HIGH]'));
+  assert.ok(!withoutMissing.includes('Missing due date'));
+  assert.ok(!withoutMissing.includes('Missing estimate'));
+
+  // Default is true for backward compatibility
+  const defaultReport = dailyReport({date: day, logs: []}, items);
+  assert.ok(defaultReport.includes('Missing due date [MEDIUM]'));
+  assert.ok(defaultReport.includes('Missing estimate [MEDIUM]'));
+});
+
 test('daily editor restores per-account/day drafts, preserves edits on sync, copies exact text and handles storage/clipboard failures', async () => {
   const source = fs.readFileSync(new URL('../src/popup.js', import.meta.url), 'utf8');
   const fields = new Map(), saved = {}, toasts = [], copied = [], requests = [];

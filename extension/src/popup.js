@@ -2913,6 +2913,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
         renderOdoo();
       }).catch(console.error);
     }
+    if (changes.dailyReportIncludeMissing) {
+      const toggle = $('daily-report-include-missing');
+      if (toggle) toggle.checked = changes.dailyReportIncludeMissing.newValue !== false;
+    }
   }
 });
 
@@ -2928,7 +2932,19 @@ async function generateDailyReport(data, key, force = false) {
   const warning = tasks?.error ? t('daily.tasks_stale') : !tasks?.syncedAt ? t('daily.tasks_pending') : '';
   $('daily-report-tasks-warning').textContent = warning;
   $('daily-report-tasks-warning').hidden = !warning;
-  return dailyReport(data, tasks?.items || []);
+  let includeMissing = true;
+  try {
+    const stored = await chrome.storage.local.get('dailyReportIncludeMissing');
+    if (typeof stored?.dailyReportIncludeMissing === 'boolean') {
+      includeMissing = stored.dailyReportIncludeMissing;
+    } else {
+      const toggle = $('daily-report-include-missing');
+      if (typeof toggle?.checked === 'boolean') {
+        includeMissing = toggle.checked;
+      }
+    }
+  } catch {}
+  return dailyReport(data, tasks?.items || [], { includeMissing });
 }
 
 function setDailyReportStatus(key) {
@@ -2944,6 +2960,13 @@ async function renderDailyReport(data) {
   $('daily-report-warning').textContent = warning;
   $('daily-report-warning').hidden = !warning;
   $('daily-report-date').textContent = data.date ? fullDayLabel(data.date) : '';
+  try {
+    const storedPref = await chrome.storage.local.get('dailyReportIncludeMissing');
+    const toggle = $('daily-report-include-missing');
+    if (toggle && typeof storedPref?.dailyReportIncludeMissing === 'boolean') {
+      toggle.checked = storedPref.dailyReportIncludeMissing;
+    }
+  } catch {}
   if (key === dailyReportKey) return;
   dailyReportKey = key;
   $('daily-report-tasks-warning').hidden = true;
@@ -2988,6 +3011,33 @@ function saveDailyReport() {
 }
 
 $('daily-report-text').addEventListener('input', saveDailyReport);
+$('daily-report-include-missing')?.addEventListener('change', async (e) => {
+  const isChecked = Boolean(e?.target?.checked ?? $('daily-report-include-missing')?.checked);
+  try {
+    await chrome.storage.local.set({ dailyReportIncludeMissing: isChecked });
+  } catch {}
+  if (!snapshot?.configured || !dailyReportKey) return;
+  const key = dailyReportKey;
+  const currentVal = $('daily-report-text')?.value;
+  if (currentVal) {
+    const confirmed = typeof confirmDialog === 'function'
+      ? await confirmDialog(t('daily.replace'), {
+          title: t('confirm.title'),
+          okText: t('confirm.ok'),
+          danger: false,
+        })
+      : (typeof confirm === 'function' ? confirm(t('daily.replace')) : true);
+    if (!confirmed) return;
+  }
+  $('daily-report-generate').disabled = true;
+  $('daily-report-text').disabled = true;
+  const generated = await generateDailyReport(snapshot, key, false);
+  if (dailyReportKey !== key) return;
+  $('daily-report-generate').disabled = false;
+  $('daily-report-text').disabled = false;
+  $('daily-report-text').value = generated;
+  saveDailyReport();
+});
 $('daily-report-generate').addEventListener('click', async () => {
   const confirmed = typeof confirmDialog === 'function'
     ? await confirmDialog(t('daily.replace'), {

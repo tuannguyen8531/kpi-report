@@ -2096,8 +2096,13 @@ async function renderDailyReport(snapshot) {
   if (!editor || !snapshot) return;
 
   const key = `daily-report:${snapshot.profile}:${currentDay}`;
-  const saved = await chrome.storage.local.get(key);
+  const saved = await chrome.storage.local.get([key, 'dailyReportIncludeMissing']);
   editor.value = saved[key] || '';
+
+  const chkIncludeMissing = $('chk-report-include-missing');
+  if (chkIncludeMissing && typeof saved.dailyReportIncludeMissing === 'boolean') {
+    chkIncludeMissing.checked = saved.dailyReportIncludeMissing;
+  }
 
   if (charCount) charCount.textContent = `${editor.value.length} ký tự`;
 }
@@ -2587,6 +2592,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  const chkIncludeMissing = $('chk-report-include-missing');
+  chkIncludeMissing?.addEventListener('change', async (e) => {
+    const isChecked = Boolean(e?.target?.checked);
+    await chrome.storage.local.set({ dailyReportIncludeMissing: isChecked });
+
+    if (!currentSnapshot) return;
+    if (reportEditor?.value) {
+      const ok = await confirmDialog('Cài đặt đã thay đổi. Bạn có muốn tạo lại báo cáo theo cài đặt mới không?', {
+        title: 'Cập Nhật Báo Cáo',
+        okText: 'Tạo Lại Báo Cáo',
+        danger: false,
+      });
+      if (!ok) {
+        showToast('Đã lưu cài đặt. Bấm "Sinh Báo Cáo" khi muốn áp dụng.', 'info');
+        return;
+      }
+    }
+
+    const report = dailyReport(currentSnapshot, currentTasksSnapshot?.items || [], { includeMissing: isChecked });
+    if (reportEditor) {
+      reportEditor.value = report;
+      const key = `daily-report:${currentSnapshot.profile}:${currentDay}`;
+      await chrome.storage.local.set({ [key]: report });
+      const charCount = $('report-char-count');
+      if (charCount) charCount.textContent = `${reportEditor.value.length} ký tự`;
+      showToast('Đã cập nhật báo cáo theo cài đặt mới!', 'success');
+    }
+  });
+
   $('btn-generate-report')?.addEventListener('click', async () => {
     if (!currentSnapshot) return;
     const ok = await confirmDialog('Tạo mới báo cáo sẽ ghi đè nội dung soạn thảo hiện tại. Tiếp tục?', {
@@ -2596,11 +2630,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     if (!ok) return;
 
-    const report = dailyReport(currentSnapshot, currentTasksSnapshot?.items || []);
+    const includeMissing = chkIncludeMissing ? chkIncludeMissing.checked : true;
+    const report = dailyReport(currentSnapshot, currentTasksSnapshot?.items || [], { includeMissing });
     if (reportEditor) {
       reportEditor.value = report;
       const key = `daily-report:${currentSnapshot.profile}:${currentDay}`;
       await chrome.storage.local.set({ [key]: report });
+      const charCount = $('report-char-count');
+      if (charCount) charCount.textContent = `${reportEditor.value.length} ký tự`;
       showToast('Đã sinh báo cáo ngày thành công!', 'success');
     }
   });
@@ -2707,6 +2744,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? 'Đã bật: Nhấn icon tiện ích sẽ mở Màn hình rộng'
         : 'Đã tắt: Nhấn icon tiện ích sẽ mở Popup Cổ điển',
         'info');
+    });
+  }
+
+  if (chrome?.storage?.onChanged?.addListener) {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.dailyReportIncludeMissing) {
+        const chk = $('chk-report-include-missing');
+        if (chk) chk.checked = changes.dailyReportIncludeMissing.newValue !== false;
+      }
     });
   }
 

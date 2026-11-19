@@ -51,7 +51,8 @@ export function normalizePersonalTasks(items, config) {
 }
 
 // Percent complete is entered by the user; logged hours cannot establish progress.
-export function dailyReport(snapshot, personalTasks = []) {
+export function dailyReport(snapshot, personalTasks = [], options = {}) {
+  const includeMissing = typeof options === 'boolean' ? options : (options?.includeMissing !== false);
   parseDay(snapshot.date);
   const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
   const groups = new Map();
@@ -79,6 +80,7 @@ export function dailyReport(snapshot, personalTasks = []) {
   }
   for (const task of selectPersonalTasks(personalTasks, snapshot.date)) {
     const status = taskStatus(task, snapshot.date);
+    if (!includeMissing && status === 'missing') continue;
     const key = workProjectKey(task);
     if (!planned.has(key)) planned.set(key, {name: projectName(task.project), path: task.projectPath, tasks: new Map()});
     planned.get(key).tasks.set(JSON.stringify(['TASK', String(task.iid)]), {

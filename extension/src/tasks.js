@@ -1,7 +1,7 @@
 import {addDays, parseDay, projectName, workProjectKey} from './core.js';
 export const PERSONAL_TASKS_QUERY = `query PersonalTasks($username: String!, $after: String) {
   issues(assigneeUsernames: [$username], state: opened, types: [TASK], first: 100, after: $after) {
-    nodes { id iid title webUrl type state dueDate timeEstimate reference(full: true) }
+    nodes { id iid title webUrl type state dueDate timeEstimate totalTimeSpent reference(full: true) }
     pageInfo { hasNextPage endCursor }
   }
 }`;
@@ -41,10 +41,11 @@ export function normalizePersonalTasks(items, config) {
     const dueDate=item.dueDate ? item.dueDate.slice(0,10) : null;
     if (dueDate) parseDay(dueDate);
     const estimateSeconds=Number.isFinite(item.timeEstimate)&&item.timeEstimate>0 ? item.timeEstimate:null;
+    const spentSeconds=Number.isFinite(item.totalTimeSpent)&&item.totalTimeSpent>0 ? item.totalTimeSpent:null;
     const url=new URL(item.webUrl,config.url);
     result.set(item.id,{id:item.id,iid:String(item.iid),title:String(item.title||''),project:projects.get(path)||path,projectPath:path,
       url:url.origin===new URL(config.url).origin && ['http:','https:'].includes(url.protocol)?url.href:null,
-      dueDate,estimateSeconds,startDate:suggestedStart(dueDate,estimateSeconds)});
+      dueDate,estimateSeconds,spentSeconds,startDate:suggestedStart(dueDate,estimateSeconds)});
   }
   return [...result.values()];
 }

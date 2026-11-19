@@ -70,6 +70,28 @@ const THEME_ALIASES = {
   sun: 'bamboo'
 };
 
+const THEME_ICONS = {
+  sakura: '../assets/icon-sakura.svg',
+  bamboo: '../assets/icon-bamboo.svg',
+  sun: '../assets/icon-bamboo.svg',
+  aurora: '../assets/icon-aurora.svg',
+  cyber: '../assets/icon-v2.svg',
+  rain: '../assets/icon-v2.svg',
+  off: '../assets/icon-v2.svg',
+};
+
+function updateThemeIcons(theme) {
+  const targetIcon = THEME_ICONS[theme] || '../assets/icon-v2.svg';
+  const logo = document.querySelector('.brand-logo');
+  if (logo && logo.getAttribute('src') !== targetIcon) {
+    logo.src = targetIcon;
+  }
+  const favicon = document.querySelector('link[rel="icon"]');
+  if (favicon && favicon.getAttribute('href') !== targetIcon) {
+    favicon.href = targetIcon;
+  }
+}
+
 class VFXEngine {
   constructor(canvas) {
     this.canvas = canvas;
@@ -108,6 +130,8 @@ class VFXEngine {
     const resolvedTheme = THEME_ALIASES[theme] || theme;
     this.theme = resolvedTheme;
     document.body.className = `theme-${resolvedTheme}`;
+    document.documentElement.className = `theme-${resolvedTheme}`;
+    updateThemeIcons(resolvedTheme);
     document.querySelectorAll('.vfx-btn').forEach(btn => {
       const btnTheme = btn.dataset.theme;
       const isActive = btnTheme === resolvedTheme || btnTheme === theme;
@@ -129,21 +153,34 @@ class VFXEngine {
   initParticles() {
     this.particles = [];
     if (this.theme === 'sakura') {
-      const count = Math.min(50, Math.floor(this.width / 28));
+      const count = Math.min(48, Math.floor(this.width / 30));
+      const sakuraPairs = [
+        { base: '#d85878', tip: '#f99bb2', stroke: 'rgba(216, 88, 120, 0.4)' },
+        { base: '#e06485', tip: '#fca5b9', stroke: 'rgba(224, 100, 133, 0.4)' },
+        { base: '#ce4d6e', tip: '#f68ca5', stroke: 'rgba(206, 77, 110, 0.4)' },
+        { base: '#e47190', tip: '#fdb5c5', stroke: 'rgba(228, 113, 144, 0.4)' },
+        { base: '#da5f7f', tip: '#fda4ba', stroke: 'rgba(218, 95, 127, 0.4)' },
+        { base: '#ea7594', tip: '#fecdd6', stroke: 'rgba(234, 117, 148, 0.4)' },
+        { base: '#d45273', tip: '#f894ab', stroke: 'rgba(212, 82, 115, 0.4)' },
+      ];
       for (let i = 0; i < count; i++) {
         const isNear = Math.random() > 0.65; // Foreground depth layer
+        const pair = sakuraPairs[Math.floor(Math.random() * sakuraPairs.length)];
         this.particles.push({
           x: Math.random() * this.width,
           y: Math.random() * this.height,
-          size: isNear ? (Math.random() * 5 + 11) : (Math.random() * 4 + 7),
-          speedY: isNear ? (Math.random() * 0.9 + 1.0) : (Math.random() * 0.7 + 0.6),
-          speedX: isNear ? (Math.random() * 1.3 + 0.7) : (Math.random() * 0.9 + 0.4),
+          size: isNear ? (Math.random() * 4 + 11) : (Math.random() * 3 + 7.5),
+          speedY: isNear ? (Math.random() * 0.7 + 0.8) : (Math.random() * 0.5 + 0.5),
+          speedX: isNear ? (Math.random() * 1.1 + 0.5) : (Math.random() * 0.7 + 0.3),
           angle: Math.random() * Math.PI * 2,
-          angularSpeed: (Math.random() - 0.5) * 0.025,
+          angularSpeed: (Math.random() - 0.5) * 0.02,
           flip: Math.random() * Math.PI,
-          flipSpeed: Math.random() * 0.025 + 0.01,
-          opacity: isNear ? (Math.random() * 0.25 + 0.65) : (Math.random() * 0.25 + 0.45),
-          color: Math.random() > 0.45 ? '#fbcfe8' : '#f472b6',
+          flipSpeed: Math.random() * 0.02 + 0.008,
+          opacity: isNear ? (Math.random() * 0.18 + 0.78) : (Math.random() * 0.18 + 0.58),
+          color: pair.base,
+          baseColor: pair.base,
+          tipColor: pair.tip,
+          strokeColor: pair.stroke,
           isNear,
         });
       }
@@ -260,9 +297,9 @@ class VFXEngine {
       ctx.globalAlpha = p.opacity;
 
       // Soft shadow for foreground floating illusion
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
-      ctx.shadowBlur = p.isNear ? 5 : 2.5;
-      ctx.shadowOffsetY = p.isNear ? 2.5 : 1;
+      ctx.shadowColor = 'rgba(180, 50, 85, 0.22)';
+      ctx.shadowBlur = p.isNear ? 4.5 : 2.5;
+      ctx.shadowOffsetY = p.isNear ? 2 : 1;
 
       // Natural cherry blossom petal silhouette with notch
       const s = p.size;
@@ -273,8 +310,18 @@ class VFXEngine {
       ctx.bezierCurveTo(s * 0.7, -s * 0.6, s * 0.7, s * 0.3, 0, s * 0.8);
       ctx.closePath();
 
-      ctx.fillStyle = p.color;
+      // Dual-tone blossom gradient: deeper petal base to soft blooming rose tip
+      const grad = ctx.createLinearGradient(0, s * 0.8, 0, -s * 0.8);
+      grad.addColorStop(0, p.baseColor || p.color);
+      grad.addColorStop(1, p.tipColor || p.color);
+      ctx.fillStyle = grad;
       ctx.fill();
+
+      // Delicate blossom petal edge definition
+      ctx.strokeStyle = p.strokeColor || 'rgba(216, 88, 120, 0.35)';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+
       ctx.restore();
     }
   }
@@ -945,13 +992,29 @@ function confirmDialog(message, {
       modal.hidden = true;
       okBtn?.removeEventListener('click', onOk);
       cancelBtn?.removeEventListener('click', onCancel);
+      document.removeEventListener('keydown', onKeyDown);
+      modal.removeEventListener('click', onBackdropClick);
     };
 
     const onOk = () => { cleanup(); resolve(true); };
     const onCancel = () => { cleanup(); resolve(false); };
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        cleanup();
+        resolve(false);
+      }
+    };
+    const onBackdropClick = (e) => {
+      if (e.target === modal) {
+        cleanup();
+        resolve(false);
+      }
+    };
 
     okBtn?.addEventListener('click', onOk);
     cancelBtn?.addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKeyDown);
+    modal.addEventListener('click', onBackdropClick);
   });
 }
 
@@ -1577,7 +1640,12 @@ async function renderLeaves() {
     deleteBtn.textContent = '🗑️ Xóa';
     deleteBtn.title = 'Xóa ngày nghỉ này';
     deleteBtn.addEventListener('click', async () => {
-      if (!confirm(`Bạn có chắc muốn xóa lịch nghỉ ngày ${formatDDMMYYYY(entry.day)} (${entry.hours}h)?`)) return;
+      const ok = await confirmDialog(`Bạn có chắc muốn xóa lịch nghỉ ngày ${formatDDMMYYYY(entry.day)} (${entry.hours}h)?`, {
+        title: 'Xóa Lịch Nghỉ Phép',
+        okText: 'Xóa Ngày Nghỉ',
+        danger: true,
+      });
+      if (!ok) return;
       try {
         await send({ type: 'leave.delete', id: entry.id });
         if (editingLeaveId === entry.id) resetLeaveForm();
@@ -1676,6 +1744,88 @@ function calculateDisplayPercentages(rows) {
   return items.map(item => item.floor);
 }
 
+// Helpers for Card 5: Project Issues URL & Safe Opener
+function getGitlabBaseUrl(snapshot) {
+  if (currentSettings?.config?.url) {
+    return currentSettings.config.url;
+  }
+  const profile = snapshot?.profile || currentSnapshot?.profile;
+  if (profile && typeof profile === 'string' && profile.includes('|')) {
+    const candidate = profile.split('|')[0];
+    if (/^https?:\/\//i.test(candidate)) return candidate;
+  }
+  const sampleLog = (snapshot?.logs || currentSnapshot?.logs || []).find(l => l?.url && /^https?:\/\//i.test(l.url));
+  if (sampleLog?.url) {
+    try {
+      return new URL(sampleLog.url).origin;
+    } catch {}
+  }
+  const sampleTask = (currentTasksSnapshot?.items || []).find(t => t?.url && /^https?:\/\//i.test(t.url));
+  if (sampleTask?.url) {
+    try {
+      return new URL(sampleTask.url).origin;
+    } catch {}
+  }
+  return null;
+}
+
+function getProjectIssuesUrl(row, snapshot) {
+  if (!row || row.manual) return null;
+
+  // 1. Direct derivation from matching timelog URL if available
+  const logs = snapshot?.logs || currentSnapshot?.logs || [];
+  const logForProject = logs.find(
+    l => l?.url && /^https?:\/\//i.test(l.url) && (
+      (row.projectPath && l.projectPath === row.projectPath) ||
+      (row.project && l.project === row.project)
+    )
+  );
+  if (logForProject?.url) {
+    const derived = logForProject.url.replace(/\/-?\/(issues|merge_requests)\/\d+.*$/, '/-/issues');
+    if (derived && derived !== logForProject.url) return derived;
+  }
+
+  // 2. Direct derivation from matching personal task URL if available
+  const tasks = currentTasksSnapshot?.items || [];
+  const taskForProject = tasks.find(
+    t => t?.url && /^https?:\/\//i.test(t.url) && (
+      (row.projectPath && t.projectPath === row.projectPath) ||
+      (row.project && t.project === row.project)
+    )
+  );
+  if (taskForProject?.url) {
+    const derived = taskForProject.url.replace(/\/-?\/(issues|merge_requests)\/\d+.*$/, '/-/issues');
+    if (derived && derived !== taskForProject.url) return derived;
+  }
+
+  // 3. Fallback: Construct from projectPath + baseUrl
+  let path = row.projectPath;
+  if (!path && typeof row.project === 'string') {
+    const match = row.project.match(/\(([^()]*\/[^()]*)\)$/);
+    if (match) path = match[1];
+  }
+  if (!path && typeof row.key === 'string' && row.key.startsWith('project:')) {
+    path = row.key.slice('project:'.length);
+  }
+  if (!path) return null;
+
+  const baseUrl = getGitlabBaseUrl(snapshot);
+  if (!baseUrl) return null;
+
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '');
+  return `${cleanBase}/${cleanPath}/-/issues`;
+}
+
+function openIssuesUrl(url) {
+  if (!url) return;
+  if (typeof chrome !== 'undefined' && chrome?.tabs?.create) {
+    chrome.tabs.create({ url });
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
 // Render Card 5: Time Allocation
 function renderAllocation(snapshot) {
   const stackedBar = $('allocation-stacked-bar');
@@ -1709,6 +1859,8 @@ function renderAllocation(snapshot) {
   allocation.rows.forEach((row, i) => {
     const color = colors[i % colors.length];
     const percent = displayPercents[i] ?? Math.round((row.share || 0) * 100);
+    const pName = projectName(row.project);
+    const issuesUrl = getProjectIssuesUrl(row, snapshot);
 
     // Segment in top stacked bar (uses flex-grow so segments always fill 100% flush)
     if (row.hours > 0) {
@@ -1717,17 +1869,45 @@ function renderAllocation(snapshot) {
       seg.style.flex = `${row.hours} 0 0%`;
       seg.style.width = `${((row.share || 0) * 100).toFixed(2)}%`;
       seg.style.background = color;
-      seg.title = `${projectName(row.project)}: ${row.hours.toFixed(1)}h (${percent}%)`;
+      if (issuesUrl) {
+        seg.classList.add('is-clickable');
+        seg.title = `${pName}: ${row.hours.toFixed(1)}h (${percent}%)\nNhấn để mở danh sách Issues trên GitLab`;
+        seg.addEventListener('click', (e) => {
+          e.preventDefault();
+          openIssuesUrl(issuesUrl);
+        });
+      } else {
+        seg.title = `${pName}: ${row.hours.toFixed(1)}h (${percent}%)`;
+      }
       stackedBar.appendChild(seg);
     }
 
-    // Row in project list
-    const item = document.createElement('div');
+    // Row in project list: anchor if issuesUrl exists, else div
+    const item = document.createElement(issuesUrl ? 'a' : 'div');
     item.className = 'project-row-item';
+    if (issuesUrl) {
+      item.href = issuesUrl;
+      item.target = '_blank';
+      item.rel = 'noopener noreferrer';
+      item.classList.add('is-clickable');
+      item.title = `Mở danh sách Issues của ${pName} trên GitLab\n${issuesUrl}`;
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        openIssuesUrl(issuesUrl);
+      });
+    } else {
+      item.title = row.manual ? `${pName}: Ghi nhận công việc ngoài hệ thống` : row.project;
+    }
+
+    const externalIconHtml = issuesUrl
+      ? `<svg class="project-external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`
+      : (row.manual ? `<span class="project-manual-chip">Việc ngoài</span>` : '');
+
     item.innerHTML = `
       <div class="project-item-left">
         <span class="project-color-badge" style="background: ${color}"></span>
-        <span class="project-name-label" title="${row.project}">${projectName(row.project)}</span>
+        <span class="project-name-label" title="${escapeHtml(row.project)}">${escapeHtml(pName)}</span>
+        ${externalIconHtml}
       </div>
       <div class="project-item-right">
         <span class="project-hours-badge">${row.hours.toFixed(1)}h</span>

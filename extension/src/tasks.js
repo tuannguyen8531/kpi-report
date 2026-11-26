@@ -36,7 +36,6 @@ export function normalizePersonalTasks(items, config) {
     if (item?.type!=='TASK' || item.state!=='opened') continue;
     const path=typeof item.reference === 'string' ? item.reference.replace(/#\d+$/, '') : null;
     if (!path || path === item.reference) throw new Error('GitLab returned a Task without a full project reference.');
-    if (projects.size && !projects.has(path)) continue;
     if (!item.id || !item.iid || !path) throw new Error('Incomplete GitLab Task.');
     const dueDate=item.dueDate ? item.dueDate.slice(0,10) : null;
     if (dueDate) parseDay(dueDate);

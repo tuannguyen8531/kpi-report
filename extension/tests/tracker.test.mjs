@@ -71,11 +71,12 @@ test('Vietnam dates, Monday weeks, leap month and exclusive date boundaries', ()
     log('first', '2026-09-30T17:00:00Z'),
   ];
   const rows = normalizeLogs(inputs, config, 'me', '2026-10-01', '2026-11-01');
-  assert.equal(rows.length, 3);
+  assert.equal(rows.length, 4);
+  assert.equal(rows.find((row) => row.id === 'outside')?.project, 'outside/project');
   const snapshot = makeSnapshot('2026-10-01', {logs: rows, syncedAt: new Date().toISOString()}, [{day: '2026-10-01', hours: 4, reason: 'Leave'}]);
-  assert.equal(snapshot.day.hours, 0.5);
-  assert.equal(snapshot.week.hours, 0.5);
-  assert.equal(snapshot.month.hours, 2.5);
+  assert.equal(snapshot.day.hours, 1.5);
+  assert.equal(snapshot.week.hours, 1.5);
+  assert.equal(snapshot.month.hours, 3.5);
   assert.equal(makeSnapshot('2026-10-01', null, []).month.hours, null);
   const crossWeekLogs = [
     {id: 'sep', date: '2026-09-29', project: 'Project A', task: '1', type: 'TASK', hours: 3, title: 'Sep task'},
@@ -1424,10 +1425,46 @@ test('automatic project discovery accepts empty filters and keeps same-name proj
   assert.deepEqual(rows.map((row) => row.project), ['Shared (team-a/app)', 'Shared (team-b/app)', 'team-c/app']);
   assert.deepEqual(rows.map((row) => row.projectPath), ['team-a/app', 'team-b/app', 'team-c/app']);
   assert.equal(rows[2].hours, -0.5);
-  const filtered = normalizeLogs(inputs, {...config, projects: [{project: 'Custom', url: 'team-b/app'}]}, 'me', day, '2026-11-01');
-  assert.equal(filtered.length, 1);
-  assert.equal(filtered[0].project, 'Custom');
+  const renamed = normalizeLogs(inputs, {...config, projects: [{project: 'Custom', url: 'team-b/app'}]}, 'me', day, '2026-11-01');
+  assert.equal(renamed.length, 3);
+  assert.deepEqual(renamed.map((row) => row.project), ['Shared (team-a/app)', 'Custom', 'team-c/app']);
   assert.throws(() => normalizeLogs([log('missing', '2026-10-01T01:00:00Z', 3600, {project: null})], {...config, projects: []}, 'me', day, '2026-11-01'));
+});
+
+test('projects.json only renames matching projects while keeping and enriching unconfigured projects', async () => {
+  const logs = [
+    log('a', '2026-10-01T01:00:00Z', 3600, {project: {name: 'Alpha', fullPath: 'team-a/app'}}),
+    log('b', '2026-10-01T01:00:00Z', 7200, {project: {name: 'Beta', fullPath: 'team-b/app'}, issue: null,
+      mergeRequest: {iid: 12, title: 'Merge request', webUrl: 'https://gitlab.example.com/team-b/app/-/merge_requests/12'}}),
+  ];
+  replyPages.push(page(logs));
+  const snapshot = await handleMessage({
+    type: 'connect',
+    config: {url: config.url, projects: [{project: 'Alpha Alias', url: 'team-a/app'}]},
+    token: 'test-token',
+    day,
+  });
+  assert.equal(snapshot.month.hours, 3);
+  assert.deepEqual(snapshot.logs.map((row) => row.project), ['Alpha Alias', 'Beta (team-b/app)']);
+  replyPages.push(page(logs));
+  const report = await handleMessage({type: 'export_excel_data', day});
+  assert.deepEqual(report.projectBlocks.map((block) => block.project), ['Alpha Alias', 'Beta (team-b/app)']);
+  assert.equal(report.projectBlocks[0].tasks[0].Url, 'https://gitlab.example.com/team-a/app/-/work_items/12');
+  assert.equal(report.projectBlocks[1].tasks[0].Url, 'https://gitlab.example.com/team-b/app/-/merge_requests/12');
+  assert.equal(report.projectBlocks[1].tasks[0].Estimate, '2.00');
+
+  const taskItems = [
+    {id: 't1', iid: '1', type: 'TASK', state: 'opened', title: 'Mapped', reference: 'team-a/app#1', webUrl: `${config.url}/team-a/app/-/work_items/1`},
+    {id: 't2', iid: '2', type: 'TASK', state: 'opened', title: 'Unmapped', reference: 'team-c/extra#2', webUrl: `${config.url}/team-c/extra/-/work_items/2`},
+  ];
+  replyPages.push(
+    {data: {issues: {nodes: taskItems, pageInfo: {hasNextPage: false, endCursor: null}}}},
+    {data: {projects: {nodes: [{fullPath: 'team-c/extra', name: 'Extra Project'}]}}},
+  );
+  const taskResult = await handleMessage({type: 'tasks.snapshot', force: true});
+  assert.equal(taskResult.error, null);
+  assert.deepEqual(taskResult.items.map((item) => item.project), ['Alpha Alias', 'Extra Project']);
+  assert.deepEqual(fetches.at(-1).variables.paths, ['team-c/extra']);
 });
 
 test('connecting without a project file exports discovered projects with correct enrichment and links', async () => {
@@ -1902,7 +1939,7 @@ test('sync excludes Issues and unknown types from totals, CSV and Excel data', a
   assert.ok(csv.includes('"12","TASK","2"'));
   assert.ok(fetches.at(-1).query.includes('state type'));
   assert.ok(!fetches.at(-1).query.includes('timeEstimate'));
-  assert.equal(fetches.at(-1).variables.includeProjectName, false);
+  assert.equal(fetches.at(-1).variables.includeProjectName, true);
   replyPages.push(page(inputs));
   const report = await handleMessage({type: 'export_excel_data', day});
   assert.equal(report.projectBlocks[0].tasks.length, 1);

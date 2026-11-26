@@ -24,7 +24,9 @@ test('Issue query uses supported full references for nested projects',()=>{
   const [task]=normalizePersonalTasks([item],config);
   assert.equal(task.projectPath,'group/sub/project');
   assert.equal(task.project,'Custom');
-  assert.deepEqual(normalizePersonalTasks([item],{...config,projects:[{url:'other/project',project:'Other'}]}),[]);
+  const [unmapped]=normalizePersonalTasks([item],{...config,projects:[{url:'other/project',project:'Other'}]});
+  assert.equal(unmapped.projectPath,'group/sub/project');
+  assert.equal(unmapped.project,'group/sub/project');
 });
 
 const day = '2026-11-06';

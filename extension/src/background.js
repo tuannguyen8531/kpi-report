@@ -324,7 +324,9 @@ export async function refreshPersonalTasks(force = false) {
         cursors.add(after);
       }
       const tasks=normalizePersonalTasks(items,config);
-      if (!config.projects?.length) {
+      const configuredPaths=new Set((config.projects||[]).map(p=>p.url));
+      const unconfiguredTasks=tasks.filter(task=>!configuredPaths.has(task.projectPath));
+      if (unconfiguredTasks.length) {
         const {profiles}=await chrome.storage.local.get('profiles');
         const names=new Map();
         const timelogCaches=Object.values(profiles?.[config.profile]?.caches || {})
@@ -337,7 +339,7 @@ export async function refreshPersonalTasks(force = false) {
             }
           }
         }
-        const paths=[...new Set(tasks.map(task=>task.projectPath))].filter(path=>!names.has(path));
+        const paths=[...new Set(unconfiguredTasks.map(task=>task.projectPath))].filter(path=>!names.has(path));
         // GitLab accepts at most 50 full paths per projects query.
         for (let offset=0; offset<paths.length; offset+=50) {
           const {projects}=await request(config,token,TASK_PROJECTS_QUERY,{paths:paths.slice(offset,offset+50)});
@@ -346,7 +348,7 @@ export async function refreshPersonalTasks(force = false) {
             if (typeof project?.name==='string' && project.name.trim()) names.set(project.fullPath,project.name.trim());
           }
         }
-        for (const task of tasks) {
+        for (const task of unconfiguredTasks) {
           if (!names.has(task.projectPath)) throw new Error(`GitLab did not return a name for project ${task.projectPath}.`);
           task.project=names.get(task.projectPath);
         }
@@ -378,7 +380,7 @@ async function synchronize(day, force = false) {
         const data = await request(config, token, TIMELOG_QUERY, {
           username: config.username, start: new Date(`${range.start}T00:00:00`).toISOString(),
           end: new Date(`${range.end}T00:00:00`).toISOString(), after,
-          includeProjectName: !config.projects?.length,
+          includeProjectName: true,
         });
         const connection = data.timelogs;
         if (!Array.isArray(connection?.nodes) || !connection.pageInfo) throw new Error('GitLab returned an incomplete timelog list.');
@@ -680,10 +682,14 @@ export async function handleMessage(message) {
       const groupedTasks = processProjectData(snapshot.logs);
       const offEntries = processOffData(snapshot.leaves);
 
-      // Reuse the report generator's project mapping, discovered from this month's logs.
-      const reportConfig = {...config, projects: config.projects?.length ? config.projects :
-        [...new Map(snapshot.logs.filter(log => log.type !== 'MANUAL').map((log) => [log.projectPath, {project: log.project, url: log.projectPath}])).values()]
-          .sort((a, b) => a.url.localeCompare(b.url))};
+      // Merge configured project renames with any additional projects discovered from this month's logs.
+      const configuredPaths = new Set((config.projects || []).map((p) => p.url));
+      const discoveredProjects = [...new Map(
+        snapshot.logs
+          .filter((log) => log.type !== 'MANUAL' && log.projectPath && !configuredPaths.has(log.projectPath))
+          .map((log) => [log.projectPath, {project: log.project, url: log.projectPath}])
+      ).values()].sort((a, b) => a.url.localeCompare(b.url));
+      const reportConfig = {...config, projects: [...(config.projects || []), ...discoveredProjects]};
       const enrichmentMap = await enrichTasks(request, reportConfig, token, groupedTasks);
       const { projectBlocks, stats } = buildProjectData(groupedTasks, enrichmentMap, reportConfig);
 

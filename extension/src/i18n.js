@@ -32,7 +32,7 @@ export const TRANSLATIONS = {
     'onboarding.remember_hint': 'Lưu token cục bộ để không phải nhập lại sau khi khởi động lại trình duyệt.',
     'onboarding.projects_label': 'Danh sách dự án (JSON)',
     'onboarding.choose_file': 'Chọn file projects.json',
-    'onboarding.projects_hint': 'Để trống để tự động nhận diện dự án từ timelog trên GitLab.',
+    'onboarding.projects_hint': 'Tùy chọn: chỉ dùng để đặt lại tên hiển thị cho dự án; các dự án khác vẫn tự động lấy từ GitLab.',
     'onboarding.submit': 'Bắt đầu theo dõi',
 
     // Navigation Tabs
@@ -377,7 +377,7 @@ export const TRANSLATIONS = {
     'onboarding.remember_hint': 'Save token locally to avoid re-entering after restarting the browser.',
     'onboarding.projects_label': 'Projects (JSON)',
     'onboarding.choose_file': 'Choose projects.json',
-    'onboarding.projects_hint': 'Leave blank to automatically discover projects from timelogs.',
+    'onboarding.projects_hint': 'Optional: renames matching projects only; all other GitLab projects are still discovered automatically.',
     'onboarding.submit': 'Start Tracking',
 
     // Navigation Tabs

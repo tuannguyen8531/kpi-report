@@ -118,7 +118,6 @@ export function normalizeLogs(logs, config, username, start, end) {
   for (const log of logs) {
     if (log.user?.username !== username) continue;
     const projectPath = log.project?.fullPath;
-    if (projects.size && !projects.has(projectPath)) continue;
     if (typeof projectPath !== 'string' || !projectPath.trim()) {
       throw new Error('GitLab returned a timelog without a project path.');
     }
